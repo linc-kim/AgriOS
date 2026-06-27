@@ -10,6 +10,7 @@
  *   5. Quick action buttons
  */
 
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -18,6 +19,7 @@ import { getFinanceDashboard } from "@/api/finance";
 import { queryKeys } from "@/lib/queryClient";
 import { Spinner } from "@/components/ui/Spinner";
 import type { FlockPnLCard, ExpenseSummaryItem, RevenueSummaryItem } from "@/types";
+import apiClient from "@/api/client";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -234,6 +236,90 @@ function RecentRevenueRow({ item }: { item: RevenueSummaryItem }) {
   );
 }
 
+// ── Export Data Card ──────────────────────────────────────────────────────────
+
+function ExportDataCard({ farmId }: { farmId: string }) {
+  const { t } = useTranslation();
+  const [loading, setLoading] = useState<"pdf" | "excel" | "csv" | null>(null);
+
+  async function triggerDownload(format: "pdf" | "excel" | "csv") {
+    setLoading(format);
+    try {
+      const mimeTypes: Record<string, string> = {
+        pdf: "application/pdf",
+        excel: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        csv: "text/csv",
+      };
+      const extensions: Record<string, string> = {
+        pdf: "pdf",
+        excel: "xlsx",
+        csv: "csv",
+      };
+
+      // Use apiClient so the Axios interceptor injects the JWT automatically
+      const response = await apiClient.get(
+        `/farms/${farmId}/export/${format}`,
+        { responseType: "blob" },
+      );
+
+      const blob = new Blob([response.data], { type: mimeTypes[format] });
+      const url = URL.createObjectURL(blob);
+      const ts = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `AGRIOS_Report_${ts}.${extensions[format]}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export error", err);
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  const buttons: { key: "pdf" | "excel" | "csv"; icon: string; label: string; color: string }[] = [
+    { key: "pdf",   icon: "📄", label: "PDF",   color: "bg-red-50 text-red-700 border-red-100" },
+    { key: "excel", icon: "📊", label: "Excel", color: "bg-green-50 text-green-700 border-green-100" },
+    { key: "csv",   icon: "📋", label: "CSV",   color: "bg-blue-50 text-blue-700 border-blue-100" },
+  ];
+
+  return (
+    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-lg">⬇️</span>
+        <div>
+          <p className="text-sm font-semibold text-gray-900">
+            {t("finance.export.title", "Download Your Data")}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {t("finance.export.subtitle", "Your data belongs to you — take it anywhere")}
+          </p>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {buttons.map(({ key, icon, label, color }) => (
+          <button
+            key={key}
+            onClick={() => triggerDownload(key)}
+            disabled={loading !== null}
+            className={`flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl border text-xs font-semibold
+              ${color} active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {loading === key ? (
+              <span className="animate-spin text-base">⏳</span>
+            ) : (
+              <span className="text-base">{icon}</span>
+            )}
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function FinanceDashboardScreen() {
@@ -349,7 +435,10 @@ export default function FinanceDashboardScreen() {
           </div>
         )}
 
-        {/* Zone 5 — Recent Transactions */}
+        {/* Zone 5 — Export Data */}
+        <ExportDataCard farmId={farmId!} />
+
+        {/* Zone 6 — Recent Transactions */}
         {(data.recent_expenses.length > 0 || data.recent_revenue.length > 0) && (
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-2">

@@ -9,6 +9,7 @@ Sprint 5: Finance module (expenses, revenue, snapshots, calculators) added.
 Sprint 6: ARIA AI module (conversations, insights, recommendations, usage) added.
 Sprint 7: Platform layer (notifications, market prices) added.
 Sprint 8: Admin module (platform stats, user/farm management, AI usage) added.
+Sprint 11: Farm Data Export System (PDF, Excel, CSV) added.
 """
 
 from fastapi import APIRouter
@@ -16,6 +17,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import auth, farms, flocks, health, finance, aria
 from app.api.v1.endpoints import notifications, market
 from app.api.v1.endpoints import admin
+from app.api.v1.endpoints import exports
 
 api_router = APIRouter()
 
@@ -43,3 +45,6 @@ api_router.include_router(market.router)
 
 # ── Sprint 8 (Admin Module) ───────────────────────────────────────────────────
 api_router.include_router(admin.router)
+
+# ── Sprint 11 (Farm Data Export) ─────────────────────────────────────────────
+api_router.include_router(exports.router)

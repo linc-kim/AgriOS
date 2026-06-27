@@ -1,25 +1,19 @@
 # ─────────────────────────────────────────────────────────────────
-# AGRIOS — Railway Deployment Configuration
-# Backend: FastAPI + Uvicorn on Railway
-# AD-07 (Frozen): Railway hosts the backend API
+# AGRIOS — Root railway.toml
+# NOTE: In Railway, set Root Directory = backend
+# The canonical build + deploy config lives in backend/railway.toml.
+# This file is kept at the repo root for reference only.
 # ─────────────────────────────────────────────────────────────────
 
 [build]
-# Nixpacks auto-detects Python from requirements.txt.
-# Override build command to install production deps only.
-builder = "nixpacks"
-buildCommand = "pip install -r requirements.txt"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 
 [deploy]
-# Uvicorn with 2 workers in production.
-# Workers = (2 × CPU cores) + 1 is recommended; Railway Starter has 1 vCPU.
-startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2"
-restartPolicyType = "on_failure"
+# DATABASE_URL is normalised to postgresql+asyncpg:// by config.py.
+# Migrations run before the server starts on every deploy.
+startCommand = "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2"
+healthcheckPath = "/health"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
-
-[deploy.healthcheck]
-# Railway hits this path after every deployment.
-# Must return HTTP 200 within the timeout or the deploy is rolled back.
-path = "/health"
-timeoutSeconds = 30
-intervalSeconds = 10
