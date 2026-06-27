@@ -1,0 +1,75 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AGRIOS Local Development Environment
+# Usage: docker compose up -d
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: agrios_db
+    environment:
+      POSTGRES_USER: agrios
+      POSTGRES_PASSWORD: agrios_dev
+      POSTGRES_DB: agrios
+    volumes:
+      - agrios_db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agrios -d agrios"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Test Database ────────────────────────────────────────────────────────────
+  db_test:
+    image: postgres:16-alpine
+    container_name: agrios_db_test
+    environment:
+      POSTGRES_USER: agrios
+      POSTGRES_PASSWORD: agrios_dev
+      POSTGRES_DB: agrios_test
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data   # In-memory for fast test runs
+
+  # ── Redis (for future background job queue — Sprint 10+) ────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: agrios_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend API ──────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: agrios_backend
+    environment:
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql+asyncpg://agrios:agrios_dev@db:5432/agrios
+      SECRET_KEY: dev_secret_key_not_for_production
+      JWT_SECRET: dev_jwt_secret_not_for_production
+      AT_ENVIRONMENT: sandbox
+      TZ: Africa/Nairobi
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ../backend:/app   # Hot reload in development
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  agrios_db_data:

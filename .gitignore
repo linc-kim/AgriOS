@@ -1,0 +1,59 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# AGRIOS — Git Ignore
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Environment files — NEVER commit
+.env
+.env.local
+.env.production
+.env.staging
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Node
+node_modules/
+dist/
+.cache/
+*.local
+
+# Vite
+frontend/dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Docker
+.docker/
+
+# Secrets
+*.pem
+*.key
+*.cert
+
+# Test artifacts
+.pytest_cache/
+coverage/

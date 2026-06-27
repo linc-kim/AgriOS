@@ -1,0 +1,15 @@
+# AGRIOS Backend — Development Dependencies
+-r requirements.txt
+
+# Testing
+pytest==8.3.3
+pytest-asyncio==0.24.0
+pytest-cov==6.0.0
+httpx==0.28.0
+
+# Code quality
+ruff==0.8.0
+mypy==1.13.0
+
+# Local dev
+watchfiles==1.0.0

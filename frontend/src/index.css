@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    /* Prevent text scaling on orientation change */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    /* Prevent overscroll bounce on iOS */
+    overscroll-behavior: none;
+    /* Safe area padding for notched phones */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Smooth scrolling in scroll containers */
+  .scroll-container {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+}
+
+@layer utilities {
+  /* Hide scrollbar visually but keep functionality */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
