@@ -405,6 +405,10 @@
       "empty_body": "Start logging expenses and revenue to see your P&L here.",
       "log_first_expense": "Log first expense"
     },
+    "export": {
+      "title": "Download Your Data",
+      "subtitle": "Your data belongs to you — take it anywhere"
+    },
     "flock": {
       "day_n": "Day {{n}}"
     },

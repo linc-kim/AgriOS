@@ -405,6 +405,10 @@
       "empty_body": "Anza kurekodi gharama na mapato ili kuona P&L yako hapa.",
       "log_first_expense": "Rekodi gharama ya kwanza"
     },
+    "export": {
+      "title": "Pakua Data Yako",
+      "subtitle": "Data yako ni yako — chukua popote"
+    },
     "flock": {
       "day_n": "Siku {{n}}"
     },

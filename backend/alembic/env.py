@@ -18,8 +18,19 @@ import app.models  # noqa: F401 — ensures all models are registered with Base
 # Alembic Config object
 config = context.config
 
-# Set the database URL from app settings (overrides alembic.ini)
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Set the database URL from app settings (overrides alembic.ini).
+# settings.DATABASE_URL is already normalised to postgresql+asyncpg://
+# by the field_validator in config.py, but we defensively re-apply the
+# conversion here so Alembic works even when invoked standalone (e.g.
+# `alembic upgrade head` from the shell with a raw DATABASE_URL).
+def _async_url(url: str) -> str:
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql+asyncpg://", 1)
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    return url
+
+config.set_main_option("sqlalchemy.url", _async_url(settings.DATABASE_URL))
 
 # Setup logging
 if config.config_file_name is not None:

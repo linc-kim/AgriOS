@@ -29,6 +29,28 @@ class Settings(BaseSettings):
     # ── Database ─────────────────────────────────────────────────────────
     DATABASE_URL: str
 
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def fix_database_url(cls, v: str) -> str:
+        """
+        Railway and Supabase supply DATABASE_URL as:
+          postgres://...          (Railway shorthand)
+          postgresql://...        (standard psycopg2 scheme)
+
+        SQLAlchemy 2.x async + asyncpg requires:
+          postgresql+asyncpg://...
+
+        This validator rewrites the scheme at startup so the caller
+        never needs to remember — set DATABASE_URL to any valid
+        postgres URL and it will be corrected automatically.
+        """
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+asyncpg://", 1)
+        if v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        # Already correct (postgresql+asyncpg://) or custom scheme — pass through
+        return v
+
     # ── Authentication ───────────────────────────────────────────────────
     JWT_SECRET: str
     JWT_EXPIRE_MINUTES: int = 15
