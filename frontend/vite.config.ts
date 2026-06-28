@@ -4,6 +4,10 @@ import { VitePWA } from "vite-plugin-pwa";
 import path from "path";
 
 export default defineConfig({
+  // Fixes the "process is not defined" runtime error on Vercel
+  define: {
+    "process.env": {},
+  },
   plugins: [
     react(),
     VitePWA({
