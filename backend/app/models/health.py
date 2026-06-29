@@ -127,7 +127,7 @@ class VaccinationRecord(AGRIOSBase):
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    metadata_: Mapped[dict] = mapped_column("metadata",
+    extended_metadata: Mapped[dict] = mapped_column("metadata",
         JSONB, nullable=False, server_default="{}"
     )
 
@@ -247,9 +247,9 @@ class DiseaseAlert(AGRIOSBase):
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    metadata: Mapped[dict] = mapped_column(
-        JSONB, nullable=False, server_default="{}"
-    )
+    extended_metadata: Mapped[dict] = mapped_column(
+    "metadata", JSONB, nullable=False, server_default=...
+)
 
     # ── Relationships ─────────────────────────────────────────────────────────
     publisher: Mapped["User | None"] = relationship(
