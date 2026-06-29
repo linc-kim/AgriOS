@@ -5,7 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+<<<<<<< HEAD
     "build": "vite build",
+=======
+   "build": "vite build",
+>>>>>>> 610c3a51909da203430645ef95dc29e2a5ab4478
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
