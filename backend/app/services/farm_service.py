@@ -40,9 +40,7 @@ from app.schemas.farm import (
     ProductionHouseCreate,
     ProductionHouseUpdate,
 )
-from app.services.sms_service import SMSService
-
-sms = SMSService()
+from app.services import sms_service
 
 # ── Plan Limit Helpers ────────────────────────────────────────────────────────
 
@@ -369,10 +367,9 @@ async def invite_farm_member(
 
     # Send SMS invite (non-blocking failure).
     # V1 has no deep-link yet; instruct invitee to download AGRIOS and log in.
-    await sms.send_farm_invite(
+    await sms_service.sms_farm_invite(
         phone=data.phone,
         farm_name=farm.name,
-        invite_link="Download AGRIOS and sign in with this number to accept.",
     )
 
     return member
