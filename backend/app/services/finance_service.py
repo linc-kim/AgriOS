@@ -41,7 +41,7 @@ from uuid import UUID
 from sqlalchemy import func, or_, select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import ConflictException, NotFoundException
+from app.exceptions import ConflictException, NotFoundException
 from app.models.farm import Farm
 from app.models.flock import Flock, DailyLog
 from app.models.finance import (
