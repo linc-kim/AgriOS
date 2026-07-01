@@ -127,9 +127,6 @@ class VaccinationRecord(AGRIOSBase):
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    extended_metadata: Mapped[dict] = mapped_column("metadata",
-        JSONB, nullable=False, server_default="{}"
-    )
 
     # ── Relationships ─────────────────────────────────────────────────────────
     farm: Mapped["Farm"] = relationship("Farm", foreign_keys=[farm_id], lazy="noload")
