@@ -29,8 +29,8 @@ def _async_url(url: str) -> str:
     if url.startswith("postgresql://"):
         return url.replace("postgresql://", "postgresql+asyncpg://", 1)
     return url
-
-config.set_main_option("sqlalchemy.url", _async_url(settings.DATABASE_URL))
+database_url = _async_url(settings.DATABASE_URL).replace("%", "%%")
+config.set_main_option("sqlalchemy.url", database_url)
 
 # Setup logging
 if config.config_file_name is not None:
