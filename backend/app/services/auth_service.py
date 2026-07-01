@@ -29,7 +29,7 @@ from app.exceptions import (
     UnauthenticatedException,
 )
 from app.models.auth import OTPRequest, Role, Session, User, UserRole
-from app.services.sms_service import sms_service
+from app.services.sms_service import send_sms
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +96,11 @@ class AuthService:
         await db.flush()
 
         # Send SMS (non-blocking — failure is logged, not raised)
-        sms_sent = await sms_service.send_otp(phone, raw_code)
+        message = (
+            f"Your AGRIOS verification code is {raw_code}. "
+            f"It expires in {settings.OTP_EXPIRE_MINUTES} minutes."
+        )
+        sms_sent = await send_sms(phone, message)
         if not sms_sent:
             logger.warning(f"OTP SMS delivery failed for {phone}. OTP still created.")
 
