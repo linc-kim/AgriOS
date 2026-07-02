@@ -1,229 +1,208 @@
 """
-AGRIOS — Farm Infrastructure Models
-Covers Migrations 006-011:
-  006: subscription_plans
-  007: species_profiles
-  008: farms
-  009: farm_members
-  010: farm_units
-  011: production_houses
+AGRIOS — Flock & Operations Models
+Covers Migrations 012-016:
+  012: flocks
+  013: daily_logs
+  014: production_records
+  015: weighin_records
+  016: feed_purchases
+
+These are the core operational tables for Module 1: Poultry.
+All records are farm-scoped (DB-04 Frozen).
 """
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
+    Date,
     DateTime,
     Enum,
     ForeignKey,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import AGRIOSBase
 
 if TYPE_CHECKING:
-    from app.models.auth import User, Role
+    from app.models.auth import User
+    from app.models.farm import Farm, ProductionHouse
 
 
-# ── Migration 006: Subscription Plans ────────────────────────────────────────
+# ── Flock Status Enum ─────────────────────────────────────────────────────────
 
-class SubscriptionPlan(AGRIOSBase):
-    """
-    Defines the limits and features of each AGRIOS subscription tier.
-    Values seeded at migration time. Not user-created.
-    -1 in integer limit fields means UNLIMITED.
-    """
-
-    __tablename__ = "subscription_plans"
-
-    name: Mapped[str] = mapped_column(
-        String(50),
-        unique=True,
-        nullable=False,
-        index=True,
-        comment="Plan key: free | starter | pro",
-    )
-    display_name: Mapped[str] = mapped_column(String(100), nullable=False)
-    price_kes: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-        comment="Monthly price in KES. 0 = free.",
-    )
-    max_farms: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-        comment="-1 = unlimited",
-    )
-    max_houses_per_farm: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-        comment="-1 = unlimited",
-    )
-    max_active_flocks: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-        comment="-1 = unlimited",
-    )
-    max_aria_queries_per_month: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-        comment="-1 = unlimited",
-    )
-    history_days: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-        comment="-1 = unlimited",
-    )
-    max_team_members: Mapped[int] = mapped_column(Integer, nullable=False)
-    is_active: Mapped[bool] = mapped_column(
-        Boolean,
-        default=True,
-        nullable=False,
-    )
-
-    # Relationships
-    farms: Mapped[list["Farm"]] = relationship(back_populates="plan")
-
-    def is_unlimited(self, field: str) -> bool:
-        """Check if a specific limit is unlimited (-1)."""
-        return getattr(self, field, 0) == -1
-
-    def __repr__(self) -> str:
-        return f"<SubscriptionPlan {self.name} KES{self.price_kes}/mo>"
-
-
-# ── Migration 007: Species Profiles ──────────────────────────────────────────
-
-class SpeciesProfile(AGRIOSBase):
-    """
-    The extensibility engine for AGRIOS species modules.
-    Activating a new species = UPDATE SET is_active=TRUE + add species-specific tables.
-    NEVER modify existing tables to activate a species.
-    """
-
-    __tablename__ = "species_profiles"
-
-    species_key: Mapped[str] = mapped_column(
-        String(50),
-        unique=True,
-        nullable=False,
-        index=True,
-        comment="Stable FK used in species-specific tables. Never rename in production.",
-    )
-    display_name: Mapped[str] = mapped_column(String(100), nullable=False)
-    display_name_sw: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    icon: Mapped[str] = mapped_column(String(50), nullable=False)
-    module_accent_hex: Mapped[str] = mapped_column(
-        String(7),
-        nullable=False,
-        comment="Design System v1 accent color for this module.",
-    )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean,
-        default=False,
-        nullable=False,
-        comment="Only super_admin can activate. Activating makes module available platform-wide.",
-    )
-    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
-
-    def __repr__(self) -> str:
-        return f"<SpeciesProfile {self.species_key} active={self.is_active}>"
-
-
-# ── Migration 008: Farms ──────────────────────────────────────────────────────
-
-class Farm(AGRIOSBase):
-    """
-    A farm is the primary tenancy unit in AGRIOS.
-    Every operational record carries farm_id.
-    DB-04 (Frozen): farm_id is present on every operational table.
-    """
-
-    __tablename__ = "farms"
-
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    location: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    county: Mapped[str | None] = mapped_column(
-        String(100),
-        nullable=True,
-        index=True,
-        comment="Kenya county (47 counties). Used for SMS disease alert targeting.",
-    )
-    owner_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="RESTRICT"),
-        nullable=False,
-        index=True,
-    )
-    plan_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("subscription_plans.id", ondelete="RESTRICT"),
-        nullable=False,
-        index=True,
-    )
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    timezone: Mapped[str] = mapped_column(
-        String(50),
-        default="Africa/Nairobi",
-        nullable=False,
-    )
-
-    # Relationships
-    owner: Mapped["User"] = relationship(
-        foreign_keys=[owner_id],
-        lazy="noload",
-    )
-    plan: Mapped["SubscriptionPlan"] = relationship(back_populates="farms")
-    members: Mapped[list["FarmMember"]] = relationship(
-        back_populates="farm",
-        cascade="all, delete-orphan",
-    )
-    units: Mapped[list["FarmUnit"]] = relationship(
-        back_populates="farm",
-        cascade="all, delete-orphan",
-    )
-    production_houses: Mapped[list["ProductionHouse"]] = relationship(
-        back_populates="farm",
-        cascade="all, delete-orphan",
-    )
-
-    def __repr__(self) -> str:
-        return f"<Farm '{self.name}' owner={self.owner_id}>"
-
-
-# ── Migration 009: Farm Members ───────────────────────────────────────────────
-
-MEMBER_STATUS_VALUES = ("pending", "active", "suspended")
-MemberStatusEnum = Enum(
-    *MEMBER_STATUS_VALUES,
-    name="member_status",
-    create_type=False,
+FLOCK_STATUS_VALUES = ("active", "sold", "closed", "culled")
+FlockStatusEnum = Enum(
+    *FLOCK_STATUS_VALUES,
+    name="flock_status",
     create_constraint=True,
 )
 
 
-class FarmMember(AGRIOSBase):
+# ── Migration 012: Flocks ─────────────────────────────────────────────────────
+
+class Flock(AGRIOSBase):
     """
-    Represents a user's membership in a farm at a specific role.
-    Supports invite-by-phone: user_id is NULL while status = 'pending'
-    for invitees who do not yet have an AGRIOS account.
+    Central operational unit of AGRIOS.
+
+    Every daily log, weighin, production record, and feed purchase
+    references a flock_id.
+
+    Lifecycle: active → sold | closed | culled
+    One active flock per production house at a time (application-layer enforced).
+    Plan limit: max_active_flocks per subscription plan (-1 = unlimited).
     """
 
-    __tablename__ = "farm_members"
+    __tablename__ = "flocks"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("farms.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    house_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("production_houses.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    species_key: Mapped[str] = mapped_column(
+        String(50),
+        ForeignKey("species_profiles.species_key", ondelete="RESTRICT"),
+        nullable=False,
+        default="poultry",
+        comment="Always 'poultry' in V1. FK to species_profiles extensibility engine.",
+    )
+    name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        comment="Display name, e.g. 'Batch 3 – Broiler May 2025'",
+    )
+    breed: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        comment="Bird breed, e.g. Ross 308, Cobb 500, ISA Brown",
+    )
+    batch_number: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        comment="Optional farmer-assigned batch reference",
+    )
+    initial_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        comment="Number of birds placed at start",
+    )
+    placement_date: Mapped[date] = mapped_column(
+        Date,
+        nullable=False,
+    )
+    expected_cycle_days: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=42,
+        comment="42 for broilers, 350+ for layers",
+    )
+    expected_close_date: Mapped[date | None] = mapped_column(
+        Date,
+        nullable=True,
+        comment="placement_date + expected_cycle_days. Computed at creation.",
+    )
+    status: Mapped[str] = mapped_column(
+        FlockStatusEnum,
+        nullable=False,
+        default="active",
+    )
+    close_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    close_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sale_price_per_kg: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 2),
+        nullable=True,
+        comment="KES per kg. Populated when status=sold.",
+    )
+    total_birds_sold: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Populated when status=sold.",
+    )
+    closing_weight_kg: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 3),
+        nullable=True,
+        comment="Average live weight at close (kg per bird).",
+    )
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    # Relationships
+    farm: Mapped["Farm"] = relationship(
+        foreign_keys=[farm_id],
+        lazy="noload",
+    )
+    house: Mapped["ProductionHouse"] = relationship(
+        foreign_keys=[house_id],
+        lazy="noload",
+    )
+    daily_logs: Mapped[list["DailyLog"]] = relationship(
+        back_populates="flock",
+        cascade="all, delete-orphan",
+        lazy="noload",
+    )
+    production_records: Mapped[list["ProductionRecord"]] = relationship(
+        back_populates="flock",
+        cascade="all, delete-orphan",
+        lazy="noload",
+    )
+    weighin_records: Mapped[list["WeighinRecord"]] = relationship(
+        back_populates="flock",
+        cascade="all, delete-orphan",
+        lazy="noload",
+    )
+    feed_purchases: Mapped[list["FeedPurchase"]] = relationship(
+        back_populates="flock",
+        cascade="all, delete-orphan",
+        lazy="noload",
+    )
+
+    @property
+    def is_active(self) -> bool:
+        return self.status == "active"
+
+    @property
+    def is_closed(self) -> bool:
+        return self.status in ("sold", "closed", "culled")
+
+    def __repr__(self) -> str:
+        return f"<Flock '{self.name}' status={self.status} farm={self.farm_id}>"
+
+
+# ── Migration 013: Daily Logs ─────────────────────────────────────────────────
+
+class DailyLog(AGRIOSBase):
+    """
+    Primary data-entry record. One per flock per day.
+    DB-06 Frozen: UNIQUE(flock_id, log_date) enables safe upsert pattern.
+    Submitting is the DAL (Daily Active Logger) event.
+    """
+
+    __tablename__ = "daily_logs"
     __table_args__ = (
         UniqueConstraint(
-            "farm_id",
-            "user_id",
-            name="uq_farm_members_farm_user",
+            "flock_id",
+            "log_date",
+            name="uq_daily_logs_flock_date",
         ),
     )
 
@@ -233,68 +212,177 @@ class FarmMember(AGRIOSBase):
         nullable=False,
         index=True,
     )
-    user_id: Mapped[uuid.UUID | None] = mapped_column(
+    flock_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=True,
-        index=True,
-        comment="NULL for pending invites where invitee has no AGRIOS account.",
-    )
-    role_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("roles.id", ondelete="RESTRICT"),
+        ForeignKey("flocks.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    phone: Mapped[str | None] = mapped_column(
-        String(20),
-        nullable=True,
-        index=True,
-        comment="Phone number used to send the invite SMS.",
+    log_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    morning_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    mortality_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0
     )
-    status: Mapped[str] = mapped_column(
-        MemberStatusEnum,
-        nullable=False,
-        default="pending",
+    mortality_cause: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    feed_consumed_kg: Mapped[Decimal] = mapped_column(
+        Numeric(10, 3), nullable=False, default=Decimal("0")
     )
-    invited_by: Mapped[uuid.UUID | None] = mapped_column(
+    water_litres: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 3), nullable=True
+    )
+    house_temp_am: Mapped[Decimal | None] = mapped_column(
+        Numeric(5, 2), nullable=True
+    )
+    house_temp_pm: Mapped[Decimal | None] = mapped_column(
+        Numeric(5, 2), nullable=True
+    )
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    logged_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    accepted_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
+    is_corrected: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    corrected_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    corrected_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    # Relationships
+    flock: Mapped["Flock"] = relationship(back_populates="daily_logs")
+
+    def __repr__(self) -> str:
+        return f"<DailyLog flock={self.flock_id} date={self.log_date}>"
+
+
+# ── Migration 014: Production Records ────────────────────────────────────────
+
+class ProductionRecord(AGRIOSBase):
+    """
+    Egg production record for layer flocks. One per flock per day.
+    Broiler flocks do not use this table — validated at API layer.
+    """
+
+    __tablename__ = "production_records"
+    __table_args__ = (
+        UniqueConstraint(
+            "flock_id",
+            "record_date",
+            name="uq_production_records_flock_date",
+        ),
+    )
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("farms.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    flock_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("flocks.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    record_date: Mapped[date] = mapped_column(Date, nullable=False)
+    eggs_collected: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    broken_eggs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    saleable_eggs: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="eggs_collected - broken_eggs. Computed at insert.",
+    )
+    hen_day_production: Mapped[Decimal | None] = mapped_column(
+        Numeric(6, 4),
+        nullable=True,
+        comment="eggs_collected / current flock count. App-computed.",
+    )
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    logged_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
 
     # Relationships
-    farm: Mapped["Farm"] = relationship(back_populates="members")
-    user: Mapped["User | None"] = relationship(
-        foreign_keys=[user_id],
-        lazy="noload",
-    )
-    role: Mapped["Role"] = relationship(lazy="joined")
+    flock: Mapped["Flock"] = relationship(back_populates="production_records")
 
-    @property
-    def is_active(self) -> bool:
-        return self.status == "active"
+    def __repr__(self) -> str:
+        return f"<ProductionRecord flock={self.flock_id} date={self.record_date} eggs={self.eggs_collected}>"
+
+
+# ── Migration 015: Weigh-In Records ──────────────────────────────────────────
+
+class WeighinRecord(AGRIOSBase):
+    """
+    Live-weight sample from a subset of the flock.
+    Multiple allowed per day (no date unique constraint).
+    Used to compute FCR and track growth against breed targets.
+    """
+
+    __tablename__ = "weighin_records"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("farms.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    flock_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("flocks.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    weighed_at: Mapped[date] = mapped_column(Date, nullable=False)
+    sample_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    average_weight_kg: Mapped[Decimal] = mapped_column(Numeric(8, 3), nullable=False)
+    min_weight_kg: Mapped[Decimal | None] = mapped_column(Numeric(8, 3), nullable=True)
+    max_weight_kg: Mapped[Decimal | None] = mapped_column(Numeric(8, 3), nullable=True)
+    total_biomass_kg: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 3),
+        nullable=True,
+        comment="average_weight_kg * flock.current_count. App-computed.",
+    )
+    fcr_to_date: Mapped[Decimal | None] = mapped_column(
+        Numeric(8, 3),
+        nullable=True,
+        comment="total_feed_consumed_kg / total_biomass_kg",
+    )
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    logged_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    # Relationships
+    flock: Mapped["Flock"] = relationship(back_populates="weighin_records")
 
     def __repr__(self) -> str:
         return (
-            f"<FarmMember farm={self.farm_id} user={self.user_id} "
-            f"status={self.status}>"
+            f"<WeighinRecord flock={self.flock_id} date={self.weighed_at} "
+            f"avg={self.average_weight_kg}kg>"
         )
 
 
-# ── Migration 010: Farm Units ─────────────────────────────────────────────────
+# ── Migration 016: Feed Purchases ─────────────────────────────────────────────
 
-class FarmUnit(AGRIOSBase):
+class FeedPurchase(AGRIOSBase):
     """
-    A named physical section of a farm, grouping production houses.
-    e.g., 'Section A', 'Block 1', 'North Wing'.
+    Records a feed buying event.
+    flock_id is optional — a purchase can be farm-wide stock not yet tied to a flock.
+    total_cost is denormalised at insert to protect against future price changes.
     """
 
-    __tablename__ = "farm_units"
+    __tablename__ = "feed_purchases"
 
     farm_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -302,79 +390,38 @@ class FarmUnit(AGRIOSBase):
         nullable=False,
         index=True,
     )
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-
-    # Relationships
-    farm: Mapped["Farm"] = relationship(back_populates="units")
-    houses: Mapped[list["ProductionHouse"]] = relationship(
-        back_populates="unit",
-        cascade="all, delete-orphan",
-    )
-
-    def __repr__(self) -> str:
-        return f"<FarmUnit '{self.name}' farm={self.farm_id}>"
-
-
-# ── Migration 011: Production Houses ─────────────────────────────────────────
-
-HOUSE_TYPE_VALUES = ("broiler", "layer", "breeder", "pullet", "multi")
-HouseTypeEnum = Enum(
-    *HOUSE_TYPE_VALUES,
-    name="house_type",
-    create_constraint=True,
-)
-
-
-class ProductionHouse(AGRIOSBase):
-    """
-    An individual physical structure within a farm unit.
-    e.g., 'House 1', 'Broiler Pen A', 'Layer House 3'.
-    One active flock per house at a time (enforced at application layer).
-    """
-
-    __tablename__ = "production_houses"
-
-    farm_id: Mapped[uuid.UUID] = mapped_column(
+    flock_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("farms.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    unit_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("farm_units.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    capacity: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-        comment="Maximum bird capacity. Used for stocking density warnings.",
-    )
-    house_type: Mapped[str] = mapped_column(
-        HouseTypeEnum,
-        nullable=False,
-        default="broiler",
-    )
-    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    # FK to flocks.id added in Migration 012 when flocks table exists.
-    current_flock_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True),
+        ForeignKey("flocks.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
-        comment="FK to flocks.id added in Migration 012.",
+    )
+    purchase_date: Mapped[date] = mapped_column(Date, nullable=False)
+    feed_type: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        comment="e.g. Starter, Grower, Finisher, Layer Mash",
+    )
+    quantity_kg: Mapped[Decimal] = mapped_column(Numeric(10, 3), nullable=False)
+    price_per_kg: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    total_cost: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2),
+        nullable=False,
+        comment="Denormalised: quantity_kg * price_per_kg at insert time.",
+    )
+    supplier: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
     )
 
     # Relationships
-    farm: Mapped["Farm"] = relationship(back_populates="production_houses")
-    unit: Mapped["FarmUnit"] = relationship(back_populates="houses")
-
-    @property
-    def is_occupied(self) -> bool:
-        return self.current_flock_id is not None
+    flock: Mapped["Flock | None"] = relationship(back_populates="feed_purchases")
 
     def __repr__(self) -> str:
-        return f"<ProductionHouse '{self.name}' unit={self.unit_id}>"
+        return (
+            f"<FeedPurchase farm={self.farm_id} type={self.feed_type} "
+            f"qty={self.quantity_kg}kg KES{self.total_cost}>"
+        )
