@@ -31,6 +31,7 @@ def _async_url(url: str) -> str:
     return url
 
 config.set_main_option("sqlalchemy.url", _async_url(settings.DATABASE_URL))
+print("ALEMBIC URL:", repr(config.get_main_option("sqlalchemy.url")))
 
 # Setup logging
 if config.config_file_name is not None:
