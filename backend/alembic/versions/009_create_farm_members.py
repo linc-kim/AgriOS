@@ -60,7 +60,11 @@ def upgrade() -> None:
             nullable=True,
             comment="Phone number used for invite. Required when user_id is NULL.",
         ),
+<<<<<<< HEAD
         sa.Column(
+=======
+       sa.Column(
+>>>>>>> main
     "status",
     postgresql.ENUM(
         *MEMBER_STATUSES,
