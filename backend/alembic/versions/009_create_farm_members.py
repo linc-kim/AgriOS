@@ -60,13 +60,16 @@ def upgrade() -> None:
             nullable=True,
             comment="Phone number used for invite. Required when user_id is NULL.",
         ),
-        sa.Column(
-            "status",
-            member_status_enum,
-            nullable=False,
-            server_default=sa.text("'pending'"),
-            comment="pending → active on acceptance. suspended by owner/manager.",
-        ),
+       sa.Column(
+    "status",
+    postgresql.ENUM(
+        *MEMBER_STATUSES,
+        name="member_status",
+        create_type=False,
+    ),
+    nullable=False,
+    server_default=sa.text("'pending'"),
+),
         sa.Column(
             "invited_by",
             postgresql.UUID(as_uuid=True),
