@@ -165,7 +165,7 @@ def upgrade() -> None:
         "ix_daily_logs_flock_date",
         "daily_logs",
         ["flock_id", "log_date"],
-        comment="Primary operational query: flock history chronologically",
+       
     )
 
 
