@@ -28,6 +28,7 @@ def upgrade() -> None:
     member_status_enum = postgresql.ENUM(
         *MEMBER_STATUSES,
         name="member_status",
+         create_type=False,
     )
   
 
