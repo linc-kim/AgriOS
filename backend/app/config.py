@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def fix_database_url(cls, v: str) -> str:
+        v = v.strip()
         """
         Railway and Supabase supply DATABASE_URL as:
           postgres://...          (Railway shorthand)
