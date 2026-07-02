@@ -209,7 +209,7 @@ MemberStatusEnum = Enum(
     create_type=False,
     create_constraint=True,
 )
-print("Enum create_type =", MemberStatusEnum.create_type)
+
 
 
 class FarmMember(AGRIOSBase):
