@@ -28,7 +28,7 @@ def upgrade() -> None:
     house_type_enum = postgresql.ENUM(
         *HOUSE_TYPES,
         name="house_type",
-        create_type=True,
+        create_type=False,
     )
     house_type_enum.create(op.get_bind(), checkfirst=True)
 

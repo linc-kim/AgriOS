@@ -32,7 +32,7 @@ def upgrade() -> None:
     flock_status_enum = postgresql.ENUM(
         *FLOCK_STATUSES,
         name="flock_status",
-        create_type=True,
+        create_type=False,
     )
     flock_status_enum.create(op.get_bind(), checkfirst=True)
 
