@@ -206,8 +206,10 @@ MEMBER_STATUS_VALUES = ("pending", "active", "suspended")
 MemberStatusEnum = Enum(
     *MEMBER_STATUS_VALUES,
     name="member_status",
+    create_type=False,
     create_constraint=True,
 )
+print("Enum create_type =", MemberStatusEnum.create_type)
 
 
 class FarmMember(AGRIOSBase):
