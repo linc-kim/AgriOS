@@ -57,23 +57,16 @@ def upgrade() -> None:
             sa.ForeignKey("species_profiles.species_key", ondelete="RESTRICT"),
             nullable=False,
             server_default="poultry",
-            comment="FK to species_profiles. Always 'poultry' in V1.",
         ),
-        sa.Column("name", sa.String(255), nullable=False,
-                  comment="Display name, e.g. 'Batch 3 – Broiler May 2025'"),
-        sa.Column("breed", sa.String(100), nullable=True,
-                  comment="Bird breed, e.g. Ross 308, Cobb 500, ISA Brown"),
-        sa.Column("batch_number", sa.String(50), nullable=True,
-                  comment="Optional farmer-assigned batch reference"),
-        sa.Column("initial_count", sa.Integer, nullable=False,
-                  comment="Number of birds placed at start of batch"),
-        sa.Column("placement_date", sa.Date, nullable=False,
-                  comment="Date chicks/pullets were introduced to the house"),
+        sa.Column("name", sa.String(255), nullable=False),
+        sa.Column("breed", sa.String(100), nullable=True),
+        sa.Column("batch_number", sa.String(50), nullable=True),
+        sa.Column("initial_count", sa.Integer, nullable=False),
+        sa.Column("placement_date", sa.Date, nullable=False),
         sa.Column("expected_cycle_days", sa.Integer, nullable=False,
-                  server_default=sa.text("42"),
-                  comment="Expected days to close. 42 for broilers, 350+ for layers."),
-        sa.Column("expected_close_date", sa.Date, nullable=True,
-                  comment="placement_date + expected_cycle_days. Computed at creation."),
+                  server_default=sa.text("42")),
+        sa.Column("expected_close_date", sa.Date, nullable=True),
+                
         sa.Column(
             "status",
             flock_status_enum,
@@ -123,11 +116,10 @@ def upgrade() -> None:
     op.create_index("ix_flocks_status", "flocks", ["status"])
     op.create_index("ix_flocks_deleted_at", "flocks", ["deleted_at"])
     op.create_index(
-        "ix_flocks_farm_status",
-        "flocks",
-        ["farm_id", "status"],
-        comment="Fast active-flock queries per farm",
-    )
+    "ix_flocks_farm_status",
+    "flocks",
+    ["farm_id", "status"],
+)
     op.create_index(
         "ix_flocks_placement_date",
         "flocks",
