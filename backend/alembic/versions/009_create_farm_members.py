@@ -24,23 +24,27 @@ MEMBER_STATUSES = ("pending", "active", "suspended")
 
 
 def upgrade() -> None:
-    # Create member_status enum type
+    # Define enum once
     member_status_enum = postgresql.ENUM(
         *MEMBER_STATUSES,
         name="member_status",
-         create_type=False,
+        create_type=False,
     )
-  
+
+    # Create the PostgreSQL enum if it doesn't already exist
+    member_status_enum.create(op.get_bind(), checkfirst=True)
 
     op.create_table(
         "farm_members",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+
         sa.Column(
             "farm_id",
             postgresql.UUID(as_uuid=True),
             sa.ForeignKey("farms.id", ondelete="CASCADE"),
             nullable=False,
         ),
+
         sa.Column(
             "user_id",
             postgresql.UUID(as_uuid=True),
@@ -48,32 +52,29 @@ def upgrade() -> None:
             nullable=True,
             comment="NULL when invite is pending and invitee has no AGRIOS account yet.",
         ),
+
         sa.Column(
             "role_id",
             postgresql.UUID(as_uuid=True),
             sa.ForeignKey("roles.id", ondelete="RESTRICT"),
             nullable=False,
         ),
+
         sa.Column(
             "phone",
             sa.String(20),
             nullable=True,
             comment="Phone number used for invite. Required when user_id is NULL.",
         ),
-<<<<<<< HEAD
+
         sa.Column(
-=======
-       sa.Column(
->>>>>>> main
-    "status",
-    postgresql.ENUM(
-        *MEMBER_STATUSES,
-        name="member_status",
-        create_type=False,
-    ),
-    nullable=False,
-    server_default=sa.text("'pending'"),
-),
+            "status",
+            member_status_enum,
+            nullable=False,
+            server_default=sa.text("'pending'"),
+            comment="pending → active on acceptance. suspended by owner/manager.",
+        ),
+
         sa.Column(
             "invited_by",
             postgresql.UUID(as_uuid=True),
@@ -81,32 +82,41 @@ def upgrade() -> None:
             nullable=True,
             comment="The user who sent the invite.",
         ),
+
         sa.Column(
             "accepted_at",
             sa.DateTime(timezone=True),
             nullable=True,
             comment="Timestamp when invitee accepted. NULL for pending/suspended.",
         ),
+
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
             server_default=sa.text("NOW()"),
             nullable=False,
         ),
+
         sa.Column(
             "updated_at",
             sa.DateTime(timezone=True),
             server_default=sa.text("NOW()"),
             nullable=False,
         ),
-        sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
+
+        sa.Column(
+            "deleted_at",
+            sa.DateTime(timezone=True),
+            nullable=True,
+        ),
+
         sa.Column(
             "metadata",
             postgresql.JSONB(astext_type=sa.Text()),
             server_default=sa.text("'{}'::jsonb"),
             nullable=False,
         ),
-        # One active membership per user per farm
+
         sa.UniqueConstraint(
             "farm_id",
             "user_id",
@@ -124,6 +134,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("farm_members")
+
     postgresql.ENUM(
         *MEMBER_STATUSES,
         name="member_status",
