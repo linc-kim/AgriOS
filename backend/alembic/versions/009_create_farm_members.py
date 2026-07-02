@@ -28,9 +28,8 @@ def upgrade() -> None:
     member_status_enum = postgresql.ENUM(
         *MEMBER_STATUSES,
         name="member_status",
-        create_type=True,
     )
-    member_status_enum.create(op.get_bind(), checkfirst=True)
+  
 
     op.create_table(
         "farm_members",
