@@ -74,7 +74,6 @@ def upgrade() -> None:
             UUID(as_uuid=False),
             sa.ForeignKey("farms.id", ondelete="CASCADE"),
             nullable=True,
-            index=True,
         ),
         sa.Column("name", sa.String(100), nullable=False),
         sa.Column("slug", sa.String(100), nullable=False),
