@@ -108,4 +108,3 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
-print("DATABASE_URL repr:", repr(settings.DATABASE_URL))
