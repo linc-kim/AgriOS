@@ -10,8 +10,9 @@ import logging
 from contextlib import asynccontextmanager
 
 import sentry_sdk
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
@@ -100,11 +101,15 @@ app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 # ── Health Check (not versioned) ──────────────────────────────────────────────
 
 @app.get("/health", tags=["Health"], include_in_schema=False)
-async def health_check() -> dict:
+async def health_check() -> JSONResponse:
     """
     Platform health endpoint.
     Railway uses this for deployment health checks.
-    Returns database connectivity status.
+
+    Returns HTTP 200 only when the database is reachable; returns HTTP 503
+    when it is not, so Railway's health check correctly detects a degraded
+    instance and does not route traffic to (or complete cutover to) a
+    backend that cannot serve requests.
     """
     from sqlalchemy import text
     from app.database import AsyncSessionLocal
@@ -118,12 +123,16 @@ async def health_check() -> dict:
         db_status = f"error: {str(e)}"
         logger.error(f"Health check DB failure: {e}")
 
-    return {
-        "status": "ok" if db_status == "connected" else "degraded",
-        "version": settings.VERSION,
-        "environment": settings.ENVIRONMENT,
-        "db": db_status,
-    }
+    healthy = db_status == "connected"
+    return JSONResponse(
+        status_code=status.HTTP_200_OK if healthy else status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={
+            "status": "ok" if healthy else "degraded",
+            "version": settings.VERSION,
+            "environment": settings.ENVIRONMENT,
+            "db": db_status,
+        },
+    )
 
 
 logger.info(f"AGRIOS API started — {settings.ENVIRONMENT} — v{settings.VERSION}")
