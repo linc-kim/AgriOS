@@ -367,7 +367,7 @@ async def refresh_flock_snapshot(
     _perm=Depends(require_permission(Permission.FINANCE_RECORD)),
 ) -> SuccessResponse[FinancialSnapshotResponse]:
     snapshot = await finance_service.recompute_snapshot(db, farm_id, flock_id)
-    from app.core.exceptions import NotFoundException
+    from app.exceptions import NotFoundException
     if not snapshot:
         raise NotFoundException("Flock not found")
     from app.schemas.finance import FinancialSnapshotResponse
