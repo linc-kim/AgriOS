@@ -17,7 +17,7 @@ export default defineConfig({
         name: "AGRIOS — Farm Operating System",
         short_name: "AGRIOS",
         description: "The daily operating system for Kenyan poultry farmers",
-        theme_color: "#16a34a",
+        theme_color: "#076524",
         background_color: "#ffffff",
         display: "standalone",
         orientation: "portrait",

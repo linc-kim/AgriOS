@@ -55,7 +55,7 @@ function CategoryRow({ item }: { item: ExpenseCategoryBreakdown }) {
           className="h-1.5 rounded-full transition-all"
           style={{
             width: `${Math.min(pct, 100)}%`,
-            backgroundColor: item.category_color ?? "#16a34a",
+            backgroundColor: item.category_color ?? "#076524",
           }}
         />
       </div>

@@ -47,7 +47,7 @@ createRoot(rootElement).render(
             onClick={resetError}
             style={{
               padding: "10px 20px",
-              background: "#16a34a",
+              background: "#076524",
               color: "#fff",
               border: "none",
               borderRadius: "8px",
