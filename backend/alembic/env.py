@@ -32,9 +32,6 @@ def _async_url(url: str) -> str:
 
 database_url = _async_url(settings.DATABASE_URL).replace("%", "%%")
 config.set_main_option("sqlalchemy.url", database_url)
-
-
-config.set_main_option("sqlalchemy.url", _async_url(settings.DATABASE_URL))
 print("ALEMBIC URL:", repr(config.get_main_option("sqlalchemy.url")))
 
 
