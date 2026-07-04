@@ -34,5 +34,6 @@ USER agrios
 # ── Startup ───────────────────────────────────────────────────────────────────
 EXPOSE 8000
 
-# Run migrations then start the server
+# Run migrations then start the serve
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
