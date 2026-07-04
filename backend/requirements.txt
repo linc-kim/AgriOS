@@ -20,8 +20,14 @@ python-jose[cryptography]==3.3.0
 bcrypt==4.2.1
 passlib[bcrypt]==1.7.4
 
-# HTTP client (external API calls: Africa's Talking, AI providers)
+# HTTP client (external API calls: AI providers)
 httpx==0.28.0
+
+# SMS provider (Africa's Talking) — dormant until AT_* env vars are set,
+# but must be installed so SMS OTP/notifications can be activated by
+# configuration alone (no code/dependency change), per the channel-agnostic
+# authentication principle.
+africastalking==1.2.9
 
 # Scheduling (background jobs)
 apscheduler==3.10.4
