@@ -24,6 +24,7 @@ import AppLayout from "@/layouts/AppLayout";
 import AdminLayout from "@/layouts/AdminLayout";
 import { useAuthStore } from "@/stores/authStore";
 import { authAPI } from "@/api/auth";
+import { isSuperAdmin } from "@/lib/roles";
 import { Spinner } from "@/components/ui/Spinner";
 
 // ── Lazy Screen Imports ───────────────────────────────────────────────────────
@@ -110,7 +111,6 @@ const AboutScreen = lazy(() => import("@/screens/settings/AboutScreen"));
 // Utility screens (Sprint 9)
 const OfflineScreen = lazy(() => import("@/screens/utility/OfflineScreen"));
 const NotFoundScreen = lazy(() => import("@/screens/utility/NotFoundScreen"));
-const ErrorScreen = lazy(() => import("@/screens/utility/ErrorScreen"));
 
 // Finance screens (Sprint 5)
 const FinanceDashboardScreen = lazy(
@@ -178,7 +178,7 @@ const FeedPurchaseScreen = lazy(
 // ── Auth Guard ────────────────────────────────────────────────────────────────
 
 function RequireAuth() {
-  const { isAuthenticated, isLoading, setAuth, setLoading, clearAuth } =
+  const { isAuthenticated, isLoading, setAuth, clearAuth } =
     useAuthStore();
 
   useEffect(() => {
@@ -227,7 +227,7 @@ function RequireAdmin() {
     );
   }
 
-  if (!isAuthenticated || user?.role !== "super_admin") {
+  if (!isAuthenticated || !isSuperAdmin(user)) {
     return <Navigate to="/login" replace />;
   }
 

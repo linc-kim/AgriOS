@@ -7,6 +7,7 @@
 
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@/stores/authStore";
+import { platformRole } from "@/lib/roles";
 
 function SettingRow({ label, value }: { label: string; value: string }) {
   return (
@@ -49,9 +50,9 @@ export default function AdminSettingsScreen() {
       </Section>
 
       <Section title={t("admin.settings.section_session")}>
-        <SettingRow label={t("admin.settings.session_role")} value={user?.role ?? "super_admin"} />
-        <SettingRow label={t("admin.settings.session_phone")} value={user?.phone_number ?? "—"} />
-        <SettingRow label={t("admin.settings.session_name")} value={user?.name ?? t("admin.settings.not_set")} />
+        <SettingRow label={t("admin.settings.session_role")} value={platformRole(user) ?? "super_admin"} />
+        <SettingRow label={t("admin.settings.session_phone")} value={user?.phone ?? "—"} />
+        <SettingRow label={t("admin.settings.session_name")} value={user?.full_name ?? t("admin.settings.not_set")} />
       </Section>
 
       <Section title={t("admin.settings.section_integrations")}>
