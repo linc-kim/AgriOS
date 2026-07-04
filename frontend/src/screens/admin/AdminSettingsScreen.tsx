@@ -6,7 +6,7 @@
  */
 
 import { useTranslation } from "react-i18next";
-import { useAuthStore } from "@/store/authStore";
+import { useAuthStore } from "@/stores/authStore";
 
 function SettingRow({ label, value }: { label: string; value: string }) {
   return (
