@@ -10,7 +10,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { queryKeys } from "@/lib/queryClient";
 
 export function useAuth() {
-  const { accessToken, user, isAuthenticated, isLoading } = useAuthStore();
+  const { user, isAuthenticated, isLoading } = useAuthStore();
   const { setAuth, clearAuth } = useAuthStore();
   const queryClient = useQueryClient();
   const navigate = useNavigate();

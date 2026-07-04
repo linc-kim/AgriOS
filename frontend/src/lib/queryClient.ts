@@ -5,7 +5,6 @@
 
 import { QueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
-import type { APIError } from "@/types";
 
 export const queryClient = new QueryClient({
   defaultOptions: {

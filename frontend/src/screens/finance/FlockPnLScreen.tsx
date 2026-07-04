@@ -21,7 +21,6 @@ import { useTranslation } from "react-i18next";
 import { getFlockSnapshot, refreshFlockSnapshot } from "@/api/finance";
 import { queryKeys } from "@/lib/queryClient";
 import { Spinner } from "@/components/ui/Spinner";
-import type { FinancialSnapshot } from "@/types";
 
 function fmtKES(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return "—";

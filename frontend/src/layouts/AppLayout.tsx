@@ -11,7 +11,6 @@
  */
 
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { OfflineBanner } from "@/components/pwa/OfflineBanner";
 import { PWAUpdatePrompt } from "@/components/pwa/PWAUpdatePrompt";
 import { useUIStore, type BottomTab } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";

@@ -14,7 +14,6 @@ export default function PINSetupScreen() {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>("create");
   const [pin, setPin] = useState("");
-  const [confirmPin, setConfirmPin] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const mutation = useMutation({
@@ -35,7 +34,6 @@ export default function PINSetupScreen() {
     } else {
       if (value !== pin) {
         setError("PINs don't match. Try again.");
-        setConfirmPin("");
         setStep("create");
         setPin("");
         return;

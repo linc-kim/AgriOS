@@ -5,7 +5,7 @@
  */
 
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { authAPI } from "@/api/auth";
 import { queryKeys } from "@/lib/queryClient";

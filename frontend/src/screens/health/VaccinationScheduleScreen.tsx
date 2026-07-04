@@ -29,7 +29,6 @@ function ScheduleSection({
   count,
   items,
   accent,
-  farmId,
   canLog,
   onLogVaccination,
 }: SectionProps) {

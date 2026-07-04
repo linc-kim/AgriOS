@@ -100,7 +100,6 @@ export default function FinancialSummaryScreen() {
   const { t } = useTranslation();
   const [presetIdx, setPresetIdx] = useState(0);
 
-  const preset = PRESETS[presetIdx];
   const dateParams =
     presetIdx === 0
       ? {}

@@ -9,7 +9,7 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFlock, listFlocks } from "@/api/flocks";
+import { createFlock } from "@/api/flocks";
 import { listFarmUnits } from "@/api/farms";
 import { queryKeys } from "@/lib/queryClient";
 import type { FlockCreateInput, ProductionHouse, FarmUnit } from "@/types";
