@@ -34,6 +34,10 @@ USER agrios
 # ── Startup ───────────────────────────────────────────────────────────────────
 EXPOSE 8000
 
-# Run migrations then start the serve
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Self-contained default for plain `docker run` (local / non-Railway): apply
+# migrations, then start the server. Shell form so ${PORT} is honoured and the
+# migration step can precede the server. On Railway this CMD is overridden by
+# railway.toml's preDeployCommand (migrations) + startCommand (server), so
+# migrations are not run twice there.
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2"]
 

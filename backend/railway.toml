@@ -3,10 +3,16 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# Run migrations first, then start the API server with 2 workers.
-# DATABASE_URL is normalised to postgresql+asyncpg:// by config.py,
-# so both alembic and uvicorn receive the correct async driver scheme.
-startCommand = "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2"
+# Migrations run as a pre-deploy step so they complete BEFORE the health-check
+# window opens and before the web server starts. This decouples migration
+# duration from healthcheckTimeout and prevents the container from being killed
+# mid-migration (which rolls back the single Alembic transaction and produces a
+# deploy retry loop). The start command then only launches the server, so
+# /health becomes available almost immediately.
+# DATABASE_URL is normalised to postgresql+asyncpg:// by config.py, so both
+# alembic and uvicorn receive the correct async driver scheme.
+preDeployCommand = "alembic upgrade head"
+startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2"
 healthcheckPath = "/health"
 healthcheckTimeout = 60
 restartPolicyType = "ON_FAILURE"
