@@ -9,6 +9,7 @@
 
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import type { APIError } from "@/types";
+import { useAuthStore } from "@/stores/authStore";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
 
@@ -25,16 +26,11 @@ export const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Access token is stored in Zustand authStore (in-memory, not localStorage)
-    // We import lazily to avoid circular deps
-    try {
-      const { useAuthStore } = require("@/stores/authStore");
-      const token = useAuthStore.getState().accessToken;
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    } catch {
-      // Store not yet initialised — first request before app loads
+    // Access token is stored in Zustand authStore (in-memory, not localStorage).
+    // authStore imports only zustand + types, so this static import is not circular.
+    const token = useAuthStore.getState().accessToken;
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
