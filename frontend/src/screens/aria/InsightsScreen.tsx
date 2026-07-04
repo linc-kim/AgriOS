@@ -112,7 +112,7 @@ export default function InsightsScreen() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.aiInsights(farmId!),
-    queryFn: () => listInsights(farmId!, showDismissed),
+    queryFn: () => listInsights(farmId!, { include_dismissed: showDismissed }),
     enabled: !!farmId,
   });
 
@@ -125,8 +125,13 @@ export default function InsightsScreen() {
     },
   });
 
-  const insights = data?.insights ?? [];
-  const counts = data?.severity_counts ?? { alert: 0, warning: 0, info: 0, reminder: 0 };
+  const insights = data?.items ?? [];
+  const counts: Record<InsightSeverity, number> = {
+    alert: data?.alert_count ?? 0,
+    warning: data?.warning_count ?? 0,
+    info: data?.info_count ?? 0,
+    reminder: data?.reminder_count ?? 0,
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">

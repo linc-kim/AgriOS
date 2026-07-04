@@ -154,7 +154,7 @@ export default function RecommendationsScreen() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: [...queryKeys.aiRecommendations(farmId!), tab],
-    queryFn: () => listRecommendations(farmId!, statusFilter),
+    queryFn: () => listRecommendations(farmId!, { status: statusFilter }),
     enabled: !!farmId,
   });
 
@@ -176,7 +176,7 @@ export default function RecommendationsScreen() {
     },
   });
 
-  const recs = data?.recommendations ?? [];
+  const recs = data?.items ?? [];
   const pendingCount = data?.pending_count ?? 0;
 
   return (

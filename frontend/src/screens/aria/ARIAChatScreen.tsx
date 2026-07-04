@@ -58,7 +58,7 @@ function MessageBubble({ message }: { message: AIMessage }) {
         </div>
         <div className="flex items-center gap-1.5 mt-1 px-1">
           <span className="text-xs text-gray-400">{fmtTime(message.created_at)}</span>
-          {!isUser && message.used_fallback && (
+          {!isUser && message.provider === "claude" && (
             <span className="text-xs text-amber-400">· fallback</span>
           )}
         </div>
@@ -83,7 +83,6 @@ function TypingIndicator() {
 }
 
 function HistoryDrawer({
-  farmId,
   conversations,
   activeId,
   onSelect,
@@ -91,7 +90,6 @@ function HistoryDrawer({
   onDelete,
   onClose,
 }: {
-  farmId: string;
   conversations: AIConversationSummary[];
   activeId: string | null;
   onSelect: (id: string) => void;
@@ -393,7 +391,6 @@ export default function ARIAChatScreen() {
       {/* History Drawer */}
       {showHistory && (
         <HistoryDrawer
-          farmId={farmId!}
           conversations={conversations}
           activeId={conversationId}
           onSelect={handleSelectConversation}

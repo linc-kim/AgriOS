@@ -162,7 +162,7 @@ export default function ARIASettingsScreen() {
           </div>
         ) : usageData ? (
           <QuotaBar
-            used={usageData.conversations_this_month}
+            used={usageData.queries_used_this_month}
             limit={usageData.monthly_limit}
             planName={usageData.plan_name}
           />
