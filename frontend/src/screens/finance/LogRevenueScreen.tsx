@@ -17,7 +17,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { logRevenue } from "@/api/finance";
-import { flockAPI } from "@/api/flocks";
+import { listFlocks } from "@/api/flocks";
 import { queryKeys } from "@/lib/queryClient";
 import { Spinner } from "@/components/ui/Spinner";
 import type { RevenueRecordCreateInput, RevenueType } from "@/types";
@@ -78,7 +78,7 @@ export default function LogRevenueScreen() {
   // Load active flocks for flock selector
   const { data: flocks } = useQuery({
     queryKey: queryKeys.flocks(farmId!),
-    queryFn: () => flockAPI.list(farmId!),
+    queryFn: () => listFlocks(farmId!),
     enabled: !!farmId,
   });
   const activeFlocks = flocks?.filter((f) => f.status === "active") ?? [];
