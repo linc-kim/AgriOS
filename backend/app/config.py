@@ -21,7 +21,10 @@ class Settings(BaseSettings):
     # ── Application ──────────────────────────────────────────────────────
     ENVIRONMENT: Literal["development", "staging", "production"] = "development"
     SECRET_KEY: str
-    ALLOWED_ORIGINS: list[str] = ["http://localhost:5173"]
+    # Comma-separated string, NOT list[str]: pydantic-settings JSON-decodes
+    # complex-typed fields from env before validators run, which breaks a plain
+    # comma-separated value. Parsed into a list via the allowed_origins property.
+    ALLOWED_ORIGINS: str = "http://localhost:5173"
     API_V1_PREFIX: str = "/api/v1"
     PROJECT_NAME: str = "AGRIOS"
     VERSION: str = "1.0.0"
@@ -86,12 +89,13 @@ class Settings(BaseSettings):
     # ── Timezone ─────────────────────────────────────────────────────────
     TZ: str = "Africa/Nairobi"
 
-    @field_validator("ALLOWED_ORIGINS", mode="before")
-    @classmethod
-    def parse_origins(cls, v: str | list[str]) -> list[str]:
-        if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",")]
-        return v
+    @property
+    def allowed_origins(self) -> list[str]:
+        return [
+            origin.strip()
+            for origin in self.ALLOWED_ORIGINS.split(",")
+            if origin.strip()
+        ]
 
     @property
     def is_production(self) -> bool:
