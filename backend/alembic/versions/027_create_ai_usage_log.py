@@ -19,7 +19,7 @@ import uuid
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, ENUM
 
 revision = "027"
 down_revision = "026"
@@ -59,10 +59,10 @@ def upgrade() -> None:
             nullable=True,
         ),
         # ── Provider ──────────────────────────────────────────────────────────
-        # ai_provider ENUM created in migration 024
+        # ai_provider ENUM created in migration 024 — reference only, never create.
         sa.Column(
             "provider",
-            sa.Enum("gemini", "claude", name="ai_provider"),
+            ENUM("gemini", "claude", name="ai_provider", create_type=False),
             nullable=False,
         ),
         sa.Column(
@@ -95,7 +95,7 @@ def upgrade() -> None:
         # ── Timestamp (immutable — created_at only, no updated_at) ────────────
         sa.Column(
             "created_at",
-            sa.TIMESTAMPTZ,
+            sa.TIMESTAMP(timezone=True),
             server_default=sa.text("NOW()"),
             nullable=False,
         ),

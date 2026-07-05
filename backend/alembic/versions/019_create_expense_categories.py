@@ -116,8 +116,8 @@ def upgrade() -> None:
     op.bulk_insert(
         sa.table(
             "expense_categories",
-            sa.column("id", sa.String),
-            sa.column("farm_id", sa.String),
+            sa.column("id", UUID(as_uuid=False)),
+            sa.column("farm_id", UUID(as_uuid=False)),
             sa.column("name", sa.String),
             sa.column("slug", sa.String),
             sa.column("icon", sa.String),

@@ -27,16 +27,17 @@ import uuid
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID, ENUM
 
 revision = "025"
 down_revision = "024"
 branch_labels = None
 depends_on = None
 
-INSIGHT_SEVERITY_ENUM = sa.Enum(
+INSIGHT_SEVERITY_ENUM = ENUM(
     "info", "warning", "alert", "reminder",
     name="insight_severity",
+    create_type=False,
 )
 
 
@@ -91,30 +92,30 @@ def upgrade() -> None:
             nullable=False,
             server_default="false",
         ),
-        sa.Column("dismissed_at", sa.TIMESTAMPTZ, nullable=True),
+        sa.Column("dismissed_at", sa.TIMESTAMP(timezone=True), nullable=True),
         # ── Lifecycle ─────────────────────────────────────────────────────────
         # When the insight was generated (may differ from created_at if batched)
         sa.Column(
             "generated_at",
-            sa.TIMESTAMPTZ,
+            sa.TIMESTAMP(timezone=True),
             server_default=sa.text("NOW()"),
             nullable=False,
         ),
-        sa.Column("expires_at", sa.TIMESTAMPTZ, nullable=True),
+        sa.Column("expires_at", sa.TIMESTAMP(timezone=True), nullable=True),
         # ── Timestamps + soft delete + metadata ───────────────────────────────
         sa.Column(
             "created_at",
-            sa.TIMESTAMPTZ,
+            sa.TIMESTAMP(timezone=True),
             server_default=sa.text("NOW()"),
             nullable=False,
         ),
         sa.Column(
             "updated_at",
-            sa.TIMESTAMPTZ,
+            sa.TIMESTAMP(timezone=True),
             server_default=sa.text("NOW()"),
             nullable=False,
         ),
-        sa.Column("deleted_at", sa.TIMESTAMPTZ, nullable=True),
+        sa.Column("deleted_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column(
             "metadata",
             JSONB,
@@ -148,4 +149,4 @@ def downgrade() -> None:
     op.drop_index("ix_ai_insights_farm_severity", table_name="ai_insights")
     op.drop_index("ix_ai_insights_farm_id", table_name="ai_insights")
     op.drop_table("ai_insights")
-    sa.Enum(name="insight_severity").drop(op.get_bind(), checkfirst=True)
+    ENUM(name="insight_severity").drop(op.get_bind(), checkfirst=True)

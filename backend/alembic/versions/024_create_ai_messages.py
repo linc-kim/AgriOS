@@ -21,7 +21,7 @@ import uuid
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID, ENUM
 
 revision = "024"
 down_revision = "023"
@@ -29,10 +29,12 @@ branch_labels = None
 depends_on = None
 
 # ── Message role ENUM ─────────────────────────────────────────────────────────
-MESSAGE_ROLE_ENUM = sa.Enum("user", "assistant", name="message_role")
+# postgresql.ENUM with create_type=False so create_table does not re-emit
+# CREATE TYPE; the explicit .create(checkfirst=True) below owns creation.
+MESSAGE_ROLE_ENUM = ENUM("user", "assistant", name="message_role", create_type=False)
 
-# ── AI provider ENUM ──────────────────────────────────────────────────────────
-AI_PROVIDER_ENUM = sa.Enum("gemini", "claude", name="ai_provider")
+# ── AI provider ENUM (owned by this migration; referenced by 027) ─────────────
+AI_PROVIDER_ENUM = ENUM("gemini", "claude", name="ai_provider", create_type=False)
 
 
 def upgrade() -> None:
@@ -113,17 +115,17 @@ def upgrade() -> None:
         # Messages use created_at only — they are immutable after creation
         sa.Column(
             "created_at",
-            sa.TIMESTAMPTZ,
+            sa.TIMESTAMP(timezone=True),
             server_default=sa.text("NOW()"),
             nullable=False,
         ),
         sa.Column(
             "updated_at",
-            sa.TIMESTAMPTZ,
+            sa.TIMESTAMP(timezone=True),
             server_default=sa.text("NOW()"),
             nullable=False,
         ),
-        sa.Column("deleted_at", sa.TIMESTAMPTZ, nullable=True),
+        sa.Column("deleted_at", sa.TIMESTAMP(timezone=True), nullable=True),
     )
 
     # Primary query: list messages for a conversation, chronological
@@ -143,5 +145,5 @@ def downgrade() -> None:
     op.drop_index("ix_ai_messages_farm_id", table_name="ai_messages")
     op.drop_index("ix_ai_messages_conversation_id", table_name="ai_messages")
     op.drop_table("ai_messages")
-    sa.Enum(name="ai_provider").drop(op.get_bind(), checkfirst=True)
-    sa.Enum(name="message_role").drop(op.get_bind(), checkfirst=True)
+    ENUM(name="ai_provider").drop(op.get_bind(), checkfirst=True)
+    ENUM(name="message_role").drop(op.get_bind(), checkfirst=True)

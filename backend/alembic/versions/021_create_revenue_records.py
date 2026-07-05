@@ -23,7 +23,7 @@ DESIGN NOTES:
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID, JSONB, ENUM
 import uuid
 
 
@@ -34,13 +34,15 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Revenue type enum
-    revenue_type_enum = sa.Enum(
+    # Revenue type enum — postgresql.ENUM so create_type=False is honoured;
+    # created once here, then the same object is reused in the column below.
+    revenue_type_enum = ENUM(
         "eggs",
         "birds",
         "manure",
         "other",
         name="revenue_type",
+        create_type=False,
     )
     revenue_type_enum.create(op.get_bind(), checkfirst=True)
 
@@ -69,14 +71,7 @@ def upgrade() -> None:
         # ── Revenue Classification ───────────────────────────────────────────────
         sa.Column(
             "revenue_type",
-            sa.Enum(
-                "eggs",
-                "birds",
-                "manure",
-                "other",
-                name="revenue_type",
-                create_type=False,
-            ),
+            revenue_type_enum,
             nullable=False,
         ),
         # ── Core Financials ─────────────────────────────────────────────────────
@@ -191,4 +186,4 @@ def downgrade() -> None:
     op.drop_index("ix_revenue_records_flock_id", table_name="revenue_records")
     op.drop_index("ix_revenue_records_farm_date", table_name="revenue_records")
     op.drop_table("revenue_records")
-    sa.Enum(name="revenue_type").drop(op.get_bind(), checkfirst=True)
+    ENUM(name="revenue_type").drop(op.get_bind(), checkfirst=True)

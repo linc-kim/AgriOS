@@ -75,17 +75,17 @@ def upgrade() -> None:
         # ── Timestamps + soft delete + metadata ───────────────────────────────
         sa.Column(
             "created_at",
-            sa.TIMESTAMPTZ,
+            sa.TIMESTAMP(timezone=True),
             server_default=sa.text("NOW()"),
             nullable=False,
         ),
         sa.Column(
             "updated_at",
-            sa.TIMESTAMPTZ,
+            sa.TIMESTAMP(timezone=True),
             server_default=sa.text("NOW()"),
             nullable=False,
         ),
-        sa.Column("deleted_at", sa.TIMESTAMPTZ, nullable=True),
+        sa.Column("deleted_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column(
             "metadata",
             JSONB,

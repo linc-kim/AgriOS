@@ -17,16 +17,17 @@ import uuid
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID, ENUM
 
 revision = "026"
 down_revision = "025"
 branch_labels = None
 depends_on = None
 
-RECOMMENDATION_STATUS_ENUM = sa.Enum(
+RECOMMENDATION_STATUS_ENUM = ENUM(
     "pending", "acted", "dismissed", "expired",
     name="recommendation_status",
+    create_type=False,
 )
 
 
@@ -71,23 +72,23 @@ def upgrade() -> None:
             nullable=False,
             server_default="pending",
         ),
-        sa.Column("acted_at", sa.TIMESTAMPTZ, nullable=True),
-        sa.Column("dismissed_at", sa.TIMESTAMPTZ, nullable=True),
-        sa.Column("expires_at", sa.TIMESTAMPTZ, nullable=True),
+        sa.Column("acted_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column("dismissed_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column("expires_at", sa.TIMESTAMP(timezone=True), nullable=True),
         # ── Timestamps + soft delete + metadata ───────────────────────────────
         sa.Column(
             "created_at",
-            sa.TIMESTAMPTZ,
+            sa.TIMESTAMP(timezone=True),
             server_default=sa.text("NOW()"),
             nullable=False,
         ),
         sa.Column(
             "updated_at",
-            sa.TIMESTAMPTZ,
+            sa.TIMESTAMP(timezone=True),
             server_default=sa.text("NOW()"),
             nullable=False,
         ),
-        sa.Column("deleted_at", sa.TIMESTAMPTZ, nullable=True),
+        sa.Column("deleted_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column(
             "metadata",
             JSONB,
@@ -120,4 +121,4 @@ def downgrade() -> None:
     op.drop_index("ix_ai_recommendations_farm_id", table_name="ai_recommendations")
     op.drop_index("ix_ai_recommendations_farm_status", table_name="ai_recommendations")
     op.drop_table("ai_recommendations")
-    sa.Enum(name="recommendation_status").drop(op.get_bind(), checkfirst=True)
+    ENUM(name="recommendation_status").drop(op.get_bind(), checkfirst=True)
