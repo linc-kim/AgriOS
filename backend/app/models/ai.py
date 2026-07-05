@@ -17,7 +17,7 @@ Engineering Constitution constraints:
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, Integer, Numeric, String, Text, func
+from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -110,6 +110,7 @@ class AIMessage(AGRIOSBase):
 
     conversation_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
+        ForeignKey("ai_conversations.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )

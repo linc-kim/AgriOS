@@ -130,9 +130,12 @@ class User(AGRIOSBase):
     )
 
     # Relationships
+    # UserRole has two FKs to users (user_id, assigned_by); pin the join to
+    # user_id so this collection is unambiguous (assigned_by is audit-only).
     user_roles: Mapped[list["UserRole"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
+        foreign_keys="UserRole.user_id",
     )
     otp_requests: Mapped[list["OTPRequest"]] = relationship(
         back_populates="user",
