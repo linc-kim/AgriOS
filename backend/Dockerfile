@@ -34,10 +34,11 @@ USER agrios
 # ── Startup ───────────────────────────────────────────────────────────────────
 EXPOSE 8000
 
-# Self-contained default for plain `docker run` (local / non-Railway): apply
-# migrations, then start the server. Shell form so ${PORT} is honoured and the
-# migration step can precede the server. On Railway this CMD is overridden by
-# railway.toml's preDeployCommand (migrations) + startCommand (server), so
-# migrations are not run twice there.
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2"]
+# Start the server. Shell form (sh -c) so ${PORT} is expanded at runtime — this
+# is the single start command Railway uses (railway.toml sets no startCommand,
+# because a toml startCommand runs without a shell and would pass "$PORT"
+# literally). Railway injects $PORT; local/standalone `docker run` falls back to
+# 8000. Migrations run via railway.toml's preDeployCommand on Railway; for a
+# standalone container run `alembic upgrade head` first (see DEPLOYMENT.md).
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2"]
 
