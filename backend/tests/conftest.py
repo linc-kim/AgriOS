@@ -4,6 +4,7 @@ Provides: async test database session, test client, seeded roles.
 """
 
 import asyncio
+import os
 import uuid
 from typing import AsyncGenerator
 
@@ -12,6 +13,7 @@ import pytest_asyncio
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from app.config import settings
 from app.database import Base, get_db
@@ -19,10 +21,17 @@ from app.main import app
 from app.models.auth import Role, User
 
 # ── Test Database ─────────────────────────────────────────────────────────────
+# An explicit TEST_DATABASE_URL wins; otherwise derive it from the app URL by
+# swapping only the database name. rsplit avoids corrupting a username that also
+# contains "agrios" (e.g. postgresql+asyncpg://agrios:pw@host/agrios).
+_default_test_url = settings.DATABASE_URL.rsplit("/agrios", 1)[0] + "/agrios_test"
+TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", _default_test_url)
 
-TEST_DATABASE_URL = settings.DATABASE_URL.replace("/agrios", "/agrios_test")
-
-test_engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+# NullPool: every AsyncSession opens a fresh connection bound to the currently
+# running event loop. Without it, the session-scoped engine reuses one pooled
+# asyncpg connection across pytest-asyncio's per-test loops, which raises
+# "another operation is in progress" on Windows/asyncpg.
+test_engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
 TestSessionLocal = async_sessionmaker(
     bind=test_engine,
     class_=AsyncSession,

@@ -7,6 +7,11 @@
 .env.local
 .env.production
 .env.staging
+.env.development
+.env.test
+
+# Third-party skills staged for review (not installed / not tracked)
+vendor-skills-review/
 
 # Python
 __pycache__/
