@@ -21,7 +21,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import AGRIOSBase
@@ -80,18 +80,39 @@ class User(AGRIOSBase):
 
     __tablename__ = "users"
 
-    phone: Mapped[str] = mapped_column(
+    phone: Mapped[str | None] = mapped_column(
         String(20),
         unique=True,
-        nullable=False,
+        nullable=True,
         index=True,
-        comment="E.164 format: +254XXXXXXXXX",
+        comment="E.164 (+254...). Optional secondary identifier since Phase 2 — email is primary.",
     )
     email: Mapped[str | None] = mapped_column(
         String(255),
         unique=True,
         nullable=True,
         index=True,
+        comment="Primary account identifier since Phase 2 (nullable only for legacy phone-only rows).",
+    )
+    password_hash: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="bcrypt hash of the account password. NULL for OAuth-only accounts (e.g. Google).",
+    )
+    email_verified: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        comment="True once the user confirms their email via a verification token.",
+    )
+    email_verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    password_changed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Set on password set/reset. Used to invalidate sessions issued earlier.",
     )
     full_name: Mapped[str | None] = mapped_column(
         String(255),
@@ -145,9 +166,21 @@ class User(AGRIOSBase):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    identity_providers: Mapped[list["IdentityProvider"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    email_tokens: Mapped[list["EmailToken"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    @property
+    def has_password(self) -> bool:
+        return self.password_hash is not None
 
     def __repr__(self) -> str:
-        return f"<User {self.phone}>"
+        return f"<User {self.email or self.phone}>"
 
 
 # ── Migration 003: User Roles ─────────────────────────────────────────────────
@@ -298,15 +331,42 @@ class Session(AGRIOSBase):
         index=True,
         comment="bcrypt hash of the refresh token. Raw token is never stored.",
     )
+    token_lookup: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        unique=True,
+        index=True,
+        comment=(
+            "SHA-256 hex of the raw refresh token for O(1) indexed lookup on refresh "
+            "(Phase 2 email sessions). NULL for legacy OTP/PIN sessions, which fall back "
+            "to the bcrypt scan."
+        ),
+    )
     device_info: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
         comment="User-Agent string for device identification",
     )
+    device_name: Mapped[str | None] = mapped_column(
+        String(120),
+        nullable=True,
+        comment="Human-readable device label parsed from the User-Agent (e.g. 'Chrome on Windows').",
+    )
     ip_address: Mapped[str | None] = mapped_column(
         String(45),
         nullable=True,
         comment="IPv4 or IPv6 address",
+    )
+    remember_me: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        comment="True gives a long-lived refresh token; False a short session.",
+    )
+    last_used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Updated on each refresh; powers the device/session management screen.",
     )
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -340,3 +400,134 @@ class Session(AGRIOSBase):
 
     def __repr__(self) -> str:
         return f"<Session user={self.user_id} valid={self.is_valid}>"
+
+
+# ── Migration 033: Identity Providers (generic OAuth/SSO) ─────────────────────
+
+class IdentityProvider(AGRIOSBase):
+    """
+    A federated identity linked to an AGRIOS account.
+
+    Identity-first architecture: one AGRIOS user may authenticate through many
+    providers (Google now; Apple / Microsoft / GitHub / SSO later) — each adds a
+    row here, never a schema change. Account linking matches by verified email so
+    signing in with a new provider never creates a duplicate user.
+    """
+
+    __tablename__ = "identity_providers"
+    __table_args__ = (
+        UniqueConstraint(
+            "provider",
+            "provider_user_id",
+            name="uq_identity_provider_subject",
+            comment="One federated identity (provider + subject) maps to exactly one user.",
+        ),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    provider: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        index=True,
+        comment="Provider key: 'google' (Phase 2). Extensible: apple | microsoft | github | sso.",
+    )
+    provider_user_id: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        comment="Stable subject id from the provider (e.g. Google 'sub'). Never reused.",
+    )
+    email: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="Email asserted by the provider at link time (may differ from account email).",
+    )
+    raw_profile: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Raw provider profile payload captured at link time (audit / future use).",
+    )
+
+    # Relationships
+    user: Mapped["User"] = relationship(back_populates="identity_providers")
+
+    def __repr__(self) -> str:
+        return f"<IdentityProvider {self.provider}:{self.provider_user_id}>"
+
+
+# ── Migration 034: Email Tokens (verify / reset / change-email) ───────────────
+
+EMAIL_TOKEN_TYPES = ("verify_email", "password_reset", "change_email")
+
+
+class EmailToken(AGRIOSBase):
+    """
+    Single-use, expiring token delivered by email.
+
+    The raw token is emailed to the user; only its SHA-256 (`token_lookup`) is
+    stored, so consuming a token is a single indexed query and the raw value is
+    never persisted. Covers email verification, password reset, and change-email
+    confirmation.
+    """
+
+    __tablename__ = "email_tokens"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    token_type: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        index=True,
+        comment="verify_email | password_reset | change_email",
+    )
+    token_lookup: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        unique=True,
+        index=True,
+        comment="SHA-256 hex of the raw token. The raw token is never stored.",
+    )
+    new_email: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="Target address for a change_email token; NULL otherwise.",
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    consumed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Set the moment the token is redeemed. A consumed token is dead.",
+    )
+    requested_ip: Mapped[str | None] = mapped_column(
+        String(45),
+        nullable=True,
+    )
+
+    # Relationships
+    user: Mapped["User"] = relationship(back_populates="email_tokens")
+
+    @property
+    def is_expired(self) -> bool:
+        return datetime.utcnow() > self.expires_at.replace(tzinfo=None)
+
+    @property
+    def is_consumed(self) -> bool:
+        return self.consumed_at is not None
+
+    @property
+    def is_valid(self) -> bool:
+        return not self.is_expired and not self.is_consumed
+
+    def __repr__(self) -> str:
+        return f"<EmailToken {self.token_type} user={self.user_id} valid={self.is_valid}>"

@@ -4,7 +4,15 @@ Import all models here so Alembic can discover them for autogenerate.
 """
 
 from app.models.base import AGRIOSBase
-from app.models.auth import OTPRequest, Role, Session, User, UserRole
+from app.models.auth import (
+    EmailToken,
+    IdentityProvider,
+    OTPRequest,
+    Role,
+    Session,
+    User,
+    UserRole,
+)
 from app.models.farm import (
     Farm,
     FarmMember,
@@ -49,6 +57,8 @@ __all__ = [
     "UserRole",
     "OTPRequest",
     "Session",
+    "IdentityProvider",
+    "EmailToken",
     # Farm Infrastructure (Migrations 006-011)
     "SubscriptionPlan",
     "SpeciesProfile",
