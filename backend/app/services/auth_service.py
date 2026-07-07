@@ -18,10 +18,16 @@ from app.core.security import (
     create_refresh_token,
     generate_otp_code,
     get_otp_expiry,
+    hash_password,
     hash_secret,
+    sha256_hex,
+    validate_password_strength,
+    verify_password,
     verify_secret,
 )
 from app.exceptions import (
+    ConflictException,
+    EmailNotVerifiedException,
     OTPExpiredException,
     OTPInvalidException,
     OTPMaxAttemptsException,
@@ -29,9 +35,41 @@ from app.exceptions import (
     UnauthenticatedException,
 )
 from app.models.auth import OTPRequest, Role, Session, User, UserRole
+from app.services.audit_service import log_action
 from app.services.sms_service import send_sms
 
 logger = logging.getLogger(__name__)
+
+# Precomputed Argon2 hash used to equalise timing when an email is not found,
+# so login response time doesn't reveal whether an account exists.
+_DUMMY_PASSWORD_HASH = hash_password("greena-timing-equalizer")
+
+
+def _device_label(user_agent: str | None) -> str | None:
+    """Best-effort friendly device label from a User-Agent (for session mgmt)."""
+    if not user_agent:
+        return None
+    browser = next(
+        (b for b in ("Edg", "Chrome", "Firefox", "Safari") if b in user_agent), None
+    )
+    browser = {"Edg": "Edge"}.get(browser, browser)
+    os_name = next(
+        (
+            name
+            for token, name in (
+                ("Windows", "Windows"),
+                ("Mac OS", "macOS"),
+                ("iPhone", "iPhone"),
+                ("iPad", "iPad"),
+                ("Android", "Android"),
+                ("Linux", "Linux"),
+            )
+            if token in user_agent
+        ),
+        None,
+    )
+    label = " on ".join([p for p in (browser, os_name) if p])
+    return label or None
 
 
 class AuthService:
@@ -295,13 +333,197 @@ class AuthService:
         if not raw_refresh_token:
             return
 
-        sessions_result = await db.execute(
-            select(Session).where(Session.revoked_at.is_(None))
+        # Fast path: O(1) indexed lookup for Phase 2 sessions.
+        matched = await db.execute(
+            select(Session).where(
+                Session.token_lookup == sha256_hex(raw_refresh_token),
+                Session.revoked_at.is_(None),
+            )
         )
-        for session in sessions_result.scalars():
-            if verify_secret(raw_refresh_token, session.refresh_token_hash):
-                session.revoke()
+        session = matched.scalar_one_or_none()
+        if session:
+            session.revoke()
+            return
+
+        # Fallback: legacy OTP/PIN sessions (bcrypt only, no token_lookup).
+        sessions_result = await db.execute(
+            select(Session).where(
+                Session.revoked_at.is_(None), Session.token_lookup.is_(None)
+            )
+        )
+        for legacy in sessions_result.scalars():
+            if verify_secret(raw_refresh_token, legacy.refresh_token_hash):
+                legacy.revoke()
                 break
+
+    async def logout_all(self, db: AsyncSession, user_id: UUID) -> int:
+        """Revoke every active session for a user ('log out everywhere'). Returns count."""
+        result = await db.execute(
+            select(Session).where(
+                Session.user_id == user_id, Session.revoked_at.is_(None)
+            )
+        )
+        count = 0
+        for session in result.scalars():
+            session.revoke()
+            count += 1
+        await db.flush()
+        return count
+
+    # ── Email / Password Auth (Phase 2) ───────────────────────────────────────
+
+    async def _create_session(
+        self,
+        db: AsyncSession,
+        user: User,
+        *,
+        remember_me: bool = False,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> tuple[str, str, datetime]:
+        """
+        Issue an access token and a rotating refresh session.
+        Returns (access_token, raw_refresh_token, refresh_expiry).
+        Stores both the bcrypt hash (legacy compat) and a SHA-256 token_lookup
+        so refresh/logout resolve with a single indexed query.
+        """
+        access_token = create_access_token(subject=str(user.id))
+        raw_refresh, hashed_refresh, _ = create_refresh_token()
+        ttl_days = settings.REFRESH_TOKEN_EXPIRE_DAYS if remember_me else 1
+        expiry = datetime.now(timezone.utc) + timedelta(days=ttl_days)
+        session = Session(
+            user_id=user.id,
+            refresh_token_hash=hashed_refresh,
+            token_lookup=sha256_hex(raw_refresh),
+            remember_me=remember_me,
+            device_info=user_agent,
+            device_name=_device_label(user_agent),
+            ip_address=ip,
+            last_used_at=datetime.now(timezone.utc),
+            expires_at=expiry,
+        )
+        db.add(session)
+        await db.flush()
+        return access_token, raw_refresh, expiry
+
+    async def signup_email(
+        self,
+        db: AsyncSession,
+        email: str,
+        password: str,
+        *,
+        full_name: str | None = None,
+        remember_me: bool = False,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> tuple[User, str, str, datetime]:
+        """
+        Create an account from email + password and issue a session.
+
+        Identity only — no organization/role/farm is created here (that happens in
+        onboarding). In development-auth mode (REQUIRE_EMAIL_VERIFICATION=False) the
+        email is marked verified immediately so the user can enter the app at once.
+        """
+        email = email.strip().lower()
+        existing = await db.execute(
+            select(User).where(
+                func.lower(User.email) == email, User.deleted_at.is_(None)
+            )
+        )
+        if existing.scalar_one_or_none() is not None:
+            raise ConflictException("An account with this email already exists.")
+
+        validate_password_strength(password)
+
+        now = datetime.now(timezone.utc)
+        verified = not settings.REQUIRE_EMAIL_VERIFICATION
+        user = User(
+            email=email,
+            full_name=full_name,
+            password_hash=hash_password(password),
+            email_verified=verified,
+            email_verified_at=now if verified else None,
+            password_changed_at=now,
+            is_active=True,
+            last_login_at=now,
+        )
+        db.add(user)
+        await db.flush()
+
+        access, raw_refresh, expiry = await self._create_session(
+            db, user, remember_me=remember_me, ip=ip, user_agent=user_agent
+        )
+        await log_action(
+            db,
+            action="auth.signup",
+            resource_type="user",
+            user_id=user.id,
+            ip_address=ip,
+            user_agent=user_agent,
+        )
+        return user, access, raw_refresh, expiry
+
+    async def login_email(
+        self,
+        db: AsyncSession,
+        email: str,
+        password: str,
+        *,
+        remember_me: bool = False,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> tuple[User, str, str, datetime]:
+        """Authenticate email + password and issue a session (enumeration-safe)."""
+        email = email.strip().lower()
+        result = await db.execute(
+            select(User)
+            .where(func.lower(User.email) == email, User.deleted_at.is_(None))
+            .options(selectinload(User.user_roles).selectinload(UserRole.role))
+        )
+        user = result.scalar_one_or_none()
+
+        if user is None or not user.password_hash:
+            # Equalise timing and return an identical error either way.
+            verify_password(password, _DUMMY_PASSWORD_HASH)
+            await log_action(
+                db,
+                action="auth.login_failed",
+                resource_type="user",
+                ip_address=ip,
+                user_agent=user_agent,
+            )
+            raise UnauthenticatedException("Invalid email or password.")
+
+        if not verify_password(password, user.password_hash):
+            await log_action(
+                db,
+                action="auth.login_failed",
+                resource_type="user",
+                user_id=user.id,
+                ip_address=ip,
+                user_agent=user_agent,
+            )
+            raise UnauthenticatedException("Invalid email or password.")
+
+        if not user.is_active:
+            raise UnauthenticatedException("This account has been deactivated.")
+
+        if settings.REQUIRE_EMAIL_VERIFICATION and not user.email_verified:
+            raise EmailNotVerifiedException()
+
+        user.last_login_at = datetime.now(timezone.utc)
+        access, raw_refresh, expiry = await self._create_session(
+            db, user, remember_me=remember_me, ip=ip, user_agent=user_agent
+        )
+        await log_action(
+            db,
+            action="auth.login",
+            resource_type="user",
+            user_id=user.id,
+            ip_address=ip,
+            user_agent=user_agent,
+        )
+        return user, access, raw_refresh, expiry
 
 
 auth_service = AuthService()

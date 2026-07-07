@@ -7,11 +7,13 @@ Sprint 9: PATCH /auth/me extended with sms_notifications_enabled.
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Cookie, Depends, Response, status
+from fastapi import APIRouter, Cookie, Depends, Request, Response, status
 
 from app.config import settings
 from app.dependencies import CurrentUser, DBSession
 from app.schemas.auth import (
+    EmailLoginIn,
+    EmailSignupIn,
     OTPRequestIn,
     OTPRequestOut,
     OTPVerifyIn,
@@ -52,6 +54,86 @@ def _clear_refresh_cookie(response: Response) -> None:
     response.delete_cookie(
         key=REFRESH_COOKIE_NAME,
         path="/api/v1/auth",
+    )
+
+
+def _client_ip(request: Request) -> str | None:
+    """Client IP, honouring a single proxy hop via X-Forwarded-For."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else None
+
+
+# ── POST /auth/signup ─────────────────────────────────────────────────────────
+
+@router.post(
+    "/signup",
+    response_model=SuccessResponse[TokenOut],
+    status_code=status.HTTP_201_CREATED,
+    summary="Create an account with email and password",
+    description=(
+        "Creates the identity and signs the user in. Organization and farm are "
+        "created during onboarding. In development-auth mode the email is treated "
+        "as verified immediately (no verification email required)."
+    ),
+)
+async def signup(
+    body: EmailSignupIn,
+    db: DBSession,
+    response: Response,
+    request: Request,
+) -> SuccessResponse[TokenOut]:
+    user, access_token, raw_refresh, refresh_expiry = await auth_service.signup_email(
+        db,
+        body.email,
+        body.password,
+        full_name=body.full_name,
+        remember_me=body.remember_me,
+        ip=_client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
+    _set_refresh_cookie(response, raw_refresh, refresh_expiry)
+    return SuccessResponse(
+        data=TokenOut(
+            access_token=access_token,
+            expires_in=settings.JWT_EXPIRE_MINUTES * 60,
+            is_new_user=True,
+            has_pin=user.pin_hash is not None,
+        )
+    )
+
+
+# ── POST /auth/login ──────────────────────────────────────────────────────────
+
+@router.post(
+    "/login",
+    response_model=SuccessResponse[TokenOut],
+    status_code=status.HTTP_200_OK,
+    summary="Log in with email and password",
+)
+async def login(
+    body: EmailLoginIn,
+    db: DBSession,
+    response: Response,
+    request: Request,
+) -> SuccessResponse[TokenOut]:
+    user, access_token, raw_refresh, refresh_expiry = await auth_service.login_email(
+        db,
+        body.email,
+        body.password,
+        remember_me=body.remember_me,
+        ip=_client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
+    _set_refresh_cookie(response, raw_refresh, refresh_expiry)
+    return SuccessResponse(
+        data=TokenOut(
+            access_token=access_token,
+            expires_in=settings.JWT_EXPIRE_MINUTES * 60,
+            is_new_user=False,
+            has_pin=user.pin_hash is not None,
+        )
     )
 
 
@@ -214,6 +296,24 @@ async def logout(
     await auth_service.logout(db, agrios_refresh_token)
     _clear_refresh_cookie(response)
     return SuccessResponse(data={"message": "Logged out successfully"})
+
+
+# ── POST /auth/logout-all ─────────────────────────────────────────────────────
+
+@router.post(
+    "/logout-all",
+    response_model=SuccessResponse[dict],
+    status_code=status.HTTP_200_OK,
+    summary="Revoke every active session (log out everywhere)",
+)
+async def logout_all(
+    db: DBSession,
+    current_user: CurrentUser,
+    response: Response,
+) -> SuccessResponse[dict]:
+    count = await auth_service.logout_all(db, current_user.id)
+    _clear_refresh_cookie(response)
+    return SuccessResponse(data={"message": f"Logged out of {count} session(s)."})
 
 
 # ── GET /auth/me ──────────────────────────────────────────────────────────────

@@ -41,6 +41,11 @@ class ForbiddenException(AGRIOSException):
         super().__init__("FORBIDDEN", message, status.HTTP_403_FORBIDDEN)
 
 
+class EmailNotVerifiedException(AGRIOSException):
+    def __init__(self, message: str = "Please verify your email address to continue.") -> None:
+        super().__init__("EMAIL_NOT_VERIFIED", message, status.HTTP_403_FORBIDDEN)
+
+
 class OTPExpiredException(AGRIOSException):
     def __init__(self) -> None:
         super().__init__("OTP_EXPIRED", "This OTP has expired. Request a new one.")

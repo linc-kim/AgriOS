@@ -8,7 +8,7 @@ import re
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import field_validator
+from pydantic import EmailStr, field_validator
 
 from app.schemas.base import AGRIOSSchema, TimestampedSchema
 
@@ -119,6 +119,41 @@ class PINVerifyIn(AGRIOSSchema):
         return v
 
 
+# ── Email Auth Schemas (Phase 2) ──────────────────────────────────────────────
+
+class EmailSignupIn(AGRIOSSchema):
+    """Request body for POST /auth/signup (email + password)."""
+
+    email: EmailStr
+    password: str
+    full_name: str | None = None
+    remember_me: bool = False
+
+    @field_validator("email")
+    @classmethod
+    def normalise_email(cls, v: str) -> str:
+        return v.strip().lower()
+
+    @field_validator("full_name")
+    @classmethod
+    def clean_name(cls, v: str | None) -> str | None:
+        v = v.strip() if v else v
+        return v or None
+
+
+class EmailLoginIn(AGRIOSSchema):
+    """Request body for POST /auth/login (email + password)."""
+
+    email: EmailStr
+    password: str
+    remember_me: bool = False
+
+    @field_validator("email")
+    @classmethod
+    def normalise_email(cls, v: str) -> str:
+        return v.strip().lower()
+
+
 # ── Token Schemas ─────────────────────────────────────────────────────────────
 
 class TokenOut(AGRIOSSchema):
@@ -163,12 +198,14 @@ class UserRoleOut(AGRIOSSchema):
 class UserOut(TimestampedSchema):
     """Public user profile"""
 
-    phone: str
+    phone: str | None = None
     email: str | None = None
     full_name: str | None = None
     language: str
     is_phone_verified: bool
-    has_pin: bool
+    email_verified: bool = False
+    has_pin: bool = False
+    has_password: bool = False
     sms_notifications_enabled: bool = True  # derived from metadata_
     user_roles: list[UserRoleOut] = []
 
@@ -179,6 +216,8 @@ class UserOut(TimestampedSchema):
             instance.sms_notifications_enabled = obj.metadata_.get(
                 "sms_notifications_enabled", True
             )
+        instance.has_password = getattr(obj, "password_hash", None) is not None
+        instance.has_pin = getattr(obj, "pin_hash", None) is not None
         return instance
 
     @classmethod
