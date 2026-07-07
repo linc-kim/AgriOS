@@ -38,6 +38,7 @@ const PINSetupScreen = lazy(() => import("@/screens/auth/PINSetupScreen"));
 const PINLoginScreen = lazy(() => import("@/screens/auth/PINLoginScreen"));
 
 // Onboarding
+const OnboardingScreen = lazy(() => import("@/screens/onboarding/OnboardingScreen"));
 const OnboardingNameScreen = lazy(
   () => import("@/screens/onboarding/OnboardingNameScreen"),
 );
@@ -250,6 +251,12 @@ const router = createBrowserRouter([
       { path: "/set-pin", element: <PINSetupScreen /> },
       { path: "/pin-login", element: <PINLoginScreen /> },
     ],
+  },
+
+  // ── Onboarding (protected, full-screen wizard) ────────────────────────────
+  {
+    element: <RequireAuth />,
+    children: [{ path: "/onboarding", element: <OnboardingScreen /> }],
   },
 
   // ── Onboarding Routes (protected — user exists but hasn't finished setup) ──

@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Greena motion — shared keyframes (respect reduced motion). */
+@keyframes ob-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
+}
+
 @layer base {
   * {
     -webkit-tap-highlight-color: transparent;

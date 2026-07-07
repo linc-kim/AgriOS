@@ -209,6 +209,7 @@ export interface FarmCreateInput {
   description?: string;
   location?: string;
   county?: string;
+  organization_id?: string;
 }
 
 export interface FarmUpdateInput {
