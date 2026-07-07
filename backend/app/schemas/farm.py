@@ -88,6 +88,10 @@ class FarmCreate(AGRIOSSchema):
         default=None,
         description="Kenya county. Must be one of the 47 official counties.",
     )
+    organization_id: UUID | None = Field(
+        default=None,
+        description="Owning organization (workspace-first). Creator must be a member.",
+    )
 
     @field_validator("county")
     @classmethod

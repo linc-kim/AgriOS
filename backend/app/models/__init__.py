@@ -21,6 +21,7 @@ from app.models.farm import (
     SpeciesProfile,
     SubscriptionPlan,
 )
+from app.models.organization import Organization, OrganizationMember
 from app.models.flock import (
     DailyLog,
     FeedPurchase,
@@ -66,6 +67,8 @@ __all__ = [
     "FarmMember",
     "FarmUnit",
     "ProductionHouse",
+    "Organization",
+    "OrganizationMember",
     # Flock Operations (Migrations 012-016)
     "Flock",
     "DailyLog",

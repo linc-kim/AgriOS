@@ -30,6 +30,7 @@ from app.models.base import AGRIOSBase
 
 if TYPE_CHECKING:
     from app.models.auth import User, Role
+    from app.models.organization import Organization
 
 
 # ── Migration 006: Subscription Plans ────────────────────────────────────────
@@ -170,6 +171,13 @@ class Farm(AGRIOSBase):
         nullable=False,
         index=True,
     )
+    organization_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+        comment="Owning organization (workspace-first). Nullable for legacy farms.",
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     timezone: Mapped[str] = mapped_column(
         String(50),
@@ -183,6 +191,10 @@ class Farm(AGRIOSBase):
         lazy="noload",
     )
     plan: Mapped["SubscriptionPlan"] = relationship(back_populates="farms")
+    organization: Mapped["Organization | None"] = relationship(
+        back_populates="farms",
+        lazy="noload",
+    )
     members: Mapped[list["FarmMember"]] = relationship(
         back_populates="farm",
         cascade="all, delete-orphan",

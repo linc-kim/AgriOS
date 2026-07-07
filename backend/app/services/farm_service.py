@@ -94,6 +94,21 @@ async def create_farm(
     free_plan = await get_plan_by_name(db, "free")
     _check_limit(existing_farms, free_plan.max_farms, "farms")
 
+    # Workspace-first: if an organization is given, the creator must belong to it.
+    if data.organization_id is not None:
+        from app.models.organization import OrganizationMember
+
+        member_check = await db.execute(
+            select(OrganizationMember.id).where(
+                OrganizationMember.organization_id == data.organization_id,
+                OrganizationMember.user_id == user.id,
+                OrganizationMember.status == "active",
+                OrganizationMember.deleted_at.is_(None),
+            )
+        )
+        if member_check.scalar_one_or_none() is None:
+            raise FarmAccessException("You are not a member of that organization.")
+
     farm = Farm(
         name=data.name,
         description=data.description,
@@ -101,6 +116,7 @@ async def create_farm(
         county=data.county,
         owner_id=user.id,
         plan_id=free_plan.id,
+        organization_id=data.organization_id,
         is_active=True,
         timezone="Africa/Nairobi",
     )

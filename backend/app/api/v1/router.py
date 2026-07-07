@@ -18,11 +18,15 @@ from app.api.v1.endpoints import auth, farms, flocks, health, finance, aria
 from app.api.v1.endpoints import notifications, market
 from app.api.v1.endpoints import admin
 from app.api.v1.endpoints import exports
+from app.api.v1.endpoints import organizations
 
 api_router = APIRouter()
 
 # ── Sprint 0 ──────────────────────────────────────────────────────────────────
 api_router.include_router(auth.router)
+
+# ── Phase 2 (Organizations / workspace-first onboarding) ──────────────────────
+api_router.include_router(organizations.router)
 
 # ── Sprint 2 ─────────────────────────────────────────────────────────────────
 api_router.include_router(farms.router)
