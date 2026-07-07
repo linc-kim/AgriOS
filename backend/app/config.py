@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # comma-separated value. Parsed into a list via the allowed_origins property.
     ALLOWED_ORIGINS: str = "http://localhost:5173"
     API_V1_PREFIX: str = "/api/v1"
-    PROJECT_NAME: str = "AGRIOS"
+    PROJECT_NAME: str = "Greena"
     VERSION: str = "1.0.0"
 
     # ── Database ─────────────────────────────────────────────────────────
@@ -65,6 +65,38 @@ class Settings(BaseSettings):
     OTP_MAX_ATTEMPTS: int = 3
     OTP_MAX_REQUESTS_PER_PHONE: int = 3
     OTP_REQUEST_WINDOW_MINUTES: int = 10
+
+    # ── Auth mode: development authentication ────────────────────────────
+    # The permanent auth system ships with external verification gated OFF, so
+    # signup/login/onboarding work with no SMTP/SMS/OTP/Google. Turn each flag
+    # on to enable the corresponding production feature — no code changes.
+    REQUIRE_EMAIL_VERIFICATION: bool = False
+    ENABLE_GOOGLE_OAUTH: bool = False
+    ENABLE_SMS_OTP: bool = False
+    ENABLE_LOGIN_ALERTS: bool = False
+
+    # ── Passwords ────────────────────────────────────────────────────────
+    # Argon2id is the primary hasher (passphrase-friendly, no 72-byte cap).
+    PASSWORD_MIN_LENGTH: int = 12
+
+    # Email-token lifetimes (used once verification/reset are enabled).
+    EMAIL_VERIFY_TOKEN_HOURS: int = 24
+    PASSWORD_RESET_TOKEN_HOURS: int = 1
+
+    # ── Google OAuth (only consulted when ENABLE_GOOGLE_OAUTH) ────────────
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+
+    # ── Email provider (Zoho first; abstracted, dormant in dev mode) ──────
+    EMAIL_PROVIDER: Literal["zoho", "resend", "ses", "sendgrid", "mailgun", "smtp", "console"] = "console"
+    EMAIL_FROM: str = "Greena <no-reply@greena.app>"
+    ZOHO_SMTP_HOST: str = "smtp.zoho.com"
+    ZOHO_SMTP_PORT: int = 587
+    ZOHO_SMTP_USER: str = ""
+    ZOHO_SMTP_PASSWORD: str = ""
+
+    # Public app URL for links in emails / OAuth redirects.
+    FRONTEND_URL: str = "http://localhost:5173"
 
     # ── Africa's Talking ─────────────────────────────────────────────────
     AT_API_KEY: str = ""

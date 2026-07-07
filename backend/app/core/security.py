@@ -11,6 +11,8 @@ import string
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHash, VerificationError, VerifyMismatchError
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
@@ -116,3 +118,81 @@ def extract_user_id(token: str) -> str:
     if not subject:
         raise JWTError("Token missing subject")
     return subject
+
+
+# ── Account Passwords (Argon2id) ──────────────────────────────────────────────
+# Argon2id is the primary hasher for account passwords: memory-hard, timing-safe,
+# and passphrase-friendly (no bcrypt 72-byte truncation). PIN/OTP hashing above
+# stays on bcrypt via passlib — this is intentionally separate.
+
+_password_hasher = PasswordHasher()
+
+
+def hash_password(password: str) -> str:
+    """Hash an account password with Argon2id."""
+    return _password_hasher.hash(password)
+
+
+def verify_password(password: str, hashed: str) -> bool:
+    """Timing-safe verification of a password against its Argon2id hash."""
+    try:
+        return _password_hasher.verify(hashed, password)
+    except (VerifyMismatchError, VerificationError, InvalidHash):
+        return False
+
+
+def password_needs_rehash(hashed: str) -> bool:
+    """True if the stored hash should be upgraded to current Argon2 parameters."""
+    try:
+        return _password_hasher.check_needs_rehash(hashed)
+    except InvalidHash:
+        return True
+
+
+# Common passwords are rejected outright; the list stays intentionally small
+# (a full breach check via HaveIBeenPwned can be layered in later).
+_COMMON_PASSWORDS = frozenset(
+    {
+        "password", "passw0rd", "12345678", "123456789", "1234567890",
+        "qwertyuiop", "letmein123", "iloveyou123", "adminadmin",
+        "welcome123", "changeme123", "greena123456", "password1234",
+    }
+)
+
+
+def validate_password_strength(password: str) -> None:
+    """
+    Modern, length-first password policy (NIST-aligned): require length, reject
+    obviously weak or common secrets, but do not impose brittle composition rules.
+    Raises ValidationException on failure.
+    """
+    from app.config import settings
+    from app.exceptions import ValidationException
+
+    if len(password) < settings.PASSWORD_MIN_LENGTH:
+        raise ValidationException(
+            f"Password must be at least {settings.PASSWORD_MIN_LENGTH} characters."
+        )
+    if len(password) > 200:
+        raise ValidationException("Password must be at most 200 characters.")
+    if password.lower() in _COMMON_PASSWORDS:
+        raise ValidationException("That password is too common. Choose a stronger one.")
+    if len(set(password)) < 5:
+        raise ValidationException("Password is too repetitive. Choose a stronger one.")
+
+
+# ── Opaque Tokens (refresh, email verification, reset) ────────────────────────
+
+def generate_url_token(nbytes: int = 32) -> str:
+    """Generate a high-entropy, URL-safe opaque token to email or set in a cookie."""
+    return secrets.token_urlsafe(nbytes)
+
+
+def sha256_hex(value: str) -> str:
+    """
+    SHA-256 hex digest for indexing high-entropy tokens (refresh `token_lookup`,
+    email-token `token_lookup`). High entropy means a fast hash is safe here — the
+    value is not guessable, so no salt/slow-hash is needed, and it enables O(1)
+    indexed lookups.
+    """
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
