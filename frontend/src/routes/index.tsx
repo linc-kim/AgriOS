@@ -30,6 +30,8 @@ import { Spinner } from "@/components/ui/Spinner";
 // ── Lazy Screen Imports ───────────────────────────────────────────────────────
 
 // Auth
+const EmailLoginScreen = lazy(() => import("@/screens/auth/EmailLoginScreen"));
+const SignUpScreen = lazy(() => import("@/screens/auth/SignUpScreen"));
 const LoginScreen = lazy(() => import("@/screens/auth/LoginScreen"));
 const OTPScreen = lazy(() => import("@/screens/auth/OTPScreen"));
 const PINSetupScreen = lazy(() => import("@/screens/auth/PINSetupScreen"));
@@ -241,7 +243,9 @@ const router = createBrowserRouter([
   {
     element: <AuthLayout />,
     children: [
-      { path: "/login", element: <LoginScreen /> },
+      { path: "/login", element: <EmailLoginScreen /> },
+      { path: "/signup", element: <SignUpScreen /> },
+      { path: "/phone-login", element: <LoginScreen /> },
       { path: "/verify-otp", element: <OTPScreen /> },
       { path: "/set-pin", element: <PINSetupScreen /> },
       { path: "/pin-login", element: <PINLoginScreen /> },

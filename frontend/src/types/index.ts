@@ -59,16 +59,39 @@ export interface UserRole {
 
 export interface User {
   id: string;
-  phone: string;
+  phone: string | null;
   email: string | null;
   full_name: string | null;
   language: "en" | "sw";
   is_phone_verified: boolean;
+  email_verified: boolean;
   has_pin: boolean;
+  has_password: boolean;
   sms_notifications_enabled: boolean;
   user_roles: UserRole[];
   created_at: string;
   updated_at: string;
+}
+
+// ── Organizations (Phase 2) ─────────────────────────────────────────────────
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  country: string | null;
+  timezone: string;
+  currency: string;
+  role: RoleName | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrganizationCreateInput {
+  name: string;
+  country?: string | null;
+  timezone?: string | null;
+  currency?: string | null;
 }
 
 // Sprint 9 — Settings API types

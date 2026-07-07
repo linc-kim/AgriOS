@@ -37,9 +37,42 @@ export interface UserUpdatePayload {
   sms_notifications_enabled?: boolean;
 }
 
+export interface EmailSignupPayload {
+  email: string;
+  password: string;
+  full_name?: string;
+  remember_me?: boolean;
+}
+
+export interface EmailLoginPayload {
+  email: string;
+  password: string;
+  remember_me?: boolean;
+}
+
 // ── API Calls ──────────────────────────────────────────────────────────────
 
 export const authAPI = {
+  signup: async (payload: EmailSignupPayload) => {
+    const response = await apiClient.post<APISuccess<TokenResponse>>(
+      "/auth/signup",
+      payload,
+    );
+    return response.data.data;
+  },
+
+  login: async (payload: EmailLoginPayload) => {
+    const response = await apiClient.post<APISuccess<TokenResponse>>(
+      "/auth/login",
+      payload,
+    );
+    return response.data.data;
+  },
+
+  logoutAll: async () => {
+    await apiClient.post("/auth/logout-all");
+  },
+
   requestOTP: async (payload: OTPRequestPayload) => {
     const response = await apiClient.post<
       APISuccess<{ phone: string; message: string; expires_in_minutes: number }>
