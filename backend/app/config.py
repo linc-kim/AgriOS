@@ -1,5 +1,5 @@
 """
-AGRIOS — Application Configuration
+Greena — Application Configuration
 All environment variables are validated here at startup.
 The app will not start if required variables are missing.
 """
@@ -101,7 +101,7 @@ class Settings(BaseSettings):
     # ── Africa's Talking ─────────────────────────────────────────────────
     AT_API_KEY: str = ""
     AT_USERNAME: str = ""
-    AT_SENDER_ID: str = "AGRIOS"
+    AT_SENDER_ID: str = "Greena"
     AT_ENVIRONMENT: Literal["sandbox", "production"] = "sandbox"
 
     # ── AI Providers ─────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Screen H-05: Disease Alerts
+ * Greena — Screen H-05: Disease Alerts
  * Lists all disease alerts relevant to this farm (county + species matched).
  * Shows severity badge, status, brief guidance, and full description on tap.
  *

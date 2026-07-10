@@ -1,5 +1,5 @@
 """
-AGRIOS — Authentication & Identity Models
+Greena — Authentication & Identity Models
 Covers Migrations 001-005:
   001: roles
   002: users
@@ -73,7 +73,7 @@ class Role(AGRIOSBase):
 
 class User(AGRIOSBase):
     """
-    AGRIOS user account.
+    Greena user account.
     Phone is primary identifier (Kenya-first, no email required).
     PIN is used for subsequent login after initial OTP verification.
     """
@@ -406,9 +406,9 @@ class Session(AGRIOSBase):
 
 class IdentityProvider(AGRIOSBase):
     """
-    A federated identity linked to an AGRIOS account.
+    A federated identity linked to an Greena account.
 
-    Identity-first architecture: one AGRIOS user may authenticate through many
+    Identity-first architecture: one Greena user may authenticate through many
     providers (Google now; Apple / Microsoft / GitHub / SSO later) — each adds a
     row here, never a schema change. Account linking matches by verified email so
     signing in with a new provider never creates a duplicate user.

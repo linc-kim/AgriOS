@@ -1,5 +1,5 @@
 """
-AGRIOS — Exception Definitions and Handlers
+Greena — Exception Definitions and Handlers
 All API errors follow the standard envelope:
   { success: false, error: { code: "ERROR_CODE", message: "..." } }
 
@@ -15,7 +15,7 @@ from jose import JWTError
 # ── Base Exception ────────────────────────────────────────────────────────────
 
 class AGRIOSException(Exception):
-    """Base exception for all AGRIOS business logic errors."""
+    """Base exception for all Greena business logic errors."""
 
     def __init__(
         self,
@@ -115,7 +115,7 @@ class QuotaExceededException(AGRIOSException):
 # ── Exception Handlers ────────────────────────────────────────────────────────
 
 def register_exception_handlers(app: FastAPI) -> None:
-    """Register all AGRIOS exception handlers on the FastAPI application."""
+    """Register all Greena exception handlers on the FastAPI application."""
 
     @app.exception_handler(AGRIOSException)
     async def agrios_exception_handler(

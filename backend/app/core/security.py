@@ -1,5 +1,5 @@
 """
-AGRIOS — Security Utilities
+Greena — Security Utilities
 Handles: JWT creation/validation, bcrypt PIN hashing, OTP generation.
 All security parameters come from Settings — never hardcoded.
 """

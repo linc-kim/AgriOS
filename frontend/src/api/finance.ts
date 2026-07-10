@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Finance API Client
+ * Greena — Finance API Client
  * All functions unwrap from APISuccess<T> envelope.
  * Covers: expense categories, expenses, revenue records,
  *         financial snapshots, dashboard, and calculators.

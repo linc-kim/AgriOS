@@ -1,5 +1,5 @@
 """
-AGRIOS — RBAC Permission System
+Greena — RBAC Permission System
 Implements the permission matrix from the Engineering Constitution.
 8 roles × ~30 permissions.
 

@@ -1,5 +1,5 @@
 """
-AGRIOS — Health Module Pydantic Schemas
+Greena — Health Module Pydantic Schemas
 Covers VaccinationRecord (M-017) and DiseaseAlert (M-018).
 
 Input schemas (requests):

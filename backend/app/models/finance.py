@@ -1,5 +1,5 @@
 """
-AGRIOS — Finance Module Models
+Greena — Finance Module Models
 Covers Migrations 019-022:
   019: expense_categories  (with 17 seeded system categories)
   020: expenses

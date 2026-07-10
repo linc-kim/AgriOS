@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Application Entry Point
+ * Greena — Application Entry Point
  * Sprint 10: Sentry initialised before React renders.
  */
 

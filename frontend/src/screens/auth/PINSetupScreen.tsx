@@ -1,5 +1,5 @@
 /**
- * AGRIOS Screen P-04 — PIN Setup
+ * Greena Screen P-04 — PIN Setup
  * First-time PIN creation. 4–6 digit numeric PIN.
  */
 

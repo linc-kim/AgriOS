@@ -1,5 +1,5 @@
 /**
- * AGRIOS Screen P-02 — Login
+ * Greena Screen P-02 — Login
  * Phone number entry. Triggers OTP request.
  * Supports +254, 07, and 01 formats.
  */
@@ -111,7 +111,7 @@ export default function LoginScreen() {
       </form>
 
       <p className="text-xs text-center text-gray-400">
-        By continuing, you agree to AGRIOS Terms of Service
+        By continuing, you agree to Greena Terms of Service
       </p>
     </div>
   );

@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "AGRIOS",
+    "name": "Greena",
     "tagline": "Mfumo wa Shamba"
   },
   "auth": {
@@ -34,7 +34,7 @@
   "onboarding": {
     "name": {
       "title": "Jina lako ni nani?",
-      "subtitle": "Hivi ndivyo utakavyoonekana kwenye AGRIOS",
+      "subtitle": "Hivi ndivyo utakavyoonekana kwenye Greena",
       "label": "Jina kamili",
       "placeholder": "mfano. John Kamau",
       "continue": "Endelea"
@@ -342,7 +342,7 @@
       "batch_placeholder": "Nambari ya kundi / rasilimali",
       "section_next_dose": "Mipango ya Kipimo Kinachofuata",
       "next_due_label": "Tarehe ya kipimo kinachofuata",
-      "next_due_hint": "Kuweka hii kutazindua tahadhari ya ukumbusho wa chanjo katika AGRIOS.",
+      "next_due_hint": "Kuweka hii kutazindua tahadhari ya ukumbusho wa chanjo katika Greena.",
       "next_vaccine_placeholder": "Jina la chanjo inayofuata (kama tofauti)",
       "next_due_after_admin": "Tarehe inayofuata lazima iwe baada ya tarehe iliyotolewa",
       "notes": "Maelezo (si lazima)",
@@ -693,7 +693,7 @@
     "source": "Chanzo",
     "all_counties": "Kaunti Zote",
     "empty_title": "Hakuna bei zinazopatikana",
-    "empty_body": "Bei za soko zitachapishwa hapa na timu ya AGRIOS.",
+    "empty_body": "Bei za soko zitachapishwa hapa na timu ya Greena.",
     "back_to_prices": "Bei za Soko",
     "no_commodity_selected": "Hakuna bidhaa iliyochaguliwa.",
     "history_count": "Rekodi {{count}} za bei",
@@ -869,7 +869,7 @@
   },
   "pwa": {
     "update_title": "Sasisho Linapatikana",
-    "update_subtitle": "Toleo jipya la AGRIOS liko tayari.",
+    "update_subtitle": "Toleo jipya la Greena liko tayari.",
     "update_btn": "Sasisha Sasa"
   },
   "error": {
@@ -888,7 +888,7 @@
       "notifications": "Arifa",
       "notifications_sub": "Arifa za SMS na vikumbusho",
       "language": "Lugha",
-      "about": "Kuhusu AGRIOS",
+      "about": "Kuhusu Greena",
       "logout": "Toka"
     },
     "profile": {
@@ -904,7 +904,7 @@
       "title": "Arifa",
       "subtitle": "Simamia arifa za SMS zinazotumwa kwa simu yako",
       "sms_toggle": "Arifa za SMS",
-      "sms_desc": "Kitufe kikuu cha ujumbe wote wa SMS kutoka AGRIOS.",
+      "sms_desc": "Kitufe kikuu cha ujumbe wote wa SMS kutoka Greena.",
       "vaccination": "Vikumbusho vya Chanjo",
       "vaccination_desc": "Arifa wakati chanjo zinapoiva au zimechelewa.",
       "daily_log": "Vikumbusho vya Kumbukumbu ya Kila Siku",
@@ -915,7 +915,7 @@
     },
     "language": {
       "title": "Lugha",
-      "subtitle": "Chagua lugha ya programu ya AGRIOS",
+      "subtitle": "Chagua lugha ya programu ya Greena",
       "note": "Mabadiliko ya lugha yanatekelezwa mara moja katika programu yote."
     },
     "about": {
@@ -929,7 +929,7 @@
       "languages": "Lugha",
       "support_header": "Msaada",
       "website_header": "Tovuti",
-      "legal": "© 2025 AGRIOS. Haki zote zimehifadhiwa. Imejengwa Kenya."
+      "legal": "© 2025 Greena. Haki zote zimehifadhiwa. Imejengwa Kenya."
     }
   }
 }

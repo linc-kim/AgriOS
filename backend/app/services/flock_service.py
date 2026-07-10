@@ -1,5 +1,5 @@
 """
-AGRIOS — Flock Service
+Greena — Flock Service
 Business logic for:
   - Flock creation with plan limit enforcement
   - Flock lifecycle state machine (active → sold | closed | culled)

@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Farm API Client
+ * Greena — Farm API Client
  * All farm management API calls. Matches backend endpoints in farms.py.
  */
 

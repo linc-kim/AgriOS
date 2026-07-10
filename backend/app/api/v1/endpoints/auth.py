@@ -1,5 +1,5 @@
 """
-AGRIOS — Auth Endpoints (API v1)
+Greena — Auth Endpoints (API v1)
 Endpoints are thin. All logic is in AuthService.
 Refresh token is always set as an httpOnly cookie — never in the response body.
 Sprint 9: PATCH /auth/me extended with sms_notifications_enabled.

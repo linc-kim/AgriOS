@@ -1,5 +1,5 @@
 /**
- * AGRIOS — TanStack Query Client Configuration
+ * Greena — TanStack Query Client Configuration
  * Handles: caching, background refetch, stale-while-revalidate, offline awareness.
  */
 

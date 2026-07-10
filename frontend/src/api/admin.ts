@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Admin API Client (Sprint 8)
+ * Greena — Admin API Client (Sprint 8)
  * Wraps /api/v1/admin/* endpoints.
  * All calls require super_admin or platform_admin role.
  */

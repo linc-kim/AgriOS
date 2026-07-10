@@ -1,5 +1,5 @@
 """
-AGRIOS — FastAPI Application Entry Point
+Greena — FastAPI Application Entry Point
 The app is configured here. Business logic lives in services, not here.
 
 Sprint 7: APScheduler lifespan added for background jobs.
@@ -53,18 +53,18 @@ async def lifespan(app: FastAPI):
     from app.services.scheduler import start_scheduler, stop_scheduler
 
     scheduler = start_scheduler()
-    logger.info("AGRIOS background scheduler started")
+    logger.info("Greena background scheduler started")
 
     yield  # App runs here
 
     stop_scheduler(scheduler)
-    logger.info("AGRIOS background scheduler stopped")
+    logger.info("Greena background scheduler stopped")
 
 
 # ── Application ───────────────────────────────────────────────────────────────
 
 app = FastAPI(
-    title="AGRIOS API",
+    title="Greena API",
     description="Agricultural Operating System — API v1",
     version=settings.VERSION,
     docs_url="/docs" if not settings.is_production else None,
@@ -135,4 +135,4 @@ async def health_check() -> JSONResponse:
     )
 
 
-logger.info(f"AGRIOS API started — {settings.ENVIRONMENT} — v{settings.VERSION}")
+logger.info(f"Greena API started — {settings.ENVIRONMENT} — v{settings.VERSION}")

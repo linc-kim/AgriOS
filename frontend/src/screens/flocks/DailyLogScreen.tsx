@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Screen FL-05: Daily Log
+ * Greena — Screen FL-05: Daily Log
  * The primary DAL (Daily Active Logger) data entry screen.
  * Submits or updates today's log (upsert via DB-06 Frozen).
  * Requires OPS_LOG_SUBMIT (farm_owner, farm_manager, farm_worker).

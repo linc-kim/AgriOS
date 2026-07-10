@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Screen FL-02: Flock Detail
+ * Greena — Screen FL-02: Flock Detail
  * Shows flock info + operational metrics (FCR, survival rate, mortality).
  * Entry point for daily log, weighin, production, and feed actions.
  */

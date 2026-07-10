@@ -1,8 +1,8 @@
 /**
- * AGRIOS — Sentry Initialisation
+ * Greena — Sentry Initialisation
  *
  * Sprint 10 (Production Hardening): Frontend error monitoring.
- * AD-14 (Frozen): Sentry is the error monitoring platform for AGRIOS V1.
+ * AD-14 (Frozen): Sentry is the error monitoring platform for Greena V1.
  *
  * Initialised before React renders so all errors — including those during
  * module evaluation — are captured.

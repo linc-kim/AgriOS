@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Market Prices API Client (Sprint 7)
+ * Greena — Market Prices API Client (Sprint 7)
  * Wraps /api/v1/market endpoints.
  * Platform-wide (not farm-scoped) per DB-04 exception documented in DB-09.
  */

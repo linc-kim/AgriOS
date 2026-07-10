@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Role derivation helpers
+ * Greena — Role derivation helpers
  *
  * The API returns a user's roles as `user_roles: UserRole[]` (each optionally
  * scoped to a farm). Platform-level roles (super_admin, platform_admin) carry

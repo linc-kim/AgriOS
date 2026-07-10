@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Screen FL-06: Daily Log History
+ * Greena — Screen FL-06: Daily Log History
  * Shows chronological list of daily logs for a flock.
  * Corrected logs are flagged with a badge.
  * Requires OPS_LOG_VIEW (all roles).

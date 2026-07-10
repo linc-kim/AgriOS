@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Notifications API Client (Sprint 7)
+ * Greena — Notifications API Client (Sprint 7)
  * Wraps /api/v1/farms/{farmId}/notifications endpoints.
  */
 

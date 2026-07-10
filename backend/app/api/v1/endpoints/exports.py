@@ -1,5 +1,5 @@
 """
-AGRIOS — Farm Data Export Endpoints
+Greena — Farm Data Export Endpoints
 GET /farms/{farm_id}/export/pdf    → branded PDF report
 GET /farms/{farm_id}/export/excel  → multi-sheet Excel workbook
 GET /farms/{farm_id}/export/csv    → flat CSV of daily logs
@@ -45,7 +45,7 @@ async def download_farm_pdf(
     _farm: FarmAccess,
 ):
     """
-    Generate and download a branded AGRIOS PDF report for this farm.
+    Generate and download a branded Greena PDF report for this farm.
 
     Includes: farm overview, all flocks, last 100 daily logs,
     vaccination records, expenses, revenue, and a P&L summary.
@@ -60,7 +60,7 @@ async def download_farm_pdf(
             detail=f"PDF generation failed: {exc}",
         )
 
-    filename = f"AGRIOS_Report_{_timestamp()}.pdf"
+    filename = f"Greena_Report_{_timestamp()}.pdf"
     return StreamingResponse(
         iter([pdf_bytes]),
         media_type="application/pdf",
@@ -95,7 +95,7 @@ async def download_farm_excel(
             detail=f"Excel generation failed: {exc}",
         )
 
-    filename = f"AGRIOS_Data_{_timestamp()}.xlsx"
+    filename = f"Greena_Data_{_timestamp()}.xlsx"
     return StreamingResponse(
         iter([xlsx_bytes]),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -129,7 +129,7 @@ async def download_farm_csv(
             detail=f"CSV generation failed: {exc}",
         )
 
-    filename = f"AGRIOS_Logs_{_timestamp()}.csv"
+    filename = f"Greena_Logs_{_timestamp()}.csv"
     return StreamingResponse(
         iter([csv_bytes]),
         media_type="text/csv; charset=utf-8-sig",

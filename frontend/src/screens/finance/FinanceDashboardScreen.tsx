@@ -267,7 +267,7 @@ function ExportDataCard({ farmId }: { farmId: string }) {
       const ts = new Date().toISOString().slice(0, 10).replace(/-/g, "");
       const a = document.createElement("a");
       a.href = url;
-      a.download = `AGRIOS_Report_${ts}.${extensions[format]}`;
+      a.download = `Greena_Report_${ts}.${extensions[format]}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

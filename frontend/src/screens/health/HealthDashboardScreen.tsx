@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Screen H-01: Health Dashboard
+ * Greena — Screen H-01: Health Dashboard
  * Farm-wide health overview: overdue/upcoming vaccinations + active disease alerts.
  * Entry point from the Health tab in bottom navigation.
  *

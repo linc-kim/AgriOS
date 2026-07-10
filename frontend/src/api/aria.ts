@@ -1,5 +1,5 @@
 /**
- * AGRIOS — ARIA AI API Client
+ * Greena — ARIA AI API Client
  * Sprint 6: Conversations, insights, recommendations, usage/quota.
  * All functions unwrap APISuccess<T> before returning.
  */

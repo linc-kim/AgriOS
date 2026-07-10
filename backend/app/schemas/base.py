@@ -1,5 +1,5 @@
 """
-AGRIOS — Base Pydantic Schemas
+Greena — Base Pydantic Schemas
 Standard response envelopes for all API responses.
 All responses follow: { success: bool, data: ..., meta: ... } or { success: false, error: ... }
 """
@@ -14,7 +14,7 @@ T = TypeVar("T")
 
 
 class AGRIOSSchema(BaseModel):
-    """Base schema with shared configuration for all AGRIOS schemas."""
+    """Base schema with shared configuration for all Greena schemas."""
 
     model_config = ConfigDict(
         from_attributes=True,       # Enable ORM mode

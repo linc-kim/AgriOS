@@ -1,5 +1,5 @@
 """
-AGRIOS — Platform Schemas (Sprint 7)
+Greena — Platform Schemas (Sprint 7)
 Covers: Notification, AuditLog, MarketPrice
 
 Input/output schemas for the platform layer endpoints.

@@ -1,5 +1,5 @@
 """
-AGRIOS — Platform Models (Sprint 7)
+Greena — Platform Models (Sprint 7)
 Covers: Notification, AuditLog, MarketPrice
 
 Design notes:

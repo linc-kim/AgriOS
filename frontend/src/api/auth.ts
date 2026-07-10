@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Auth API Functions
+ * Greena — Auth API Functions
  * All auth HTTP calls. Used by React Query mutations.
  */
 

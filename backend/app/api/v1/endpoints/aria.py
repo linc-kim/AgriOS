@@ -1,5 +1,5 @@
 """
-AGRIOS — ARIA / AI Endpoints
+Greena — ARIA / AI Endpoints
 Sprint 6: AI module endpoints.
 
 Endpoint groups:

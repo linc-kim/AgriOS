@@ -1,5 +1,5 @@
 """
-AGRIOS — Farm API Endpoints
+Greena — Farm API Endpoints
 Sprint 2: All farm management routes.
 
 Route map:

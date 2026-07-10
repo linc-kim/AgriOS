@@ -1,5 +1,5 @@
 """
-AGRIOS — Request Middleware
+Greena — Request Middleware
 Handles: request ID injection, timing, security headers.
 
 Sprint 10: SecurityHeadersMiddleware added for production hardening.

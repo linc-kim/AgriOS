@@ -1,5 +1,5 @@
 """
-AGRIOS — Finance Service
+Greena — Finance Service
 Business logic for the Finance Module (Migrations 019-022).
 
 Core functions:

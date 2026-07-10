@@ -1,5 +1,5 @@
 """
-AGRIOS — Flock & Operations Models
+Greena — Flock & Operations Models
 Covers Migrations 012-016:
   012: flocks
   013: daily_logs
@@ -52,7 +52,7 @@ FlockStatusEnum = Enum(
 
 class Flock(AGRIOSBase):
     """
-    Central operational unit of AGRIOS.
+    Central operational unit of Greena.
 
     Every daily log, weighin, production record, and feed purchase
     references a flock_id.

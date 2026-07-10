@@ -1,5 +1,5 @@
 """
-AGRIOS — Notification Service (Sprint 7)
+Greena — Notification Service (Sprint 7)
 Manages in-app notifications: creation, listing, read-marking, deletion.
 
 All public functions are async and accept a db session as first argument.

@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Screen H-03: Log Vaccination
+ * Greena — Screen H-03: Log Vaccination
  * Record a vaccination event for a specific flock.
  * Includes: vaccine selector, administration details, next dose planning.
  *

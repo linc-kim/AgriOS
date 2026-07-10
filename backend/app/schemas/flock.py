@@ -1,5 +1,5 @@
 """
-AGRIOS — Flock & Operations Pydantic Schemas
+Greena — Flock & Operations Pydantic Schemas
 Request validation and response serialisation for:
   - Flocks (create, close, list, detail)
   - Daily Logs (submit / upsert, history, correction)

@@ -1,5 +1,5 @@
 /**
- * AGRIOS Screen O-02 — Name Entry (Onboarding Step 1)
+ * Greena Screen O-02 — Name Entry (Onboarding Step 1)
  * Collects the farmer's name after first login.
  */
 
@@ -41,7 +41,7 @@ export default function OnboardingNameScreen() {
       <div>
         <h2 className="text-2xl font-bold text-gray-900">What's your name?</h2>
         <p className="text-gray-500 mt-1">
-          This is how you'll appear on AGRIOS
+          This is how you'll appear on Greena
         </p>
       </div>
 

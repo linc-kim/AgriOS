@@ -1,5 +1,5 @@
 """
-AGRIOS — Market Price Service (Sprint 7)
+Greena — Market Price Service (Sprint 7)
 Manages market price data: creation (admin only), listing, latest prices.
 
 DB-09 (Frozen): market_prices is historical — new rows only, no updates.

@@ -1,5 +1,5 @@
 """
-AGRIOS — Authentication Service
+Greena — Authentication Service
 All auth business logic lives here. Endpoints are thin; services are fat.
 Enforces all rate limits and security rules from the Engineering Constitution.
 """
@@ -135,7 +135,7 @@ class AuthService:
 
         # Send SMS (non-blocking — failure is logged, not raised)
         message = (
-            f"Your AGRIOS verification code is {raw_code}. "
+            f"Your Greena verification code is {raw_code}. "
             f"It expires in {settings.OTP_EXPIRE_MINUTES} minutes."
         )
         sms_sent = await send_sms(phone, message)

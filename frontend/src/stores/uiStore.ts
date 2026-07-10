@@ -1,5 +1,5 @@
 /**
- * AGRIOS — UI State Zustand Store
+ * Greena — UI State Zustand Store
  * Manages: active tab, toast queue, modal states.
  */
 

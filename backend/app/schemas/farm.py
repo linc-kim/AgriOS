@@ -1,5 +1,5 @@
 """
-AGRIOS — Farm Infrastructure Pydantic Schemas
+Greena — Farm Infrastructure Pydantic Schemas
 Request validation and response serialisation for:
   - Subscription Plans
   - Species Profiles

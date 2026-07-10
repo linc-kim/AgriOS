@@ -1,5 +1,5 @@
 """
-AGRIOS — APScheduler Background Job Registry (Sprint 7)
+Greena — APScheduler Background Job Registry (Sprint 7)
 AD-13 (Frozen): APScheduler embedded in FastAPI handles background jobs in V1.
 
 Jobs registered here:

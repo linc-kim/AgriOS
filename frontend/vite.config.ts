@@ -14,8 +14,8 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["icons/*.png", "icons/*.svg"],
       manifest: {
-        name: "AGRIOS — Farm Operating System",
-        short_name: "AGRIOS",
+        name: "Greena — Farm Operating System",
+        short_name: "Greena",
         description: "The daily operating system for Kenyan poultry farmers",
         theme_color: "#076524",
         background_color: "#ffffff",

@@ -41,7 +41,7 @@ export default function AdminSettingsScreen() {
       </div>
 
       <Section title={t("admin.settings.section_platform")}>
-        <SettingRow label={t("admin.settings.platform_name")} value="AGRIOS" />
+        <SettingRow label={t("admin.settings.platform_name")} value="Greena" />
         <SettingRow label={t("admin.settings.platform_version")} value="1.0.0" />
         <SettingRow label={t("admin.settings.platform_region")} value="East Africa (Nairobi)" />
         <SettingRow label={t("admin.settings.platform_currency")} value="KES (Kenyan Shilling)" />

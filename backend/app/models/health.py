@@ -1,5 +1,5 @@
 """
-AGRIOS — Health Module Models
+Greena — Health Module Models
 Covers Migrations 017-018:
   017: vaccination_records
   018: disease_alerts

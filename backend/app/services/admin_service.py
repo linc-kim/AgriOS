@@ -1,5 +1,5 @@
 """
-AGRIOS — Admin Service (Sprint 8)
+Greena — Admin Service (Sprint 8)
 Platform administration: stats, user management, farm oversight, AI usage.
 All functions are super_admin-only via endpoint permission checks.
 """

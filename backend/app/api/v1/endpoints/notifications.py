@@ -1,5 +1,5 @@
 """
-AGRIOS — Notifications Endpoints (Sprint 7)
+Greena — Notifications Endpoints (Sprint 7)
 
 Endpoint groups (all farm-scoped):
   GET    /farms/{farm_id}/notifications              — List notifications

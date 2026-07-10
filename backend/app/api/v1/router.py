@@ -1,5 +1,5 @@
 """
-AGRIOS — API v1 Router
+Greena — API v1 Router
 All v1 endpoint routers are registered here.
 Sprint 0: Auth only.
 Sprint 2: Farm infrastructure added.

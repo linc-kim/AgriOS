@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Screen FM-04: Invite Team Member
+ * Greena — Screen FM-04: Invite Team Member
  * Sends a farm membership invite to any Kenyan phone number.
  * The role selector is restricted to non-owner roles.
  */
@@ -120,7 +120,7 @@ export default function InviteMemberScreen() {
             <p className="mt-1.5 text-sm text-red-600">{phoneError}</p>
           )}
           <p className="mt-1.5 text-xs text-gray-400">
-            They will receive an SMS invitation from AGRIOS.
+            They will receive an SMS invitation from Greena.
           </p>
         </div>
 

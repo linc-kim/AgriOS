@@ -1,5 +1,5 @@
 /**
- * AGRIOS Screen P-03 — OTP Verification
+ * Greena Screen P-03 — OTP Verification
  * 6-cell input, countdown timer (10 min), resend button (2 min cooldown).
  */
 

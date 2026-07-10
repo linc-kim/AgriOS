@@ -1,5 +1,5 @@
 """
-AGRIOS — ARIA Service
+Greena — ARIA Service
 Implements the conversational AI assistant for farmers.
 
 Engineering Constitution constraints (all enforced here):
@@ -63,7 +63,7 @@ from app.schemas.ai import (
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
-ARIA_SYSTEM_PROMPT = """You are ARIA, the AI Farm Operations Assistant for AGRIOS.
+ARIA_SYSTEM_PROMPT = """You are ARIA, the AI Farm Operations Assistant for Greena.
 
 Your purpose: Help poultry farmers in Kenya understand their farm data, make better decisions, and document even the smallest health or operational events — because early detection saves flocks.
 

@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Connectivity Watcher
+ * Greena — Connectivity Watcher
  * Monitors online/offline state and updates UIStore.
  * Shows offline banner when connection is lost.
  */

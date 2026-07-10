@@ -96,7 +96,7 @@ export default function SettingsScreen() {
             to="/settings/about"
             icon="ℹ️"
             label={t("settings.hub.about")}
-            sub="AGRIOS v1.0.0"
+            sub="Greena v1.0.0"
           />
         </div>
 

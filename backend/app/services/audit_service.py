@@ -1,5 +1,5 @@
 """
-AGRIOS — Audit Log Service (Sprint 7)
+Greena — Audit Log Service (Sprint 7)
 Provides a single append function for writing immutable audit log entries.
 
 DB-08 (Frozen): audit_logs is append-only. Only INSERT operations exist.

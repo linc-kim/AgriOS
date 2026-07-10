@@ -1,5 +1,5 @@
 """
-AGRIOS — FastAPI Dependencies
+Greena — FastAPI Dependencies
 Reusable dependencies injected into route handlers.
 """
 

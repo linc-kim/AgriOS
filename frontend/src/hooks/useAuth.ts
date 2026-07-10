@@ -1,5 +1,5 @@
 /**
- * AGRIOS — useAuth Hook
+ * Greena — useAuth Hook
  * Wraps auth store and React Query for components.
  */
 

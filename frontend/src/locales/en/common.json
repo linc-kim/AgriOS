@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "AGRIOS",
+    "name": "Greena",
     "tagline": "Farm Operating System"
   },
   "auth": {
@@ -34,7 +34,7 @@
   "onboarding": {
     "name": {
       "title": "What's your name?",
-      "subtitle": "This is how you'll appear on AGRIOS",
+      "subtitle": "This is how you'll appear on Greena",
       "label": "Full name",
       "placeholder": "e.g. John Kamau",
       "continue": "Continue"
@@ -342,7 +342,7 @@
       "batch_placeholder": "Lot / batch number",
       "section_next_dose": "Next Dose Planning",
       "next_due_label": "Next dose due date",
-      "next_due_hint": "Setting this will trigger a vaccination reminder alert in AGRIOS.",
+      "next_due_hint": "Setting this will trigger a vaccination reminder alert in Greena.",
       "next_vaccine_placeholder": "Next vaccine name (if different)",
       "next_due_after_admin": "Next due date must be after the administered date",
       "notes": "Notes (optional)",
@@ -693,7 +693,7 @@
     "source": "Source",
     "all_counties": "All Counties",
     "empty_title": "No prices available",
-    "empty_body": "Market prices will be published here by the AGRIOS team.",
+    "empty_body": "Market prices will be published here by the Greena team.",
     "back_to_prices": "Market Prices",
     "no_commodity_selected": "No commodity selected.",
     "history_count": "{{count}} price records",
@@ -869,7 +869,7 @@
   },
   "pwa": {
     "update_title": "Update Available",
-    "update_subtitle": "A new version of AGRIOS is ready.",
+    "update_subtitle": "A new version of Greena is ready.",
     "update_btn": "Update Now"
   },
   "error": {
@@ -888,7 +888,7 @@
       "notifications": "Notifications",
       "notifications_sub": "SMS alerts and reminders",
       "language": "Language",
-      "about": "About AGRIOS",
+      "about": "About Greena",
       "logout": "Log Out"
     },
     "profile": {
@@ -904,7 +904,7 @@
       "title": "Notifications",
       "subtitle": "Manage SMS alerts sent to your phone",
       "sms_toggle": "SMS Notifications",
-      "sms_desc": "Master toggle for all SMS messages from AGRIOS.",
+      "sms_desc": "Master toggle for all SMS messages from Greena.",
       "vaccination": "Vaccination Reminders",
       "vaccination_desc": "Alerts when vaccines are due or overdue.",
       "daily_log": "Daily Log Reminders",
@@ -915,7 +915,7 @@
     },
     "language": {
       "title": "Language",
-      "subtitle": "Choose the language for the AGRIOS app",
+      "subtitle": "Choose the language for the Greena app",
       "note": "Language changes apply immediately across the entire app."
     },
     "about": {
@@ -929,7 +929,7 @@
       "languages": "Languages",
       "support_header": "Support",
       "website_header": "Website",
-      "legal": "© 2025 AGRIOS. All rights reserved. Built in Kenya."
+      "legal": "© 2025 Greena. All rights reserved. Built in Kenya."
     }
   }
 }

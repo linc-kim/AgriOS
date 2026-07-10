@@ -1,7 +1,7 @@
 /**
  * S-04 — About Screen
  * /settings/about
- * App version, AGRIOS info, support contact, open-source notices.
+ * App version, Greena info, support contact, open-source notices.
  */
 
 import { useTranslation } from "react-i18next";
@@ -31,7 +31,7 @@ export default function AboutScreen() {
           <div className="w-16 h-16 rounded-2xl bg-brand-600 flex items-center justify-center mx-auto mb-3">
             <span className="text-3xl">🌾</span>
           </div>
-          <h2 className="text-base font-bold text-gray-900">AGRIOS</h2>
+          <h2 className="text-base font-bold text-gray-900">Greena</h2>
           <p className="text-xs text-gray-400 mt-0.5">{t("settings.about.tagline")}</p>
         </div>
 

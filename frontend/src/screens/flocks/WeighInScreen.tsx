@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Screen FL-07: Weigh-In
+ * Greena — Screen FL-07: Weigh-In
  * Records a live-weight sample from a subset of the flock.
  * Computes and displays estimated FCR after submission.
  * Requires OPS_WEIGHIN_LOG (farm_owner, farm_manager, farm_worker).

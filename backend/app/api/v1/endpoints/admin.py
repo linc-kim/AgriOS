@@ -1,5 +1,5 @@
 """
-AGRIOS — Admin API Endpoints (Sprint 8)
+Greena — Admin API Endpoints (Sprint 8)
 Platform administration: stats, user management, farm oversight, AI usage.
 
 All endpoints require super_admin or platform_admin role via ADMIN_* permissions.

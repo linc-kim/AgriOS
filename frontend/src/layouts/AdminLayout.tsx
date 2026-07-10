@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Admin Layout
+ * Greena — Admin Layout
  * Desktop-first layout for the Admin Dashboard (admin.agrios.app / /admin/*).
  * Left sidebar navigation + main content area.
  * Access: super_admin only.
@@ -42,7 +42,7 @@ export default function AdminLayout() {
       <aside className="w-56 bg-gray-900 text-white flex flex-col shrink-0 sticky top-0 h-screen">
         {/* Logo */}
         <div className="px-5 py-5 border-b border-gray-800">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">AGRIOS</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Greena</p>
           <p className="text-sm font-bold text-white mt-0.5">{t("admin.title")}</p>
         </div>
 

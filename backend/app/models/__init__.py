@@ -1,5 +1,5 @@
 """
-AGRIOS Models — Public exports
+Greena Models — Public exports
 Import all models here so Alembic can discover them for autogenerate.
 """
 

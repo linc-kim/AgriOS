@@ -1,5 +1,5 @@
 """
-AGRIOS — Farm Infrastructure Models
+Greena — Farm Infrastructure Models
 Covers Migrations 006-011:
   006: subscription_plans
   007: species_profiles
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 
 class SubscriptionPlan(AGRIOSBase):
     """
-    Defines the limits and features of each AGRIOS subscription tier.
+    Defines the limits and features of each Greena subscription tier.
     Values seeded at migration time. Not user-created.
     -1 in integer limit fields means UNLIMITED.
     """
@@ -104,7 +104,7 @@ class SubscriptionPlan(AGRIOSBase):
 
 class SpeciesProfile(AGRIOSBase):
     """
-    The extensibility engine for AGRIOS species modules.
+    The extensibility engine for Greena species modules.
     Activating a new species = UPDATE SET is_active=TRUE + add species-specific tables.
     NEVER modify existing tables to activate a species.
     """
@@ -143,7 +143,7 @@ class SpeciesProfile(AGRIOSBase):
 
 class Farm(AGRIOSBase):
     """
-    A farm is the primary tenancy unit in AGRIOS.
+    A farm is the primary tenancy unit in Greena.
     Every operational record carries farm_id.
     DB-04 (Frozen): farm_id is present on every operational table.
     """
@@ -228,7 +228,7 @@ class FarmMember(AGRIOSBase):
     """
     Represents a user's membership in a farm at a specific role.
     Supports invite-by-phone: user_id is NULL while status = 'pending'
-    for invitees who do not yet have an AGRIOS account.
+    for invitees who do not yet have an Greena account.
     """
 
     __tablename__ = "farm_members"
@@ -251,7 +251,7 @@ class FarmMember(AGRIOSBase):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
-        comment="NULL for pending invites where invitee has no AGRIOS account.",
+        comment="NULL for pending invites where invitee has no Greena account.",
     )
     role_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

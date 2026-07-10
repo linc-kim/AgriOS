@@ -1,5 +1,5 @@
 """
-AGRIOS — Finance Module Pydantic Schemas
+Greena — Finance Module Pydantic Schemas
 Covers Migrations 019-022:
   ExpenseCategory  (019)
   Expense          (020)

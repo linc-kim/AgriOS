@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Main App Layout (Farmer PWA)
+ * Greena — Main App Layout (Farmer PWA)
  * Structure:
  *   - Fixed top bar (56px)
  *   - Scrollable content area

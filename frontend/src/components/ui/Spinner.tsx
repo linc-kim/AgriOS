@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Spinner Component
+ * Greena — Spinner Component
  * Used in loading states across all screens.
  */
 

@@ -1,5 +1,5 @@
 """
-AGRIOS — Admin Module Schemas (Sprint 8)
+Greena — Admin Module Schemas (Sprint 8)
 Input/output schemas for platform administration endpoints.
 All access restricted to super_admin (ADMIN_* permissions).
 """

@@ -1,5 +1,5 @@
 """
-AGRIOS — Async Database Engine
+Greena — Async Database Engine
 Uses SQLAlchemy 2.x async with asyncpg driver.
 Connection pooling is handled by SQLAlchemy; PgBouncer handles it at the Supabase level.
 """

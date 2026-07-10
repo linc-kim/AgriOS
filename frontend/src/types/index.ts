@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Core TypeScript Types
+ * Greena — Core TypeScript Types
  * All API response shapes are defined here.
  * Keep in sync with backend Pydantic schemas.
  */

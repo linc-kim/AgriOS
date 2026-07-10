@@ -1,5 +1,5 @@
 """
-AGRIOS — Farm Service
+Greena — Farm Service
 Business logic for:
   - Farm CRUD with plan limit enforcement
   - Farm membership (invite, accept, suspend, remove)
@@ -359,7 +359,7 @@ async def invite_farm_member(
     if not role:
         raise NotFoundException(f"Role '{data.role_name}'")
 
-    # Check if an AGRIOS user exists with this phone
+    # Check if an Greena user exists with this phone
     user_result = await db.execute(
         select(User).where(
             User.phone == data.phone,
@@ -382,7 +382,7 @@ async def invite_farm_member(
     await db.refresh(member)
 
     # Send SMS invite (non-blocking failure).
-    # V1 has no deep-link yet; instruct invitee to download AGRIOS and log in.
+    # V1 has no deep-link yet; instruct invitee to download Greena and log in.
     await sms_service.sms_farm_invite(
         phone=data.phone,
         farm_name=farm.name,

@@ -1,5 +1,5 @@
 """
-AGRIOS — SQLAlchemy Base Model
+Greena — SQLAlchemy Base Model
 All models inherit from AGRIOSBase which provides:
   - UUID primary key (v4)
   - created_at / updated_at timestamps
@@ -19,7 +19,7 @@ from app.database import Base
 
 class AGRIOSBase(Base):
     """
-    Abstract base for all AGRIOS models.
+    Abstract base for all Greena models.
     Provides: UUID PK, timestamps, soft delete, JSONB metadata.
     """
 
@@ -57,7 +57,7 @@ class AGRIOSBase(Base):
     )
 
     def soft_delete(self) -> None:
-        """Mark this record as deleted. Never call session.delete() on AGRIOS models."""
+        """Mark this record as deleted. Never call session.delete() on Greena models."""
         self.deleted_at = datetime.utcnow()
 
     @property

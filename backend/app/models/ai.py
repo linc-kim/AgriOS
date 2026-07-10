@@ -1,5 +1,5 @@
 """
-AGRIOS — AI / ARIA Models
+Greena — AI / ARIA Models
 Covers Migrations 023–027:
   AIConversation   (023)
   AIMessage        (024)

@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Auth Zustand Store
+ * Greena — Auth Zustand Store
  * Manages: access token (in-memory), current user, auth state.
  * Access token is NEVER persisted to localStorage or sessionStorage.
  * Refresh token lives in httpOnly cookie (managed by the browser).

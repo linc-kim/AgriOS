@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Onboarding Screen O-03: Farm Setup
+ * Greena — Onboarding Screen O-03: Farm Setup
  * The first and only step after name collection for new users.
  * Creates the user's first farm on the Free plan.
  *
@@ -68,7 +68,7 @@ export default function FarmSetupScreen() {
       {/* Header */}
       <div className="bg-brand-600 px-6 pt-14 pb-10">
         <div className="text-white/70 text-sm font-medium mb-1 uppercase tracking-widest">
-          AGRIOS
+          Greena
         </div>
         <h1 className="text-white text-2xl font-bold leading-tight">
           {t("onboarding.farm.title")}

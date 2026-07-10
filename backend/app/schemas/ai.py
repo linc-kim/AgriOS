@@ -1,5 +1,5 @@
 """
-AGRIOS — AI / ARIA Pydantic Schemas
+Greena — AI / ARIA Pydantic Schemas
 Covers Migrations 023–027:
   AIConversation   (023)
   AIMessage        (024)
@@ -71,7 +71,7 @@ class ARIAMessageCreate(AGRIOSSchema):
 class InsightDismiss(AGRIOSSchema):
     """Body for PATCH /farms/{farm_id}/aria/insights/{insight_id}/dismiss"""
     # No fields — the action is the dismiss itself.
-    # Kept as a schema for consistency with the AGRIOS pattern.
+    # Kept as a schema for consistency with the Greena pattern.
     pass
 
 

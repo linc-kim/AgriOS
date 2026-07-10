@@ -1,5 +1,5 @@
 """
-AGRIOS — Market Price Endpoints (Sprint 7)
+Greena — Market Price Endpoints (Sprint 7)
 
 Endpoint groups:
   GET  /market/prices          — Latest price per commodity (farmer-facing, auth required)

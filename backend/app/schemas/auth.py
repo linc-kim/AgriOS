@@ -1,5 +1,5 @@
 """
-AGRIOS — Authentication Schemas
+Greena — Authentication Schemas
 Request and response models for all auth endpoints.
 Phone format: E.164 (+254XXXXXXXXX for Kenya).
 """

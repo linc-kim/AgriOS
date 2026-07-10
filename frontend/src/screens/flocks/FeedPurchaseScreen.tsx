@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Screen FL-08: Feed Purchase
+ * Greena — Screen FL-08: Feed Purchase
  * Records a feed buying event at farm or flock level.
  * Shows live total cost calculation (quantity × price).
  * Requires OPS_FEED_LOG (farm_owner, farm_manager, farm_worker).

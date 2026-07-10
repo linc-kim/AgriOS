@@ -1,5 +1,5 @@
 """
-AGRIOS — SMS Service (Africa's Talking)
+Greena — SMS Service (Africa's Talking)
 Sprint 7: Implements all SMS notification types from Engineering Constitution Appendix C.
 
 SMS types (all from Engineering Constitution, Appendix C):
@@ -101,7 +101,7 @@ async def sms_vaccination_reminder(
     """Vaccination reminder — 3 days before next_due_date."""
     msg = (
         f"Reminder: {vaccine_name} due for {flock_name} on {due_date}. "
-        f"Log it on AGRIOS."
+        f"Log it on Greena."
     )
     return await send_sms(phone, msg)
 
@@ -112,7 +112,7 @@ async def sms_vaccination_overdue(
     """Vaccination overdue — 1 day after next_due_date."""
     msg = (
         f"Overdue: {vaccine_name} for {flock_name} was due {due_date}. "
-        f"Please vaccinate immediately. Log on AGRIOS."
+        f"Please vaccinate immediately. Log on Greena."
     )
     return await send_sms(phone, msg)
 
@@ -122,7 +122,7 @@ async def sms_daily_log_reminder(
 ) -> bool:
     """Daily log reminder — 20:00 EAT if unlogged today."""
     msg = (
-        f"AGRIOS: {flock_name} has not been logged today. "
+        f"Greena: {flock_name} has not been logged today. "
         f"Please log daily data now."
     )
     return await send_sms(phone, msg)
@@ -133,8 +133,8 @@ async def sms_disease_alert(
 ) -> int:
     """Disease alert — admin publishes, all farms in county receive."""
     msg = (
-        f"AGRIOS Alert: {disease_name} reported in {county}. "
-        f"{guidance} Check AGRIOS for details."
+        f"Greena Alert: {disease_name} reported in {county}. "
+        f"{guidance} Check Greena for details."
     )
     return await send_bulk_sms(phones, msg)
 
@@ -144,8 +144,8 @@ async def sms_weekly_summary(
 ) -> bool:
     """Weekly summary — every Friday at 18:00 EAT."""
     msg = (
-        f"AGRIOS Weekly: {farm_name} had {survival_rate:.1f}% survival rate this week. "
-        f"{flock_count} active flock(s). View your report on AGRIOS."
+        f"Greena Weekly: {farm_name} had {survival_rate:.1f}% survival rate this week. "
+        f"{flock_count} active flock(s). View your report on Greena."
     )
     return await send_sms(phone, msg)
 
@@ -155,7 +155,7 @@ async def sms_farm_invite(
 ) -> bool:
     """Farm member invite notification."""
     msg = (
-        f"You have been invited to join {farm_name} on AGRIOS. "
-        f"Open the AGRIOS app to accept."
+        f"You have been invited to join {farm_name} on Greena. "
+        f"Open the Greena app to accept."
     )
     return await send_sms(phone, msg)

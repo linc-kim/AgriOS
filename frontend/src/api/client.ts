@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Axios HTTP Client
+ * Greena — Axios HTTP Client
  * Configured with:
  * - Base URL from environment
  * - JWT Bearer token injection from Zustand auth store

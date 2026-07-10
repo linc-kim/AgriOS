@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Flock API Client
+ * Greena — Flock API Client
  * Covers all Sprint 3 flock, daily log, production, weighin, and feed purchase endpoints.
  */
 

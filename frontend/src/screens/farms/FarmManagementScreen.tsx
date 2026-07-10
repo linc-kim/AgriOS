@@ -1,5 +1,5 @@
 /**
- * AGRIOS — Screen FM-01: Farm Management Hub
+ * Greena — Screen FM-01: Farm Management Hub
  * Central screen for a single farm. Shows summary, tabs for Members / Structure.
  * Accessible from Dashboard → farm card.
  */
