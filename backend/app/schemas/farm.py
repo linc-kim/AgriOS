@@ -166,6 +166,7 @@ class FarmSummaryResponse(AGRIOSSchema):
     """Lightweight farm summary for list views."""
     id: UUID
     name: str
+    location: str | None
     county: str | None
     is_active: bool
     member_count: int

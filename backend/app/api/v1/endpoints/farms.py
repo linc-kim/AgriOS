@@ -140,6 +140,7 @@ async def list_farms(
             FarmSummaryResponse(
                 id=farm.id,
                 name=farm.name,
+                location=farm.location,
                 county=farm.county,
                 is_active=farm.is_active,
                 member_count=counts["member_count"],
