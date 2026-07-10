@@ -10,6 +10,8 @@ Tests:
   TestQuotaConstants          (4 tests) — plan quota values
 """
 
+import json
+
 import pytest
 from pydantic import ValidationError
 
@@ -126,62 +128,75 @@ class TestLanguageDetection:
 class TestTokenBudgetTrimming:
     """
     Tests for _trim_context_to_budget.
-    The function accepts context_json dict, history_text str, question str
-    and returns a trimmed JSON string that fits within MAX_CONTEXT_TOKENS.
+
+    The function mirrors its real caller in ``send_message``: it takes a
+    ``context_json`` **string** (``json.dumps`` of the farm context), the
+    history text, and the question, and returns a ``(context_json, history_text)``
+    tuple trimmed to fit within MAX_CONTEXT_TOKENS. Step 1 of the trim reduces
+    each active flock's ``recent_logs`` from up to 14 down to 7 entries.
     """
 
-    def _make_context(self, days: int = 14) -> dict:
-        """Build a minimal farm context dict with N daily log entries."""
+    def _make_context(self, days: int = 14, log_notes: str = "") -> dict:
+        """Build a farm context dict shaped like compile_farm_context output."""
         return {
             "farm": {"name": "Test Farm", "county": "Nairobi"},
-            "flocks": [{"id": "abc", "name": "Flock A", "bird_count": 500}],
-            "daily_logs": [
-                {"date": f"2024-01-{i+1:02d}", "mortality": 0, "feed_kg": 50.0}
-                for i in range(days)
+            "active_flocks": [
+                {
+                    "id": "abc",
+                    "name": "Flock A",
+                    "bird_count": 500,
+                    "recent_logs": [
+                        {
+                            "date": f"2024-01-{i + 1:02d}",
+                            "mortality": 0,
+                            "feed_kg": 50.0,
+                            "notes": log_notes,
+                        }
+                        for i in range(days)
+                    ],
+                }
             ],
-            "expenses": [{"amount": "1000", "category": "Feed"}],
-            "revenue": [{"amount": "5000", "source": "Egg sales"}],
+            "recent_expenses": [{"amount": "1000", "category": "Feed"}],
+            "recent_revenue": [{"amount": "5000", "source": "Egg sales"}],
         }
 
     def test_small_context_passes_through_unchanged(self):
         context = self._make_context(days=3)
-        result = _trim_context_to_budget(context, "", "How is my farm doing?")
-        import json
-        parsed = json.loads(result)
-        # Small context — all sections should be present
+        trimmed_json, _ = _trim_context_to_budget(
+            json.dumps(context), "", "How is my farm doing?"
+        )
+        parsed = json.loads(trimmed_json)
+        # Small context — all sections should survive untouched.
         assert "farm" in parsed
+        assert len(parsed["active_flocks"][0]["recent_logs"]) == 3
 
     def test_daily_logs_trimmed_to_7_when_oversized(self):
-        """
-        AR-02 trim order: first reduce daily_logs from 14 to 7 days.
-        Create a context large enough to trigger this.
-        """
-        import json
-        # 14 days of verbose logs
-        context = self._make_context(days=14)
-        # Make logs verbose to push over token budget
-        for log in context["daily_logs"]:
-            log["notes"] = "x" * 500  # inflate size
-
-        result = _trim_context_to_budget(context, "", "How is my flock?")
-        parsed = json.loads(result)
-        if "daily_logs" in parsed:
-            assert len(parsed["daily_logs"]) <= 14  # at most 14, possibly trimmed to 7
+        """AR-02 trim order: first reduce each flock's recent_logs 14 -> 7."""
+        # Inflate each log past the 32k-char (8k-token) budget to force trimming.
+        context = self._make_context(days=14, log_notes="x" * 3000)
+        trimmed_json, _ = _trim_context_to_budget(
+            json.dumps(context), "", "How is my flock?"
+        )
+        parsed = json.loads(trimmed_json)
+        assert len(parsed["active_flocks"][0]["recent_logs"]) == 7
 
     def test_result_is_valid_json_string(self):
-        import json
         context = self._make_context(days=7)
-        result = _trim_context_to_budget(context, "", "Test question")
-        parsed = json.loads(result)  # must not raise
+        trimmed_json, history = _trim_context_to_budget(
+            json.dumps(context), "", "Test question"
+        )
+        parsed = json.loads(trimmed_json)  # must not raise
         assert isinstance(parsed, dict)
+        assert isinstance(history, str)
 
     def test_history_text_included_in_budget_calculation(self):
         """Providing a long history should not cause the function to crash."""
         context = self._make_context(days=3)
         long_history = "User: question\nAssistant: answer\n" * 50
-        result = _trim_context_to_budget(context, long_history, "Current question")
-        import json
-        assert isinstance(json.loads(result), dict)
+        trimmed_json, _ = _trim_context_to_budget(
+            json.dumps(context), long_history, "Current question"
+        )
+        assert isinstance(json.loads(trimmed_json), dict)
 
 
 # ── Plan Quota Constants ──────────────────────────────────────────────────────

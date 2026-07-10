@@ -534,6 +534,8 @@ def _detect_language(text: str) -> str:
         "habari", "karibu", "asante", "ndege", "chakula", "bei", "faida",
         "hasara", "kuku", "kinga", "chanjo", "vifaranga", "mauzo", "gharama",
         "niambie", "nini", "lini", "vipi", "wapi", "kwa nini",
+        # Common poultry/farming domain words
+        "shamba", "mifugo", "lishe", "magonjwa", "ugonjwa", "mayai", "yai",
     ]
     hits = sum(1 for word in swahili_markers if word in text_lower)
     return "sw" if hits >= 2 else "en"

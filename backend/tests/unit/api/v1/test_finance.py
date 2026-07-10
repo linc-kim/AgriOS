@@ -85,6 +85,7 @@ class TestExpenseCreate:
         base = dict(
             category_id="00000000-0000-0000-0000-000000000001",
             amount=Decimal("5000.00"),
+            description="Layer feed restock",
             expense_date=date.today(),
             payment_method="mpesa",
         )
@@ -208,7 +209,7 @@ class TestRevenueRecordCreate:
             flock_id=self._FLOCK_ID,
             revenue_type="eggs",
             amount=Decimal("12000.00"),
-            sale_date=date.today(),
+            revenue_date=date.today(),
             eggs_count=360,
         )
         assert rec.revenue_type == "eggs"
@@ -220,7 +221,7 @@ class TestRevenueRecordCreate:
             flock_id=self._FLOCK_ID,
             revenue_type="eggs",
             amount=Decimal("3600.00"),
-            sale_date=date.today(),
+            revenue_date=date.today(),
             trays_count=12,
         )
         assert rec.trays_count == 12
@@ -232,7 +233,7 @@ class TestRevenueRecordCreate:
                 flock_id=self._FLOCK_ID,
                 revenue_type="eggs",
                 amount=Decimal("3600.00"),
-                sale_date=date.today(),
+                revenue_date=date.today(),
             )
         assert "eggs" in str(exc_info.value).lower() or "trays" in str(exc_info.value).lower()
 
@@ -242,7 +243,7 @@ class TestRevenueRecordCreate:
             flock_id=self._FLOCK_ID,
             revenue_type="birds",
             amount=Decimal("45000.00"),
-            sale_date=date.today(),
+            revenue_date=date.today(),
             birds_sold=100,
             avg_weight_kg=Decimal("2.100"),
         )
@@ -256,7 +257,7 @@ class TestRevenueRecordCreate:
                 flock_id=self._FLOCK_ID,
                 revenue_type="birds",
                 amount=Decimal("45000.00"),
-                sale_date=date.today(),
+                revenue_date=date.today(),
             )
         assert "birds_sold" in str(exc_info.value).lower()
 
@@ -266,7 +267,7 @@ class TestRevenueRecordCreate:
             flock_id=self._FLOCK_ID,
             revenue_type="manure",
             amount=Decimal("2000.00"),
-            sale_date=date.today(),
+            revenue_date=date.today(),
             quantity=Decimal("5.000"),
             unit="tonnes",
         )
@@ -278,7 +279,7 @@ class TestRevenueRecordCreate:
             flock_id=self._FLOCK_ID,
             revenue_type="other",
             amount=Decimal("500.00"),
-            sale_date=date.today(),
+            revenue_date=date.today(),
         )
         assert rec.revenue_type == "other"
 
@@ -289,7 +290,7 @@ class TestRevenueRecordCreate:
                 flock_id=self._FLOCK_ID,
                 revenue_type="honey",
                 amount=Decimal("1000.00"),
-                sale_date=date.today(),
+                revenue_date=date.today(),
             )
 
     def test_flock_id_required(self):
@@ -298,7 +299,7 @@ class TestRevenueRecordCreate:
             RevenueRecordCreate(
                 revenue_type="other",
                 amount=Decimal("500.00"),
-                sale_date=date.today(),
+                revenue_date=date.today(),
             )
         assert "flock_id" in str(exc_info.value).lower()
 
@@ -345,69 +346,78 @@ class TestCalculatorInputs:
         """FCR input with positive values passes."""
         inp = FCRCalculatorInput(
             total_feed_kg=Decimal("200.0"),
-            total_weight_gain_kg=Decimal("120.0"),
+            total_live_weight_kg=Decimal("120.0"),
         )
         assert inp.total_feed_kg == Decimal("200.0")
+        assert inp.total_live_weight_kg == Decimal("120.0")
 
-    def test_fcr_zero_weight_gain_rejected(self):
-        """FCR with zero weight gain (division by zero risk) must fail."""
+    def test_fcr_zero_weight_rejected(self):
+        """FCR with zero live weight (division by zero risk) must fail."""
         with pytest.raises(ValidationError):
             FCRCalculatorInput(
                 total_feed_kg=Decimal("200.0"),
-                total_weight_gain_kg=Decimal("0"),
+                total_live_weight_kg=Decimal("0"),
             )
 
     def test_profit_projection_valid(self):
         """Profit projection with all required fields passes."""
         inp = ProfitProjectionInput(
-            bird_count=500,
-            expected_weight_kg=Decimal("2.2"),
-            expected_price_kes_per_kg=Decimal("280.00"),
-            total_feed_cost_kes=Decimal("85000.00"),
-            doc_cost_kes=Decimal("20000.00"),
-            other_costs_kes=Decimal("5000.00"),
-            mortality_pct=Decimal("3.0"),
+            current_bird_count=500,
+            expected_close_weight_kg=Decimal("2.2"),
+            expected_sale_price_per_kg=Decimal("280.00"),
+            total_expenses_so_far_kes=Decimal("105000.00"),
+            expected_additional_expenses_kes=Decimal("5000.00"),
+            expected_mortality_pct=Decimal("3.0"),
         )
-        assert inp.bird_count == 500
-        assert inp.mortality_pct == Decimal("3.0")
+        assert inp.current_bird_count == 500
+        assert inp.expected_mortality_pct == Decimal("3.0")
+
+    def test_profit_projection_defaults_applied(self):
+        """Optional additional-expense and mortality fields default sensibly."""
+        inp = ProfitProjectionInput(
+            current_bird_count=500,
+            expected_close_weight_kg=Decimal("2.2"),
+            expected_sale_price_per_kg=Decimal("280.00"),
+            total_expenses_so_far_kes=Decimal("105000.00"),
+        )
+        assert inp.expected_additional_expenses_kes == Decimal("0")
+        assert inp.expected_mortality_pct == Decimal("3")
 
     def test_profit_projection_mortality_out_of_range(self):
         """Mortality % over 100 must fail."""
         with pytest.raises(ValidationError):
             ProfitProjectionInput(
-                bird_count=500,
-                expected_weight_kg=Decimal("2.2"),
-                expected_price_kes_per_kg=Decimal("280.00"),
-                total_feed_cost_kes=Decimal("85000.00"),
-                doc_cost_kes=Decimal("20000.00"),
-                other_costs_kes=Decimal("0"),
-                mortality_pct=Decimal("105.0"),
+                current_bird_count=500,
+                expected_close_weight_kg=Decimal("2.2"),
+                expected_sale_price_per_kg=Decimal("280.00"),
+                total_expenses_so_far_kes=Decimal("105000.00"),
+                expected_mortality_pct=Decimal("105.0"),
             )
 
     def test_break_even_valid(self):
         """Break-even input with all required fields passes."""
         inp = BreakEvenInput(
-            total_costs_kes=Decimal("110000.00"),
-            birds_to_sell=480,
-            avg_weight_kg=Decimal("2.1"),
+            total_expenses_kes=Decimal("110000.00"),
+            expected_birds_sold=480,
+            expected_avg_weight_kg=Decimal("2.1"),
         )
-        assert inp.birds_to_sell == 480
+        assert inp.expected_birds_sold == 480
 
     def test_break_even_zero_birds_rejected(self):
-        """Break-even with zero birds_to_sell must fail."""
+        """Break-even with zero expected_birds_sold must fail."""
         with pytest.raises(ValidationError):
             BreakEvenInput(
-                total_costs_kes=Decimal("110000.00"),
-                birds_to_sell=0,
-                avg_weight_kg=Decimal("2.1"),
+                total_expenses_kes=Decimal("110000.00"),
+                expected_birds_sold=0,
+                expected_avg_weight_kg=Decimal("2.1"),
             )
 
     def test_feed_needs_valid(self):
         """Feed needs input passes with required fields."""
         inp = FeedNeedsInput(
-            bird_count=500,
-            current_age_days=21,
-            current_total_feed_kg=Decimal("420.0"),
+            current_bird_count=500,
+            current_avg_weight_kg=Decimal("1.1"),
+            target_weight_kg=Decimal("2.2"),
         )
-        assert inp.current_age_days == 21
+        assert inp.current_bird_count == 500
         assert inp.days_remaining is None  # optional

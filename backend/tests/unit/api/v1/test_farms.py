@@ -6,6 +6,7 @@ Uses mocked services so no database is required.
 
 import uuid
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -38,31 +39,28 @@ def make_plan(**overrides) -> SubscriptionPlan:
 
 
 def make_farm(**overrides) -> Farm:
-    farm = MagicMock(spec=Farm)
-    farm.id = uuid.uuid4()
-    farm.name = "Sunrise Farm"
-    farm.description = "A test farm"
-    farm.location = "Kiambu Town"
-    farm.county = "Kiambu"
-    farm.owner_id = uuid.uuid4()
-    farm.plan_id = uuid.uuid4()
-    farm.is_active = True
-    farm.timezone = "Africa/Nairobi"
-    farm.created_at = datetime.now(timezone.utc)
-    farm.updated_at = datetime.now(timezone.utc)
-    farm.__dict__ = {
-        "id": farm.id,
-        "name": farm.name,
-        "description": farm.description,
-        "location": farm.location,
-        "county": farm.county,
-        "owner_id": farm.owner_id,
-        "plan_id": farm.plan_id,
-        "is_active": farm.is_active,
-        "timezone": farm.timezone,
-        "created_at": farm.created_at,
-        "updated_at": farm.updated_at,
-    }
+    """
+    A farm-like stand-in for endpoint smoke tests.
+
+    A plain object (not a spec'd MagicMock) is used deliberately: the endpoints
+    build their response via ``FarmResponse.model_validate({**farm.__dict__, ...})``
+    and read ``farm.plan.display_name``, so ``__dict__`` must be a clean column map
+    while ``.plan`` stays attribute-accessible. Reassigning ``__dict__`` on a
+    MagicMock corrupts its internals, so we avoid mocks here.
+    """
+    farm = SimpleNamespace(
+        id=uuid.uuid4(),
+        name="Sunrise Farm",
+        description="A test farm",
+        location="Kiambu Town",
+        county="Kiambu",
+        owner_id=uuid.uuid4(),
+        plan_id=uuid.uuid4(),
+        is_active=True,
+        timezone="Africa/Nairobi",
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
     farm.plan = make_plan()
     for k, v in overrides.items():
         setattr(farm, k, v)
@@ -273,18 +271,20 @@ class TestFarmEndpointContracts:
         assert isinstance(body["data"], list)
 
     @pytest.mark.asyncio
-    async def test_get_farm_not_member_returns_403(self, client: AsyncClient, auth_headers: dict):
-        """GET /farms/{id} when not a member → 403."""
-        from app.exceptions import FarmAccessException
-        farm_id = uuid.uuid4()
+    async def test_get_farm_inaccessible_is_denied(self, client: AsyncClient, auth_headers: dict):
+        """
+        GET /farms/{id} for a farm the caller cannot access is denied — never 200.
 
-        with patch(
-            "app.dependencies.require_farm_access",
-            side_effect=FarmAccessException,
-        ):
-            resp = await client.get(f"/api/v1/farms/{farm_id}", headers=auth_headers)
-        # FastAPI will propagate the exception through the dependency
-        assert resp.status_code in (403, 422)  # 422 if dependency factory not fully mocked
+        The ``require_farm_access`` dependency guards the route: an unknown farm
+        raises NotFoundException (404); an existing farm the caller isn't a member
+        of raises FarmAccessException (403). Both are valid denials. (The
+        member-vs-owner 403 path is covered end-to-end in the farm integration
+        flow, which seeds real farms and memberships.)
+        """
+        farm_id = uuid.uuid4()
+        resp = await client.get(f"/api/v1/farms/{farm_id}", headers=auth_headers)
+        assert resp.status_code in (403, 404)
+        assert resp.json()["success"] is False
 
     @pytest.mark.asyncio
     async def test_create_farm_missing_name_returns_422(self, client: AsyncClient, auth_headers: dict):
@@ -300,23 +300,39 @@ class TestFarmEndpointContracts:
         assert body["error"]["code"] == "VALIDATION_ERROR"
 
     @pytest.mark.asyncio
-    async def test_invite_member_invalid_phone_returns_422(self, client: AsyncClient, auth_headers: dict):
-        """POST /farms/{id}/members/invite with bad phone → 422."""
+    async def test_invite_member_to_inaccessible_farm_is_guarded(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        """
+        POST /farms/{id}/members/invite is guarded by farm access.
+
+        The access dependency runs before body validation, so inviting to an
+        unknown farm short-circuits to 404 (never 200/401). Phone-format
+        validation (422) is asserted directly against the schema in
+        ``test_farm_member_invite_rejects_invalid_phone`` — that path is only
+        reached once the caller has owner/manager access to a real farm.
+        """
         farm_id = uuid.uuid4()
         resp = await client.post(
             f"/api/v1/farms/{farm_id}/members/invite",
             json={"phone": "0712345678", "role_name": "farm_worker"},
             headers=auth_headers,
         )
-        assert resp.status_code == 422
+        assert resp.status_code in (403, 404)
+
+    def test_farm_member_invite_rejects_invalid_phone(self):
+        """FarmMemberInvite rejects a non-E.164 Kenyan phone (the 422 source)."""
+        import pydantic
+        from app.schemas.farm import FarmMemberInvite
+
+        with pytest.raises(pydantic.ValidationError):
+            FarmMemberInvite(phone="0712345678", role_name="farm_worker")
 
     @pytest.mark.asyncio
     async def test_plans_endpoint_is_public(self, client: AsyncClient):
-        """GET /plans → 200 without auth token."""
-        with patch(
-            "app.api.v1.endpoints.farms.db",
-            new_callable=AsyncMock,
-        ):
-            resp = await client.get("/api/v1/plans")
-        # Even if DB call fails in test, the route should be reachable (not 401)
-        assert resp.status_code != 401
+        """GET /plans is reachable without an auth token (public endpoint)."""
+        resp = await client.get("/api/v1/plans")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["success"] is True
+        assert isinstance(body["data"], list)

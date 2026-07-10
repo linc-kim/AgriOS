@@ -112,6 +112,13 @@ async def log_vaccination(
     """
     flock = await _get_flock_or_404(db, farm.id, flock_id)
 
+    # A vaccination can only be logged against an active flock — a closed/sold
+    # flock is a historical record and must not accept new health events.
+    if flock.status != "active":
+        raise ValidationException(
+            "Cannot log a vaccination for a flock that is not active."
+        )
+
     # Validate administered_date is not before flock placement
     if data.administered_date < flock.placement_date:
         raise ValidationException(

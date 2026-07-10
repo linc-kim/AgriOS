@@ -33,6 +33,26 @@ KENYA_COUNTIES = {
     "West Pokot",
 }
 
+# Canonical lookup so county matching is case-insensitive and does not depend on
+# str.title(), which mangles names containing apostrophes/hyphens (e.g. "Murang'a"
+# -> "Murang'A", "Elgeyo-Marakwet" -> "Elgeyo-Marakwet" is fine but "Taita-Taveta"
+# survives while apostrophe names do not). Map normalised (casefold) -> canonical.
+_COUNTY_CANONICAL = {name.casefold(): name for name in KENYA_COUNTIES}
+
+
+def _normalise_county(value: str | None) -> str | None:
+    """Return the canonical county spelling, or raise ValueError if unrecognised."""
+    if value is None:
+        return value
+    canonical = _COUNTY_CANONICAL.get(value.strip().casefold())
+    if canonical is None:
+        raise ValueError(
+            f"'{value}' is not a recognised Kenya county. "
+            "Provide one of the 47 official county names."
+        )
+    return canonical
+
+
 PHONE_REGEX = re.compile(r"^\+254[17]\d{8}$")
 
 # ── Subscription Plan Schemas ─────────────────────────────────────────────────
@@ -96,15 +116,7 @@ class FarmCreate(AGRIOSSchema):
     @field_validator("county")
     @classmethod
     def validate_county(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
-        normalized = v.strip().title()
-        if normalized not in KENYA_COUNTIES:
-            raise ValueError(
-                f"'{v}' is not a recognised Kenya county. "
-                "Provide one of the 47 official county names."
-            )
-        return normalized
+        return _normalise_county(v)
 
     @field_validator("name")
     @classmethod
@@ -125,14 +137,7 @@ class FarmUpdate(AGRIOSSchema):
     @field_validator("county")
     @classmethod
     def validate_county(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
-        normalized = v.strip().title()
-        if normalized not in KENYA_COUNTIES:
-            raise ValueError(
-                f"'{v}' is not a recognised Kenya county."
-            )
-        return normalized
+        return _normalise_county(v)
 
     @field_validator("name")
     @classmethod

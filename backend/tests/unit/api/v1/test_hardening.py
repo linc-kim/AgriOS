@@ -180,7 +180,9 @@ class TestSecurityHeadersDispatch:
     @pytest.mark.asyncio
     async def test_hsts_not_set_in_development(self, monkeypatch):
         """HSTS must not be sent in development (no HTTPS locally)."""
-        monkeypatch.setattr("app.core.middleware.settings.is_production", False)
+        # is_production is a read-only property derived from ENVIRONMENT; drive it
+        # via ENVIRONMENT, which the middleware reads live per request.
+        monkeypatch.setattr("app.core.middleware.settings.ENVIRONMENT", "development")
         middleware = self._make_middleware()
         mock_response = MagicMock()
         mock_response.headers = {}
@@ -195,7 +197,7 @@ class TestSecurityHeadersDispatch:
     @pytest.mark.asyncio
     async def test_hsts_set_in_production(self, monkeypatch):
         """HSTS must be sent in production."""
-        monkeypatch.setattr("app.core.middleware.settings.is_production", True)
+        monkeypatch.setattr("app.core.middleware.settings.ENVIRONMENT", "production")
         middleware = self._make_middleware()
         mock_response = MagicMock()
         mock_response.headers = {}

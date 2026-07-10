@@ -121,20 +121,22 @@ class TestPIN:
         assert response.status_code in (401, 422)
 
     @pytest.mark.asyncio
-    async def test_set_pin_rejects_non_numeric(self, client, seeded_roles):
+    async def test_set_pin_rejects_non_numeric(self, client, auth_headers):
+        # Authenticated: a non-numeric PIN must fail body validation (422),
+        # not short-circuit on auth (401).
         response = await client.post(
             "/api/v1/auth/set-pin",
             json={"pin": "abcd", "pin_confirm": "abcd"},
-            headers={"Authorization": "Bearer fake_token"},
+            headers=auth_headers,
         )
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_set_pin_rejects_too_short(self, client, seeded_roles):
+    async def test_set_pin_rejects_too_short(self, client, auth_headers):
         response = await client.post(
             "/api/v1/auth/set-pin",
             json={"pin": "123", "pin_confirm": "123"},
-            headers={"Authorization": "Bearer fake_token"},
+            headers=auth_headers,
         )
         assert response.status_code == 422
 

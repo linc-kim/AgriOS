@@ -40,6 +40,92 @@ import pytest_asyncio
 pytestmark = pytest.mark.asyncio
 
 
+# ── Health-specific data fixtures (isolated per test) ─────────────────────────
+# These seed rows on the same per-test connection as ``async_client`` (via
+# ``integration_session``), so they are visible to requests and rolled back after
+# the test. ``workspace`` provides the shared farm/flock.
+
+from datetime import datetime, timezone  # noqa: E402
+
+from app.models.flock import Flock  # noqa: E402
+from app.models.health import DiseaseAlert  # noqa: E402
+
+
+class _Row:
+    def __init__(self, **kw):
+        self.__dict__.update(kw)
+
+
+@pytest_asyncio.fixture
+async def test_closed_flock(integration_session, workspace):
+    """A closed flock in the shared farm (reuses the farm's house historically)."""
+    flock = Flock(
+        farm_id=workspace.farm.id,
+        house_id=workspace.flock.house_id,
+        species_key="poultry",
+        name="Closed Harness Flock",
+        initial_count=400,
+        placement_date=date.today() - timedelta(days=90),
+        status="closed",
+        close_date=date.today() - timedelta(days=5),
+    )
+    integration_session.add(flock)
+    await integration_session.commit()
+    return _Row(id=flock.id)
+
+
+async def _make_alert(session, farm_county, **overrides) -> DiseaseAlert:
+    now = datetime.now(timezone.utc)
+    data = dict(
+        county=farm_county,
+        species_key=None,
+        disease_name="Newcastle Disease",
+        title="Newcastle outbreak advisory",
+        description="Increased Newcastle activity reported in the area.",
+        severity="warning",
+        status="active",
+        published_at=now,
+        created_at=now,
+        updated_at=now,
+    )
+    data.update(overrides)
+    alert = DiseaseAlert(**data)
+    session.add(alert)
+    await session.commit()
+    return alert
+
+
+@pytest_asyncio.fixture
+async def test_active_alert_kiambu(integration_session, workspace):
+    """An active alert targeting the farm's own county."""
+    return await _make_alert(integration_session, workspace.farm.county)
+
+
+@pytest_asyncio.fixture
+async def test_draft_alert(integration_session, workspace):
+    """A draft alert (must not be visible to farmers)."""
+    return await _make_alert(
+        integration_session, workspace.farm.county, status="draft", published_at=None
+    )
+
+
+@pytest_asyncio.fixture
+async def test_national_alert(integration_session, workspace):
+    """A national (county=None) active alert — visible to every farm."""
+    return await _make_alert(integration_session, None)
+
+
+@pytest_asyncio.fixture
+async def test_deactivated_alert(integration_session, workspace):
+    """A deactivated alert — visible in the list but not the active banner."""
+    return await _make_alert(
+        integration_session,
+        workspace.farm.county,
+        status="deactivated",
+        deactivated_at=datetime.now(timezone.utc),
+    )
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. Log vaccination — 201 returned
 # ─────────────────────────────────────────────────────────────────────────────

@@ -377,7 +377,8 @@ class TestMarketPriceResponse:
             created_at = datetime.utcnow()
 
         r = MarketPriceResponse.from_orm_with_decimal(FakeOrm())
-        assert r.price_kes == "55.5"  # Decimal("55.50").__str__() == "55.50" (varies by input)
+        # str(Decimal("55.50")) preserves the scale → "55.50" (not "55.5").
+        assert r.price_kes == "55.50"
         assert isinstance(r.price_kes, str)
 
     def test_market_price_list_response_structure(self):
