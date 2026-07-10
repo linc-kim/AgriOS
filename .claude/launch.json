@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "greena-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--host", "127.0.0.1"],
+      "cwd": "frontend",
+      "port": 5173,
+      "autoPort": true
+    },
+    {
+      "name": "brand-static",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5599", "--directory", "brand"],
+      "port": 5599
+    }
+  ]
+}

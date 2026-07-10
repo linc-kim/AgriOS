@@ -43,6 +43,10 @@ dist/
 # Vite
 frontend/dist/
 
+# Claude Code — local session data (launch.json is shared and tracked)
+.claude/projects/
+.claude/settings.local.json
+
 # IDE
 .vscode/
 .idea/

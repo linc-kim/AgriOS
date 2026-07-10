@@ -155,6 +155,7 @@ export interface Farm {
 export interface FarmSummary {
   id: string;
   name: string;
+  location: string | null;
   county: string | null;
   is_active: boolean;
   member_count: number;
