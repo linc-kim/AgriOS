@@ -8,12 +8,14 @@ import type {
   APISuccess,
   DailyLog,
   DailyLogSubmitInput,
+  FarmProductionDashboard,
   FeedPurchase,
   FeedPurchaseInput,
   Flock,
   FlockCloseInput,
   FlockCreateInput,
   FlockDetail,
+  FlockUpdateInput,
   ProductionRecord,
   ProductionRecordInput,
   WeighinInput,
@@ -51,6 +53,25 @@ export async function getFlock(farmId: string, flockId: string): Promise<FlockDe
   return data.data;
 }
 
+export async function updateFlock(
+  farmId: string,
+  flockId: string,
+  input: FlockUpdateInput,
+): Promise<Flock> {
+  const { data } = await apiClient.patch<APISuccess<Flock>>(
+    `/farms/${farmId}/flocks/${flockId}`,
+    input,
+  );
+  return data.data;
+}
+
+export async function archiveFlock(farmId: string, flockId: string): Promise<Flock> {
+  const { data } = await apiClient.post<APISuccess<Flock>>(
+    `/farms/${farmId}/flocks/${flockId}/archive`,
+  );
+  return data.data;
+}
+
 export async function closeFlock(
   farmId: string,
   flockId: string,
@@ -59,6 +80,15 @@ export async function closeFlock(
   const { data } = await apiClient.post<APISuccess<Flock>>(
     `/farms/${farmId}/flocks/${flockId}/close`,
     input,
+  );
+  return data.data;
+}
+
+export async function getProductionDashboard(
+  farmId: string,
+): Promise<FarmProductionDashboard> {
+  const { data } = await apiClient.get<APISuccess<FarmProductionDashboard>>(
+    `/farms/${farmId}/production-dashboard`,
   );
   return data.data;
 }

@@ -268,12 +268,14 @@ export interface Flock {
   species_key: string;
   name: string;
   breed: string | null;
+  source: string | null;
   batch_number: string | null;
   initial_count: number;
   placement_date: string;
   expected_cycle_days: number;
   expected_close_date: string | null;
   status: FlockStatus;
+  archived_at: string | null;
   close_date: string | null;
   close_reason: string | null;
   sale_price_per_kg: string | null;
@@ -287,6 +289,7 @@ export interface Flock {
 export interface FlockMetrics {
   days_alive: number;
   total_mortality: number;
+  total_culls: number;
   current_count: number;
   survival_rate: number;
   total_feed_kg: string;
@@ -309,6 +312,7 @@ export interface DailyLog {
   morning_count: number | null;
   mortality_count: number;
   mortality_cause: string | null;
+  culls: number;
   feed_consumed_kg: string;
   water_litres: string | null;
   house_temp_am: string | null;
@@ -376,11 +380,34 @@ export interface FlockCreateInput {
   house_id: string;
   name: string;
   breed?: string;
+  source?: string;
   batch_number?: string;
   initial_count: number;
   placement_date: string;
   expected_cycle_days?: number;
   species_key?: string;
+}
+
+export interface FlockUpdateInput {
+  name?: string;
+  breed?: string;
+  source?: string;
+  batch_number?: string;
+  house_id?: string;
+  expected_cycle_days?: number;
+}
+
+export interface FarmProductionDashboard {
+  active_flock_count: number;
+  total_birds: number;
+  avg_bird_age_days: number | null;
+  eggs_today: number;
+  eggs_this_week: number;
+  avg_hen_day_production: number | null;
+  feed_today_kg: string;
+  feed_this_week_kg: string;
+  mortality_this_week: number;
+  culls_this_week: number;
 }
 
 export interface FlockCloseInput {
