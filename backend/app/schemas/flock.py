@@ -151,6 +151,7 @@ class FlockMetrics(AGRIOSSchema):
 
     days_alive: int
     total_mortality: int
+    total_culls: int = 0
     current_count: int
     survival_rate: float = Field(description="Percentage 0.0–100.0")
     total_feed_kg: Decimal
@@ -279,6 +280,11 @@ class DailyLogSubmit(AGRIOSSchema):
         ge=Decimal("0"),
         le=Decimal("60"),
     )
+    culls: int = Field(
+        default=0,
+        ge=0,
+        description="Birds culled (removed) this day — reduces the live count.",
+    )
     notes: str | None = Field(default=None, max_length=2000)
 
     @field_validator("log_date")
@@ -304,6 +310,7 @@ class DailyLogCorrect(AGRIOSSchema):
     water_litres: Decimal | None = Field(default=None, ge=Decimal("0"))
     house_temp_am: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("60"))
     house_temp_pm: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("60"))
+    culls: int | None = Field(default=None, ge=0)
     notes: str | None = Field(default=None, max_length=2000)
     correction_reason: str = Field(
         ...,
@@ -317,7 +324,7 @@ class DailyLogCorrect(AGRIOSSchema):
         fields_that_matter = [
             "morning_count", "mortality_count", "mortality_cause",
             "feed_consumed_kg", "water_litres", "house_temp_am", "house_temp_pm",
-            "notes",
+            "culls", "notes",
         ]
         if all(getattr(self, f) is None for f in fields_that_matter):
             raise ValueError("At least one field must be provided for correction.")
@@ -333,6 +340,7 @@ class DailyLogResponse(TimestampedSchema):
     morning_count: int | None
     mortality_count: int
     mortality_cause: str | None
+    culls: int
     feed_consumed_kg: Decimal
     water_litres: Decimal | None
     house_temp_am: Decimal | None

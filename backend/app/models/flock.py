@@ -234,6 +234,13 @@ class DailyLog(AGRIOSBase):
         Integer, nullable=False, default=0
     )
     mortality_cause: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    culls: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+        comment="Birds culled (removed) this day — reduces the live count.",
+    )
     feed_consumed_kg: Mapped[Decimal] = mapped_column(
         Numeric(10, 3), nullable=False, default=Decimal("0")
     )

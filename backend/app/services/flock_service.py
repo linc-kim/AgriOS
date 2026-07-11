@@ -295,17 +295,23 @@ async def get_flock_detail(
     flock = await _get_flock_or_404(db, farm_id, flock_id)
 
     # Compute metrics from daily logs
-    mortality_result = await db.execute(
-        select(func.coalesce(func.sum(DailyLog.mortality_count), 0)).where(
+    loss_result = await db.execute(
+        select(
+            func.coalesce(func.sum(DailyLog.mortality_count), 0),
+            func.coalesce(func.sum(DailyLog.culls), 0),
+        ).where(
             DailyLog.flock_id == flock_id,
             DailyLog.deleted_at.is_(None),
         )
     )
-    total_mortality = int(mortality_result.scalar_one())
+    total_mortality_raw, total_culls_raw = loss_result.one()
+    total_mortality = int(total_mortality_raw)
+    total_culls = int(total_culls_raw)
 
     total_feed_kg = await _get_total_feed_for_flock(db, flock_id)
 
-    current_count = flock.initial_count - total_mortality
+    # Live count reduced by both mortality and culls.
+    current_count = flock.initial_count - total_mortality - total_culls
     survival_rate = (
         (current_count / flock.initial_count * 100) if flock.initial_count > 0 else 0.0
     )
@@ -352,6 +358,7 @@ async def get_flock_detail(
     metrics = FlockMetrics(
         days_alive=days_alive,
         total_mortality=total_mortality,
+        total_culls=total_culls,
         current_count=current_count,
         survival_rate=round(survival_rate, 2),
         total_feed_kg=total_feed_kg,
@@ -442,6 +449,7 @@ async def submit_daily_log(
             morning_count=data.morning_count,
             mortality_count=data.mortality_count,
             mortality_cause=data.mortality_cause,
+            culls=data.culls,
             feed_consumed_kg=data.feed_consumed_kg,
             water_litres=data.water_litres,
             house_temp_am=data.house_temp_am,
@@ -458,6 +466,7 @@ async def submit_daily_log(
                 "morning_count": data.morning_count,
                 "mortality_count": data.mortality_count,
                 "mortality_cause": data.mortality_cause,
+                "culls": data.culls,
                 "feed_consumed_kg": data.feed_consumed_kg,
                 "water_litres": data.water_litres,
                 "house_temp_am": data.house_temp_am,
@@ -543,7 +552,7 @@ async def correct_daily_log(
         "corrected_at": datetime.now(timezone.utc),
     }
     for field in [
-        "morning_count", "mortality_count", "mortality_cause",
+        "morning_count", "mortality_count", "mortality_cause", "culls",
         "feed_consumed_kg", "water_litres", "house_temp_am",
         "house_temp_pm", "notes",
     ]:
