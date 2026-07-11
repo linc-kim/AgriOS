@@ -46,6 +46,7 @@ from app.schemas.flock import (
     DailyLogSubmit,
     FeedPurchaseCreate,
     FeedPurchaseResponse,
+    FarmProductionDashboard,
     FlockClose,
     FlockCreate,
     FlockUpdate,
@@ -207,6 +208,24 @@ async def archive_flock(
     farm, member = access
     flock = await flock_service.archive_flock(db, farm.id, _uuid.UUID(flock_id))
     return SuccessResponse(data=FlockResponse.model_validate(flock))
+
+
+@router.get(
+    "/farms/{farm_id}/production-dashboard",
+    response_model=SuccessResponse[FarmProductionDashboard],
+    summary="Farm-wide production dashboard metrics (real data)",
+    tags=["Flocks"],
+)
+async def production_dashboard(
+    farm_id: str,
+    db: DBSession,
+    current_user: CurrentUser,
+    access: tuple = Depends(require_farm_access()),
+    _perm=Depends(require_permission(Permission.FLOCK_VIEW)),
+) -> SuccessResponse[FarmProductionDashboard]:
+    farm, member = access
+    data = await flock_service.get_farm_production_dashboard(db, farm.id)
+    return SuccessResponse(data=data)
 
 
 # ── Daily Logs ────────────────────────────────────────────────────────────────

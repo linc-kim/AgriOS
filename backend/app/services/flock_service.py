@@ -193,6 +193,123 @@ async def list_flocks(
     return list(result.scalars().all())
 
 
+async def get_farm_production_dashboard(db: AsyncSession, farm_id: uuid.UUID):
+    """
+    Aggregate real farm-wide production metrics across active flocks: bird count,
+    average age, egg output (today / this week), feed consumption, and losses.
+    """
+    from app.schemas.flock import FarmProductionDashboard
+
+    today = date.today()
+    week_ago = today - timedelta(days=6)  # inclusive 7-day window
+
+    # Active flocks — count, ages, initial birds.
+    active_result = await db.execute(
+        select(Flock).where(
+            Flock.farm_id == farm_id,
+            Flock.status == "active",
+            Flock.deleted_at.is_(None),
+        )
+    )
+    active_flocks = list(active_result.scalars().all())
+    active_ids = [f.id for f in active_flocks]
+    active_count = len(active_flocks)
+
+    avg_age: int | None = None
+    if active_flocks:
+        avg_age = round(
+            sum((today - f.placement_date).days for f in active_flocks) / active_count
+        )
+
+    # Losses (all-time) for the active flocks — to derive live count.
+    total_birds = 0
+    if active_ids:
+        loss_result = await db.execute(
+            select(
+                func.coalesce(func.sum(DailyLog.mortality_count), 0),
+                func.coalesce(func.sum(DailyLog.culls), 0),
+            ).where(
+                DailyLog.flock_id.in_(active_ids),
+                DailyLog.deleted_at.is_(None),
+            )
+        )
+        m_all, c_all = loss_result.one()
+        total_initial = sum(f.initial_count for f in active_flocks)
+        total_birds = total_initial - int(m_all) - int(c_all)
+
+    # Eggs today / this week.
+    eggs_today = eggs_week = 0
+    avg_hdp: float | None = None
+    if active_ids:
+        eggs_today_res = await db.execute(
+            select(func.coalesce(func.sum(ProductionRecord.eggs_collected), 0)).where(
+                ProductionRecord.flock_id.in_(active_ids),
+                ProductionRecord.record_date == today,
+                ProductionRecord.deleted_at.is_(None),
+            )
+        )
+        eggs_today = int(eggs_today_res.scalar_one())
+        eggs_week_res = await db.execute(
+            select(func.coalesce(func.sum(ProductionRecord.eggs_collected), 0)).where(
+                ProductionRecord.flock_id.in_(active_ids),
+                ProductionRecord.record_date >= week_ago,
+                ProductionRecord.deleted_at.is_(None),
+            )
+        )
+        eggs_week = int(eggs_week_res.scalar_one())
+        hdp_res = await db.execute(
+            select(func.avg(ProductionRecord.hen_day_production)).where(
+                ProductionRecord.flock_id.in_(active_ids),
+                ProductionRecord.record_date >= week_ago,
+                ProductionRecord.hen_day_production.isnot(None),
+                ProductionRecord.deleted_at.is_(None),
+            )
+        )
+        hdp_raw = hdp_res.scalar_one_or_none()
+        avg_hdp = round(float(hdp_raw) * 100, 2) if hdp_raw is not None else None
+
+    # Feed + losses this week / today from daily logs.
+    feed_today = feed_week = Decimal("0")
+    mortality_week = culls_week = 0
+    if active_ids:
+        feed_today_res = await db.execute(
+            select(func.coalesce(func.sum(DailyLog.feed_consumed_kg), 0)).where(
+                DailyLog.flock_id.in_(active_ids),
+                DailyLog.log_date == today,
+                DailyLog.deleted_at.is_(None),
+            )
+        )
+        feed_today = Decimal(str(feed_today_res.scalar_one()))
+        week_res = await db.execute(
+            select(
+                func.coalesce(func.sum(DailyLog.feed_consumed_kg), 0),
+                func.coalesce(func.sum(DailyLog.mortality_count), 0),
+                func.coalesce(func.sum(DailyLog.culls), 0),
+            ).where(
+                DailyLog.flock_id.in_(active_ids),
+                DailyLog.log_date >= week_ago,
+                DailyLog.deleted_at.is_(None),
+            )
+        )
+        fw, mw, cw = week_res.one()
+        feed_week = Decimal(str(fw))
+        mortality_week = int(mw)
+        culls_week = int(cw)
+
+    return FarmProductionDashboard(
+        active_flock_count=active_count,
+        total_birds=total_birds,
+        avg_bird_age_days=avg_age,
+        eggs_today=eggs_today,
+        eggs_this_week=eggs_week,
+        avg_hen_day_production=avg_hdp,
+        feed_today_kg=feed_today,
+        feed_this_week_kg=feed_week,
+        mortality_this_week=mortality_week,
+        culls_this_week=culls_week,
+    )
+
+
 async def update_flock(
     db: AsyncSession,
     farm_id: uuid.UUID,

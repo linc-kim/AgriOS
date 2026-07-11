@@ -143,6 +143,21 @@ class FlockUpdate(AGRIOSSchema):
         return self
 
 
+class FarmProductionDashboard(AGRIOSSchema):
+    """Farm-wide production metrics aggregated from real operational data."""
+
+    active_flock_count: int
+    total_birds: int
+    avg_bird_age_days: int | None
+    eggs_today: int
+    eggs_this_week: int
+    avg_hen_day_production: float | None
+    feed_today_kg: Decimal
+    feed_this_week_kg: Decimal
+    mortality_this_week: int
+    culls_this_week: int
+
+
 class FlockMetrics(AGRIOSSchema):
     """
     Computed operational metrics for a flock.
