@@ -93,6 +93,11 @@ class Flock(AGRIOSBase):
         nullable=True,
         comment="Bird breed, e.g. Ross 308, Cobb 500, ISA Brown",
     )
+    source: Mapped[str | None] = mapped_column(
+        String(200),
+        nullable=True,
+        comment="Where the birds came from — hatchery / supplier name",
+    )
     batch_number: Mapped[str | None] = mapped_column(
         String(50),
         nullable=True,
@@ -122,6 +127,11 @@ class Flock(AGRIOSBase):
         FlockStatusEnum,
         nullable=False,
         default="active",
+    )
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Set when the flock is archived (hidden from active lists).",
     )
     close_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     close_reason: Mapped[str | None] = mapped_column(Text, nullable=True)

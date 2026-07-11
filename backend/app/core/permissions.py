@@ -35,6 +35,8 @@ class Permission(StrEnum):
 
     # Flock Management
     FLOCK_CREATE = "flock:create"
+    FLOCK_UPDATE = "flock:update"
+    FLOCK_ARCHIVE = "flock:archive"
     FLOCK_CLOSE = "flock:close"
     FLOCK_VIEW = "flock:view"
 
@@ -102,6 +104,8 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.FARM_MEMBER_ROLE_CHANGE,
         Permission.FARM_UNIT_MANAGE,
         Permission.FLOCK_CREATE,
+        Permission.FLOCK_UPDATE,
+        Permission.FLOCK_ARCHIVE,
         Permission.FLOCK_CLOSE,
         Permission.FLOCK_VIEW,
         Permission.OPS_LOG_SUBMIT,
@@ -132,6 +136,8 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.FARM_MEMBER_ROLE_CHANGE,
         Permission.FARM_UNIT_MANAGE,
         Permission.FLOCK_CREATE,
+        Permission.FLOCK_UPDATE,
+        Permission.FLOCK_ARCHIVE,
         Permission.FLOCK_CLOSE,
         Permission.FLOCK_VIEW,
         Permission.OPS_LOG_SUBMIT,
@@ -159,6 +165,8 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.FARM_MEMBER_INVITE,
         Permission.FARM_UNIT_MANAGE,
         Permission.FLOCK_CREATE,
+        Permission.FLOCK_UPDATE,
+        Permission.FLOCK_ARCHIVE,
         Permission.FLOCK_CLOSE,
         Permission.FLOCK_VIEW,
         Permission.OPS_LOG_SUBMIT,

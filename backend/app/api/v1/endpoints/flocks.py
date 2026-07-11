@@ -48,6 +48,7 @@ from app.schemas.flock import (
     FeedPurchaseResponse,
     FlockClose,
     FlockCreate,
+    FlockUpdate,
     FlockDetailResponse,
     FlockResponse,
     ProductionRecordResponse,
@@ -99,12 +100,20 @@ async def list_flocks(
         alias="status",
         description="Filter by status: active | sold | closed | culled",
     ),
+    include_archived: bool = Query(
+        default=False, description="Include archived flocks in the list."
+    ),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
 ) -> SuccessResponse[list[FlockResponse]]:
     farm, member = access
     flocks = await flock_service.list_flocks(
-        db, farm.id, status=status_filter, limit=limit, offset=offset
+        db,
+        farm.id,
+        status=status_filter,
+        include_archived=include_archived,
+        limit=limit,
+        offset=offset,
     )
     return SuccessResponse(data=[FlockResponse.model_validate(f) for f in flocks])
 
@@ -154,6 +163,49 @@ async def close_flock(
     flock = await flock_service.close_flock(
         db, farm.id, _uuid.UUID(flock_id), body, current_user
     )
+    return SuccessResponse(data=FlockResponse.model_validate(flock))
+
+
+@router.patch(
+    "/farms/{farm_id}/flocks/{flock_id}",
+    response_model=SuccessResponse[FlockResponse],
+    summary="Edit a flock's details",
+    tags=["Flocks"],
+)
+async def update_flock(
+    farm_id: str,
+    flock_id: str,
+    body: FlockUpdate,
+    db: DBSession,
+    current_user: CurrentUser,
+    access: tuple = Depends(require_farm_access({"farm_owner", "farm_manager"})),
+    _perm=Depends(require_permission(Permission.FLOCK_UPDATE)),
+) -> SuccessResponse[FlockResponse]:
+    import uuid as _uuid
+    farm, member = access
+    flock = await flock_service.update_flock(
+        db, farm.id, _uuid.UUID(flock_id), body, current_user
+    )
+    return SuccessResponse(data=FlockResponse.model_validate(flock))
+
+
+@router.post(
+    "/farms/{farm_id}/flocks/{flock_id}/archive",
+    response_model=SuccessResponse[FlockResponse],
+    summary="Archive a closed flock (hide from active lists)",
+    tags=["Flocks"],
+)
+async def archive_flock(
+    farm_id: str,
+    flock_id: str,
+    db: DBSession,
+    current_user: CurrentUser,
+    access: tuple = Depends(require_farm_access({"farm_owner", "farm_manager"})),
+    _perm=Depends(require_permission(Permission.FLOCK_ARCHIVE)),
+) -> SuccessResponse[FlockResponse]:
+    import uuid as _uuid
+    farm, member = access
+    flock = await flock_service.archive_flock(db, farm.id, _uuid.UUID(flock_id))
     return SuccessResponse(data=FlockResponse.model_validate(flock))
 
 

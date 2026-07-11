@@ -12,7 +12,7 @@ Business logic for:
 """
 
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 from sqlalchemy import func, select
@@ -151,6 +151,7 @@ async def create_flock(
         species_key=data.species_key,
         name=data.name,
         breed=data.breed,
+        source=data.source,
         batch_number=data.batch_number,
         initial_count=data.initial_count,
         placement_date=data.placement_date,
@@ -173,19 +174,116 @@ async def list_flocks(
     db: AsyncSession,
     farm_id: uuid.UUID,
     status: str | None = None,
+    include_archived: bool = False,
     limit: int = 50,
     offset: int = 0,
 ) -> list[Flock]:
-    """List flocks for a farm, optionally filtered by status."""
+    """List flocks for a farm, optionally filtered by status. Archived flocks are
+    excluded unless ``include_archived`` is set."""
     query = select(Flock).where(
         Flock.farm_id == farm_id,
         Flock.deleted_at.is_(None),
     )
+    if not include_archived:
+        query = query.where(Flock.archived_at.is_(None))
     if status:
         query = query.where(Flock.status == status)
     query = query.order_by(Flock.placement_date.desc()).limit(limit).offset(offset)
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+async def update_flock(
+    db: AsyncSession,
+    farm_id: uuid.UUID,
+    flock_id: uuid.UUID,
+    data,
+    current_user: User,
+) -> Flock:
+    """
+    Edit an existing flock's descriptive fields and (optionally) reassign it to a
+    different production house. Historical facts (initial_count, placement_date)
+    are intentionally not editable here — corrections belong in the audit trail.
+    """
+    flock = await _get_flock_or_404(db, farm_id, flock_id)
+
+    if data.house_id is not None and data.house_id != flock.house_id:
+        # New house must belong to this farm and be free.
+        house_result = await db.execute(
+            select(ProductionHouse).where(
+                ProductionHouse.id == data.house_id,
+                ProductionHouse.farm_id == farm_id,
+                ProductionHouse.deleted_at.is_(None),
+            )
+        )
+        new_house = house_result.scalar_one_or_none()
+        if new_house is None:
+            raise NotFoundException(
+                f"Production house {data.house_id} not found on this farm."
+            )
+        if new_house.is_occupied and new_house.current_flock_id != flock.id:
+            raise ConflictException(
+                f"House '{new_house.name}' already has an active flock."
+            )
+        # Release the old house, occupy the new one (only while active).
+        old_house_result = await db.execute(
+            select(ProductionHouse).where(ProductionHouse.id == flock.house_id)
+        )
+        old_house = old_house_result.scalar_one_or_none()
+        if old_house is not None and old_house.current_flock_id == flock.id:
+            old_house.current_flock_id = None
+        if flock.status == "active":
+            new_house.current_flock_id = flock.id
+        flock.house_id = data.house_id
+
+    if data.name is not None:
+        flock.name = data.name
+    if data.breed is not None:
+        flock.breed = data.breed
+    if data.source is not None:
+        flock.source = data.source
+    if data.batch_number is not None:
+        flock.batch_number = data.batch_number
+    if data.expected_cycle_days is not None:
+        flock.expected_cycle_days = data.expected_cycle_days
+        flock.expected_close_date = flock.placement_date + timedelta(
+            days=data.expected_cycle_days
+        )
+
+    await db.commit()
+    await db.refresh(flock)
+    return flock
+
+
+async def archive_flock(
+    db: AsyncSession,
+    farm_id: uuid.UUID,
+    flock_id: uuid.UUID,
+) -> Flock:
+    """
+    Archive a flock — hide it from active lists without changing its lifecycle
+    status. Only closed flocks can be archived; an active flock must be closed
+    first. Releases the flock's house if it still holds it.
+    """
+    flock = await _get_flock_or_404(db, farm_id, flock_id)
+    if flock.status == "active":
+        raise ConflictException(
+            "Close the flock before archiving it — active flocks stay in the list."
+        )
+    if flock.archived_at is not None:
+        return flock
+
+    flock.archived_at = datetime.now(timezone.utc)
+    house_result = await db.execute(
+        select(ProductionHouse).where(ProductionHouse.id == flock.house_id)
+    )
+    house = house_result.scalar_one_or_none()
+    if house is not None and house.current_flock_id == flock.id:
+        house.current_flock_id = None
+
+    await db.commit()
+    await db.refresh(flock)
+    return flock
 
 
 async def get_flock_detail(

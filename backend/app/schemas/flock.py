@@ -50,6 +50,11 @@ class FlockCreate(AGRIOSSchema):
         max_length=100,
         description="Bird breed, e.g. Ross 308, Cobb 500, ISA Brown",
     )
+    source: str | None = Field(
+        default=None,
+        max_length=200,
+        description="Where the birds came from — hatchery / supplier name",
+    )
     batch_number: str | None = Field(
         default=None,
         max_length=50,
@@ -100,18 +105,42 @@ class FlockResponse(TimestampedSchema):
     species_key: str
     name: str
     breed: str | None
+    source: str | None
     batch_number: str | None
     initial_count: int
     placement_date: date
     expected_cycle_days: int
     expected_close_date: date | None
     status: FlockStatus
+    archived_at: datetime | None
     close_date: date | None
     close_reason: str | None
     sale_price_per_kg: Decimal | None
     total_birds_sold: int | None
     closing_weight_kg: Decimal | None
     created_by: UUID | None
+
+
+class FlockUpdate(AGRIOSSchema):
+    """Editable fields for an existing flock. All optional; at least one required."""
+
+    name: str | None = Field(default=None, min_length=2, max_length=255)
+    breed: str | None = Field(default=None, max_length=100)
+    source: str | None = Field(default=None, max_length=200)
+    batch_number: str | None = Field(default=None, max_length=50)
+    house_id: UUID | None = Field(
+        default=None, description="Reassign the flock to a different production house."
+    )
+    expected_cycle_days: int | None = Field(default=None, ge=1, le=1000)
+
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> "FlockUpdate":
+        if all(
+            getattr(self, f) is None
+            for f in ("name", "breed", "source", "batch_number", "house_id", "expected_cycle_days")
+        ):
+            raise ValueError("Provide at least one field to update.")
+        return self
 
 
 class FlockMetrics(AGRIOSSchema):
@@ -144,12 +173,14 @@ class FlockDetailResponse(TimestampedSchema):
     species_key: str
     name: str
     breed: str | None
+    source: str | None
     batch_number: str | None
     initial_count: int
     placement_date: date
     expected_cycle_days: int
     expected_close_date: date | None
     status: FlockStatus
+    archived_at: datetime | None
     close_date: date | None
     close_reason: str | None
     sale_price_per_kg: Decimal | None
