@@ -621,6 +621,46 @@ async def get_financial_snapshot(
     return FinancialSnapshotResponse.model_validate(snapshot)
 
 
+async def record_feed_purchase_expense(
+    db: AsyncSession,
+    farm_id: UUID,
+    purchase,
+    current_user: User,
+) -> Optional[Expense]:
+    """
+    Create the finance Expense that mirrors a feed purchase, so buying feed
+    automatically shows up in the farm's expenses and P&L. Adds and flushes the
+    expense in the caller's transaction (does not commit). Returns None if the
+    seeded 'feed_purchase' category is missing.
+    """
+    cat_result = await db.execute(
+        select(ExpenseCategory).where(
+            ExpenseCategory.slug == "feed_purchase",
+            ExpenseCategory.farm_id.is_(None),
+            ExpenseCategory.deleted_at.is_(None),
+        )
+    )
+    category = cat_result.scalar_one_or_none()
+    if category is None:
+        return None
+
+    expense = Expense(
+        farm_id=farm_id,
+        flock_id=purchase.flock_id,
+        category_id=category.id,
+        expense_date=purchase.purchase_date,
+        amount=purchase.total_cost,
+        description=f"Feed purchase: {purchase.feed_type} ({purchase.quantity_kg} kg)",
+        supplier=purchase.supplier,
+        quantity=purchase.quantity_kg,
+        unit="kg",
+        created_by=current_user.id,
+    )
+    db.add(expense)
+    await db.flush()
+    return expense
+
+
 async def recompute_snapshot(
     db: AsyncSession,
     farm_id: UUID,

@@ -788,7 +788,20 @@ async def create_feed_purchase(
         recorded_by=current_user.id,
     )
     db.add(purchase)
+    await db.flush()
+
+    # Financial integration: a feed purchase is an expense. Record it so it
+    # flows into the farm's expenses and per-flock P&L automatically.
+    from app.services import finance_service
+
+    await finance_service.record_feed_purchase_expense(
+        db, farm_id, purchase, current_user
+    )
     await db.commit()
+
+    if purchase.flock_id is not None:
+        await finance_service.recompute_snapshot(db, farm_id, purchase.flock_id)
+
     await db.refresh(purchase)
     return purchase
 
