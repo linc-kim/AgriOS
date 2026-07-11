@@ -281,6 +281,19 @@ async def workspace(setup_test_database):
                     )
                 )
 
+        # A platform super_admin (not a farm member — used for admin-only
+        # endpoints such as publishing market prices).
+        admin = User(
+            phone="+254720000006",
+            full_name="Sam Admin",
+            is_phone_verified=True,
+            is_active=True,
+        )
+        s.add(admin)
+        await s.flush()
+        s.add(UserRole(user_id=admin.id, role_id=roles["super_admin"].id, farm_id=None))
+        users["super_admin"] = admin
+
         # Farm A: a unit + one house occupied by an active flock.
         unit_a = FarmUnit(farm_id=farm_a.id, name="Unit A", sort_order=0)
         s.add(unit_a)
@@ -416,6 +429,11 @@ def auth_headers_viewer(workspace) -> dict[str, str]:
 @pytest.fixture
 def auth_headers_vet(workspace) -> dict[str, str]:
     return _bearer(workspace.tokens["vet"])
+
+
+@pytest.fixture
+def auth_headers_super_admin(workspace) -> dict[str, str]:
+    return _bearer(workspace.tokens["super_admin"])
 
 
 @pytest.fixture

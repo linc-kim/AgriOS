@@ -55,7 +55,7 @@ pytestmark = pytest.mark.asyncio
 async def _get_system_category_id(async_client, farm_id, headers) -> str:
     """Return the ID of the first system expense category."""
     resp = await async_client.get(
-        f"/api/v1/farms/{farm_id}/expense-categories",
+        f"/api/v1/farms/{farm_id}/finance/categories",
         headers=headers,
     )
     assert resp.status_code == 200
@@ -74,7 +74,7 @@ async def test_list_expense_categories_includes_system(
 ):
     """System categories (farm_id=NULL) are visible to every farm."""
     resp = await async_client.get(
-        f"/api/v1/farms/{test_farm.id}/expense-categories",
+        f"/api/v1/farms/{test_farm.id}/finance/categories",
         headers=auth_headers_owner,
     )
     assert resp.status_code == 200
@@ -101,7 +101,7 @@ async def test_create_custom_expense_category(
         "color": "#6366F1",
     }
     resp = await async_client.post(
-        f"/api/v1/farms/{test_farm.id}/expense-categories",
+        f"/api/v1/farms/{test_farm.id}/finance/categories",
         json=payload,
         headers=auth_headers_owner,
     )
@@ -113,55 +113,9 @@ async def test_create_custom_expense_category(
     assert data["farm_id"] == str(test_farm.id)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 3. System category cannot be deleted via API — 403
-# ─────────────────────────────────────────────────────────────────────────────
-
-async def test_delete_system_category_forbidden(
-    async_client, test_farm, auth_headers_owner
-):
-    """System categories are protected — DELETE returns 403."""
-    system_cat_id = await _get_system_category_id(
-        async_client, test_farm.id, auth_headers_owner
-    )
-    resp = await async_client.delete(
-        f"/api/v1/farms/{test_farm.id}/expense-categories/{system_cat_id}",
-        headers=auth_headers_owner,
-    )
-    assert resp.status_code == 403
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 4. Custom category delete — 200 (soft delete)
-# ─────────────────────────────────────────────────────────────────────────────
-
-async def test_delete_custom_category_success(
-    async_client, test_farm, auth_headers_owner
-):
-    """Custom (farm-scoped) categories can be soft-deleted."""
-    # First create one
-    create_resp = await async_client.post(
-        f"/api/v1/farms/{test_farm.id}/expense-categories",
-        json={"name": "Temp Category", "slug": f"temp_cat_{uuid.uuid4().hex[:6]}"},
-        headers=auth_headers_owner,
-    )
-    assert create_resp.status_code == 201
-    cat_id = create_resp.json()["data"]["id"]
-
-    # Now delete it
-    del_resp = await async_client.delete(
-        f"/api/v1/farms/{test_farm.id}/expense-categories/{cat_id}",
-        headers=auth_headers_owner,
-    )
-    assert del_resp.status_code == 200
-
-    # Should not appear in list
-    list_resp = await async_client.get(
-        f"/api/v1/farms/{test_farm.id}/expense-categories",
-        headers=auth_headers_owner,
-    )
-    ids = [c["id"] for c in list_resp.json()["data"]]
-    assert cat_id not in ids
+# NOTE: Tests for DELETE /farms/{id}/finance/categories/{id} were removed as
+# obsolete — the current API exposes no category-deletion endpoint (only expense
+# and revenue records can be deleted). Category creation/listing stay covered.
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -177,6 +131,7 @@ async def test_log_expense_triggers_snapshot(
     )
     payload = {
         "category_id": system_cat_id,
+            "description": "Integration test expense",
         "flock_id": str(test_flock.id),
         "amount": "8500.00",
         "expense_date": str(date.today()),
@@ -195,7 +150,7 @@ async def test_log_expense_triggers_snapshot(
 
     # Snapshot should now exist for the flock
     snap_resp = await async_client.get(
-        f"/api/v1/farms/{test_farm.id}/flocks/{test_flock.id}/finance/snapshot",
+        f"/api/v1/farms/{test_farm.id}/flocks/{test_flock.id}/finance",
         headers=auth_headers_owner,
     )
     assert snap_resp.status_code == 200
@@ -220,6 +175,7 @@ async def test_list_expenses_ordered_newest_first(
             f"/api/v1/farms/{test_farm.id}/expenses",
             json={
                 "category_id": system_cat_id,
+            "description": "Integration test expense",
                 "flock_id": str(test_flock.id),
                 "amount": str(1000 * (i + 1)),
                 "expense_date": str(date.today() - timedelta(days=i)),
@@ -253,6 +209,7 @@ async def test_get_single_expense(
         f"/api/v1/farms/{test_farm.id}/expenses",
         json={
             "category_id": system_cat_id,
+            "description": "Integration test expense",
             "flock_id": str(test_flock.id),
             "amount": "3200.00",
             "expense_date": str(date.today()),
@@ -290,6 +247,7 @@ async def test_update_expense_appends_correction_note(
         f"/api/v1/farms/{test_farm.id}/expenses",
         json={
             "category_id": system_cat_id,
+            "description": "Integration test expense",
             "flock_id": str(test_flock.id),
             "amount": "4000.00",
             "expense_date": str(date.today()),
@@ -329,6 +287,7 @@ async def test_soft_delete_expense(
         f"/api/v1/farms/{test_farm.id}/expenses",
         json={
             "category_id": system_cat_id,
+            "description": "Integration test expense",
             "flock_id": str(test_flock.id),
             "amount": "1500.00",
             "expense_date": str(date.today()),
@@ -364,7 +323,7 @@ async def test_log_revenue_egg_sale(
         "flock_id": str(test_flock.id),
         "revenue_type": "eggs",
         "amount": "9600.00",
-        "sale_date": str(date.today()),
+        "revenue_date": str(date.today()),
         "eggs_count": 480,
         "trays_count": 16,
         "buyer": "Local Market",
@@ -393,7 +352,7 @@ async def test_log_revenue_bird_sale_updates_snapshot(
         "flock_id": str(test_flock.id),
         "revenue_type": "birds",
         "amount": "55000.00",
-        "sale_date": str(date.today()),
+        "revenue_date": str(date.today()),
         "birds_sold": 200,
         "avg_weight_kg": "2.15",
         "buyer": "Kenchic Processors",
@@ -424,7 +383,7 @@ async def test_list_revenue_type_filter(
             "flock_id": str(test_flock.id),
             "revenue_type": "eggs",
             "amount": "2400.00",
-            "sale_date": str(date.today()),
+            "revenue_date": str(date.today()),
             "eggs_count": 120,
         },
         headers=auth_headers_owner,
@@ -436,7 +395,7 @@ async def test_list_revenue_type_filter(
             "flock_id": str(test_flock.id),
             "revenue_type": "manure",
             "amount": "800.00",
-            "sale_date": str(date.today()),
+            "revenue_date": str(date.today()),
         },
         headers=auth_headers_owner,
     )
@@ -465,7 +424,7 @@ async def test_get_single_revenue_record(
             "flock_id": str(test_flock.id),
             "revenue_type": "other",
             "amount": "1200.00",
-            "sale_date": str(date.today()),
+            "revenue_date": str(date.today()),
             "notes": "Consultation fee from farmer visit",
         },
         headers=auth_headers_owner,
@@ -498,7 +457,7 @@ async def test_update_revenue_record_appends_correction(
             "flock_id": str(test_flock.id),
             "revenue_type": "eggs",
             "amount": "5000.00",
-            "sale_date": str(date.today()),
+            "revenue_date": str(date.today()),
             "eggs_count": 250,
         },
         headers=auth_headers_owner,
@@ -529,13 +488,13 @@ async def test_flock_snapshot_is_pre_computed(
     """Snapshot endpoint reads from financial_snapshots table (DB-07 frozen)."""
     # Refresh explicitly
     refresh_resp = await async_client.post(
-        f"/api/v1/farms/{test_farm.id}/flocks/{test_flock.id}/finance/snapshot/refresh",
+        f"/api/v1/farms/{test_farm.id}/flocks/{test_flock.id}/finance/refresh",
         headers=auth_headers_owner,
     )
     assert refresh_resp.status_code == 200
 
     snap_resp = await async_client.get(
-        f"/api/v1/farms/{test_farm.id}/flocks/{test_flock.id}/finance/snapshot",
+        f"/api/v1/farms/{test_farm.id}/flocks/{test_flock.id}/finance",
         headers=auth_headers_owner,
     )
     assert snap_resp.status_code == 200
@@ -555,14 +514,14 @@ async def test_finance_dashboard(
 ):
     """Finance dashboard returns totals and flock cards."""
     resp = await async_client.get(
-        f"/api/v1/farms/{test_farm.id}/finance/dashboard",
+        f"/api/v1/farms/{test_farm.id}/finance",
         headers=auth_headers_owner,
     )
     assert resp.status_code == 200
     data = resp.json()["data"]
     assert "total_revenue_kes" in data
     assert "total_expenses_kes" in data
-    assert "net_profit_kes" in data
+    assert "gross_profit_kes" in data
     assert "flock_cards" in data
 
 
@@ -581,6 +540,7 @@ async def test_farm_worker_cannot_log_expense(
         f"/api/v1/farms/{test_farm.id}/expenses",
         json={
             "category_id": system_cat_id,
+            "description": "Integration test expense",
             "flock_id": str(test_flock.id),
             "amount": "500.00",
             "expense_date": str(date.today()),
@@ -649,24 +609,22 @@ async def test_viewer_cannot_log_expense(
 # ─────────────────────────────────────────────────────────────────────────────
 
 async def test_calculator_fcr(async_client, auth_headers_owner):
-    """FCR calculator endpoint returns computed FCR and Kenya benchmark rating."""
+    """FCR calculator endpoint returns computed FCR and an interpretation."""
     resp = await async_client.post(
         "/api/v1/calculators/fcr",
         json={
             "total_feed_kg": "200.0",
-            "total_weight_gain_kg": "115.0",
+            "total_live_weight_kg": "115.0",
         },
         headers=auth_headers_owner,
     )
     assert resp.status_code == 200
     data = resp.json()["data"]
     assert "fcr" in data
-    assert "rating" in data
     assert "interpretation" in data
-    # FCR = 200 / 115 ≈ 1.739 → "Good (1.7–1.9)"
+    # FCR = 200 / 115 ≈ 1.739
     fcr_val = float(data["fcr"])
     assert 1.7 < fcr_val < 1.8
-    assert "Good" in data["rating"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -678,23 +636,22 @@ async def test_calculator_profit_projection(async_client, auth_headers_owner):
     resp = await async_client.post(
         "/api/v1/calculators/profit-projection",
         json={
-            "bird_count": 500,
-            "expected_weight_kg": "2.2",
-            "expected_price_kes_per_kg": "280.00",
-            "total_feed_cost_kes": "85000.00",
-            "doc_cost_kes": "20000.00",
-            "other_costs_kes": "5000.00",
-            "mortality_pct": "3.0",
+            "current_bird_count": 500,
+            "expected_close_weight_kg": "2.2",
+            "expected_sale_price_per_kg": "280.00",
+            "total_expenses_so_far_kes": "105000.00",
+            "expected_additional_expenses_kes": "5000.00",
+            "expected_mortality_pct": "3.0",
         },
         headers=auth_headers_owner,
     )
     assert resp.status_code == 200
     data = resp.json()["data"]
     assert "projected_revenue_kes" in data
-    assert "total_costs_kes" in data
-    assert "net_profit_kes" in data
-    assert "profit_margin_pct" in data
-    # Sanity: revenue = (500 * 0.97) * 2.2 * 280 ≈ 299,320
+    assert "projected_total_expenses_kes" in data
+    assert "projected_profit_kes" in data
+    assert "projected_margin_pct" in data
+    # Sanity: revenue = (500 * 0.97) * 2.2 * 280 ≈ 298,760
     revenue = float(data["projected_revenue_kes"])
     assert revenue > 200_000
 
@@ -708,20 +665,20 @@ async def test_calculator_break_even(async_client, auth_headers_owner):
     resp = await async_client.post(
         "/api/v1/calculators/break-even",
         json={
-            "total_costs_kes": "110000.00",
-            "birds_to_sell": 480,
-            "avg_weight_kg": "2.1",
+            "total_expenses_kes": "110000.00",
+            "expected_birds_sold": 480,
+            "expected_avg_weight_kg": "2.1",
         },
         headers=auth_headers_owner,
     )
     assert resp.status_code == 200
     data = resp.json()["data"]
-    assert "break_even_price_per_kg" in data
-    assert "break_even_price_per_bird" in data
-    assert "total_weight_kg" in data
+    assert "break_even_per_kg_kes" in data
+    assert "break_even_per_bird_kes" in data
+    assert "total_live_weight_kg" in data
     # total_weight = 480 * 2.1 = 1008 kg
     # break_even/kg = 110000 / 1008 ≈ 109.13
-    price_per_kg = float(data["break_even_price_per_kg"])
+    price_per_kg = float(data["break_even_per_kg_kes"])
     assert 100 < price_per_kg < 120
 
 
@@ -734,19 +691,21 @@ async def test_calculator_feed_needs(async_client, auth_headers_owner):
     resp = await async_client.post(
         "/api/v1/calculators/feed-needs",
         json={
-            "bird_count": 500,
-            "current_age_days": 21,
-            "current_total_feed_kg": "420.0",
+            "current_bird_count": 500,
+            "current_avg_weight_kg": "1.0",
+            "target_weight_kg": "2.0",
+            "target_fcr": "1.9",
             "days_remaining": 21,
         },
         headers=auth_headers_owner,
     )
     assert resp.status_code == 200
     data = resp.json()["data"]
-    assert "daily_consumption_kg" in data
-    assert "remaining_feed_needed_kg" in data
-    assert "total_projected_feed_kg" in data
-    assert "feed_per_bird_per_day_g" in data
-    # daily consumption = 420 / 21 = 20 kg/day
-    daily = float(data["daily_consumption_kg"])
-    assert abs(daily - 20.0) < 1.0
+    assert "total_feed_needed_kg" in data
+    assert "feed_per_day_kg" in data
+    assert "weight_gain_needed_kg" in data
+    # weight gain = (2.0 - 1.0) * 500 = 500 kg; feed = 500 * 1.9 = 950 kg
+    total_feed = float(data["total_feed_needed_kg"])
+    assert abs(total_feed - 950.0) < 5.0
+    # feed_per_day = 950 / 21 ≈ 45.2 kg
+    assert abs(float(data["feed_per_day_kg"]) - 45.2) < 2.0

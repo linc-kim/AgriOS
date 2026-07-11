@@ -118,12 +118,7 @@ class VaccinationRecord(AGRIOSBase):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    # created_at / updated_at inherited from AGRIOSBase (with proper defaults).
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -235,12 +230,7 @@ class DiseaseAlert(AGRIOSBase):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    # created_at / updated_at inherited from AGRIOSBase (with proper defaults).
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
   

@@ -331,6 +331,9 @@ async def update_expense(
     if data.unit is not None:
         expense.unit = data.unit
     if data.notes is not None:
+        expense.notes = data.notes
+    # correction_reason is required on updates — always append the audit trail.
+    if data.correction_reason:
         existing_notes = expense.notes or ""
         expense.notes = (
             f"{existing_notes}\n[Corrected by {current_user.id} at "
@@ -551,6 +554,9 @@ async def update_revenue_record(
     if data.payment_method is not None:
         record.payment_method = data.payment_method
     if data.notes is not None:
+        record.notes = data.notes
+    # correction_reason is required on updates — always append the audit trail.
+    if data.correction_reason:
         existing = record.notes or ""
         record.notes = (
             f"{existing}\n[Corrected by {current_user.id} at "
@@ -692,7 +698,7 @@ async def recompute_snapshot(
 
     # ── Aggregate total feed from daily logs ─────────────────────────────────
     feed_q = await db.execute(
-        select(func.sum(DailyLog.feed_kg))
+        select(func.sum(DailyLog.feed_consumed_kg))
         .where(
             DailyLog.flock_id == str(flock_id),
             DailyLog.deleted_at.is_(None),
@@ -709,7 +715,7 @@ async def recompute_snapshot(
         gross_margin_pct = (gross_profit / total_revenue * 100).quantize(Decimal("0.0001"))
 
     # Per-bird metrics
-    initial_count = flock.initial_bird_count
+    initial_count = flock.initial_count
     cost_per_bird: Optional[Decimal] = None
     if initial_count and initial_count > 0:
         cost_per_bird = (total_expenses / initial_count).quantize(Decimal("0.01"))
@@ -753,8 +759,9 @@ async def recompute_snapshot(
     if total_expenses > 0:
         feed_cost_pct = (feed_cost / total_expenses * 100).quantize(Decimal("0.0001"))
 
-    # Current bird count from flock
-    bird_count_snapshot = flock.current_bird_count
+    # Bird count for the snapshot. The Flock model tracks initial_count only
+    # (there is no stored current/live count), so use it here.
+    bird_count_snapshot = flock.initial_count
 
     # ── Upsert Snapshot ────────────────────────────────────────────────────────
     snap_result = await db.execute(

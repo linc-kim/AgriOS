@@ -183,8 +183,8 @@ async def compile_farm_context(
             "id": str(flock.id),
             "name": flock.name,
             "breed": getattr(flock, "breed", None),
-            "initial_count": flock.initial_bird_count,
-            "current_count": getattr(flock, "current_bird_count", flock.initial_bird_count),
+            "initial_count": flock.initial_count,
+            "current_count": getattr(flock, "current_bird_count", flock.initial_count),
             "placement_date": str(flock.placement_date) if flock.placement_date else None,
             "days_alive": (
                 (datetime.utcnow().date() - flock.placement_date).days
@@ -212,7 +212,7 @@ async def compile_farm_context(
                 "date": str(log.log_date),
                 "morning_count": getattr(log, "morning_count", None),
                 "mortality": log.mortality_count,
-                "feed_kg": float(log.feed_kg) if log.feed_kg else None,
+                "feed_kg": float(log.feed_consumed_kg) if log.feed_consumed_kg else None,
                 "water_litres": float(log.water_litres) if getattr(log, "water_litres", None) else None,
             }
             for log in logs
@@ -1204,11 +1204,11 @@ async def generate_daily_insights(
                     generated.append(insight)
 
             # ── 2. Feed drop: today's feed < 80% of 7-day average ────────────
-            if today_log and past_logs and today_log.feed_kg:
+            if today_log and past_logs and today_log.feed_consumed_kg:
                 avg_feed = sum(
-                    float(l.feed_kg) for l in past_logs if l.feed_kg
-                ) / max(1, len([l for l in past_logs if l.feed_kg]))
-                if avg_feed > 0 and float(today_log.feed_kg) < 0.8 * avg_feed:
+                    float(l.feed_consumed_kg) for l in past_logs if l.feed_consumed_kg
+                ) / max(1, len([l for l in past_logs if l.feed_consumed_kg]))
+                if avg_feed > 0 and float(today_log.feed_consumed_kg) < 0.8 * avg_feed:
                     insight = AIInsight(
                         farm_id=str(farm_id),
                         flock_id=str(flock.id),
@@ -1216,7 +1216,7 @@ async def generate_daily_insights(
                         severity="warning",
                         title=f"Feed consumption drop in {flock_name}",
                         body=(
-                            f"Today's feed ({float(today_log.feed_kg):.1f} kg) is below "
+                            f"Today's feed ({float(today_log.feed_consumed_kg):.1f} kg) is below "
                             f"80% of the 7-day average ({avg_feed:.1f} kg). "
                             f"Reduced appetite may indicate health issues."
                         ),

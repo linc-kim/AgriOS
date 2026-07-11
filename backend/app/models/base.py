@@ -8,7 +8,7 @@ All models inherit from AGRIOSBase which provides:
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -31,13 +31,19 @@ class AGRIOSBase(Base):
         default=uuid.uuid4,
         index=True,
     )
+    # Both a Python-side default and a DB server_default are set. The
+    # server_default covers raw SQL / seed inserts; the Python default guarantees
+    # a value on the ORM object for every insert path (including sessions bound to
+    # a connection, where the server default is not fetched), avoiding NULLs.
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
         server_default=func.now(),
         nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,

@@ -222,7 +222,7 @@ async def export_pdf(db: AsyncSession, farm_id: uuid.UUID) -> bytes:
 
     flocks = data["flocks"]
     active_flocks = [f for f in flocks if f.status == "active"]
-    total_birds = sum(getattr(f, "current_bird_count", f.initial_bird_count) or 0
+    total_birds = sum(getattr(f, "current_bird_count", f.initial_count) or 0
                       for f in active_flocks)
 
     farm_rows = [
@@ -255,7 +255,7 @@ async def export_pdf(db: AsyncSession, farm_id: uuid.UUID) -> bytes:
                 f.name,
                 f.status.upper(),
                 getattr(f, "breed", "—") or "—",
-                str(f.initial_bird_count),
+                str(f.initial_count),
                 str(f.placement_date) if f.placement_date else "—",
                 str(days) if days is not None else "—",
             ])
@@ -282,7 +282,7 @@ async def export_pdf(db: AsyncSession, farm_id: uuid.UUID) -> bytes:
                 str(log.log_date),
                 flock.name if flock else "—",
                 str(log.mortality_count),
-                f"{float(log.feed_kg):.1f}" if log.feed_kg else "—",
+                f"{float(log.feed_consumed_kg):.1f}" if log.feed_consumed_kg else "—",
                 f"{float(log.water_litres):.1f}"
                     if getattr(log, "water_litres", None) else "—",
             ])
@@ -460,7 +460,7 @@ async def export_excel(db: AsyncSession, farm_id: uuid.UUID) -> bytes:
     ws.append(["Total Flocks (all time)", len(data["flocks"])])
     ws.append(["Active Flocks", len(active)])
     ws.append(["Total Active Birds",
-                sum(getattr(f, "current_bird_count", f.initial_bird_count) or 0
+                sum(getattr(f, "current_bird_count", f.initial_count) or 0
                     for f in active)])
     ws.append(["Total Expenses (KES)",
                 sum(float(e.amount) for e in data["expenses"])])
@@ -483,8 +483,8 @@ async def export_excel(db: AsyncSession, farm_id: uuid.UUID) -> bytes:
         write_row(ws, [
             f.name, f.status,
             getattr(f, "breed", "") or "",
-            f.initial_bird_count,
-            getattr(f, "current_bird_count", f.initial_bird_count) or f.initial_bird_count,
+            f.initial_count,
+            getattr(f, "current_bird_count", f.initial_count) or f.initial_count,
             str(f.placement_date) if f.placement_date else "",
             days or "",
             getattr(f, "expected_cycle_days", "") or "",
@@ -504,7 +504,7 @@ async def export_excel(db: AsyncSession, farm_id: uuid.UUID) -> bytes:
             flock.name if flock else "",
             str(log.flock_id),
             log.mortality_count,
-            float(log.feed_kg) if log.feed_kg else "",
+            float(log.feed_consumed_kg) if log.feed_consumed_kg else "",
             float(log.water_litres) if getattr(log, "water_litres", None) else "",
             getattr(log, "morning_count", "") or "",
         ], i)
@@ -631,7 +631,7 @@ async def export_csv(db: AsyncSession, farm_id: uuid.UUID) -> bytes:
             str(log.flock_id),
             flock.status if flock else "",
             log.mortality_count,
-            float(log.feed_kg) if log.feed_kg else "",
+            float(log.feed_consumed_kg) if log.feed_consumed_kg else "",
             float(log.water_litres) if getattr(log, "water_litres", None) else "",
             getattr(log, "morning_count", "") or "",
             farm_name,

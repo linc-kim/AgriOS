@@ -85,21 +85,10 @@ class ExpenseCategory(AGRIOSBase):
     color: Mapped[str | None] = mapped_column(String(7), nullable=True)  # hex
     is_system: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
-    # Soft delete (system rows: deleted_at is never set by API)
-    deleted_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-
-    # Standard timestamps
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    metadata_: Mapped[dict] = mapped_column(
-        "metadata", JSONB, nullable=False, server_default="{}"
-    )
+    # deleted_at / created_at / updated_at / metadata are inherited from
+    # AGRIOSBase, which defines them with proper Python + server defaults. (They
+    # were previously re-declared here without defaults, which left created_at /
+    # updated_at NULL on inserts through a connection-bound session.)
 
     # Relationships
     farm: Mapped["Farm | None"] = relationship(
@@ -179,12 +168,7 @@ class Expense(AGRIOSBase):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    # created_at / updated_at inherited from AGRIOSBase (with proper defaults).
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -277,12 +261,7 @@ class RevenueRecord(AGRIOSBase):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    # created_at / updated_at inherited from AGRIOSBase (with proper defaults).
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -413,12 +392,7 @@ class FinancialSnapshot(AGRIOSBase):
     )
 
     # Standard timestamps (no soft delete on snapshots — they are always current)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    # created_at / updated_at inherited from AGRIOSBase (with proper defaults).
     metadata_: Mapped[dict] = mapped_column(
         "metadata", JSONB, nullable=False, server_default="{}"
     )
