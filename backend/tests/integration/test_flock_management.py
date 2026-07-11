@@ -12,6 +12,28 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
+async def test_create_flock_occupies_house(authenticated_client, farm_with_house):
+    """Creating a flock inserts it and marks its house occupied (regression:
+    the house FK update must be ordered after the flock insert)."""
+    resp = await authenticated_client.post(
+        f"/api/v1/farms/{farm_with_house['farm_id']}/flocks",
+        json={
+            "house_id": farm_with_house["house_id"],
+            "name": "New Broiler Batch",
+            "breed": "Ross 308",
+            "source": "Kenchic",
+            "initial_count": 600,
+            "placement_date": str(date.today()),
+            "expected_cycle_days": 42,
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    data = resp.json()["data"]
+    assert data["status"] == "active"
+    assert data["source"] == "Kenchic"
+    assert data["house_id"] == farm_with_house["house_id"]
+
+
 async def test_edit_flock_updates_fields(async_client, test_farm, test_flock, auth_headers_owner):
     resp = await async_client.patch(
         f"/api/v1/farms/{test_farm.id}/flocks/{test_flock.id}",

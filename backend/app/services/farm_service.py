@@ -22,7 +22,7 @@ from app.exceptions import (
     NotFoundException,
     PlanLimitException,
 )
-from app.models.auth import Role, User
+from app.models.auth import Role, User, UserRole
 from app.models.farm import (
     Farm,
     FarmMember,
@@ -140,6 +140,20 @@ async def create_farm(
         accepted_at=datetime.now(timezone.utc),
     )
     db.add(member)
+
+    # Ensure the creator holds the platform-level farm_owner role. The permission
+    # system (require_permission) reads UserRole, not farm membership; without
+    # this, an email-signup user who onboards a farm would be blocked (403) from
+    # every write endpoint (flocks, health, finance, ...).
+    existing_role = await db.execute(
+        select(UserRole).where(
+            UserRole.user_id == user.id,
+            UserRole.role_id == farm_owner_role.id,
+        )
+    )
+    if existing_role.scalar_one_or_none() is None:
+        db.add(UserRole(user_id=user.id, role_id=farm_owner_role.id, farm_id=None))
+
     await db.commit()
     await db.refresh(farm)
     return farm

@@ -161,6 +161,10 @@ async def create_flock(
         created_by=current_user.id,
     )
     db.add(flock)
+    # Flush so the flock row exists before the house references it — the
+    # production_houses.current_flock_id FK is not a mapped relationship, so the
+    # unit of work won't otherwise order the insert before the house update.
+    await db.flush()
 
     # Mark house as occupied
     house.current_flock_id = flock.id
