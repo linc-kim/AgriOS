@@ -30,6 +30,11 @@ from app.models.flock import (
     WeighinRecord,
 )
 from app.models.health import DiseaseAlert, HealthEvent, VaccinationRecord
+from app.models.feed import (
+    FeedInventoryItem,
+    FeedSupplier,
+    FeedTransaction,
+)
 from app.models.finance import (
     ExpenseCategory,
     Expense,
@@ -79,6 +84,10 @@ __all__ = [
     "VaccinationRecord",
     "DiseaseAlert",
     "HealthEvent",
+    # Feed Management (Migration 041)
+    "FeedSupplier",
+    "FeedInventoryItem",
+    "FeedTransaction",
     # Finance (Migrations 019-022)
     "ExpenseCategory",
     "Expense",

@@ -70,6 +70,15 @@ export const queryKeys = {
   // Feed Purchases (Sprint 3)
   feedPurchases: (farmId: string) => ["farms", farmId, "feed-purchases"] as const,
 
+  // Feed Management (Phase 3, Module 4)
+  feedDashboard: (farmId: string) => ["farms", farmId, "feed", "dashboard"] as const,
+  feedInventory: (farmId: string) => ["farms", farmId, "feed", "inventory"] as const,
+  feedSuppliers: (farmId: string) => ["farms", farmId, "feed", "suppliers"] as const,
+  feedTransactions: (farmId: string) => ["farms", farmId, "feed", "transactions"] as const,
+  feedAnalytics: (farmId: string) => ["farms", farmId, "feed", "analytics"] as const,
+  flockFeedConsumption: (farmId: string, flockId: string) =>
+    ["farms", farmId, "flocks", flockId, "feed-consumption"] as const,
+
   // Health (Sprint 4)
   flockVaccinations: (farmId: string, flockId: string) =>
     ["farms", farmId, "flocks", flockId, "vaccinations"] as const,

@@ -14,7 +14,7 @@ Sprint 11: Farm Data Export System (PDF, Excel, CSV) added.
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, farms, flocks, health, finance, aria
+from app.api.v1.endpoints import auth, farms, flocks, health, finance, aria, feed
 from app.api.v1.endpoints import notifications, market
 from app.api.v1.endpoints import admin
 from app.api.v1.endpoints import exports
@@ -36,6 +36,9 @@ api_router.include_router(flocks.router)
 
 # ── Sprint 4 ─────────────────────────────────────────────────────────────────
 api_router.include_router(health.router)
+
+# ── Phase 3, Module 4 (Feed Management) ───────────────────────────────────────
+api_router.include_router(feed.router)
 
 # ── Sprint 5 (Finance) ────────────────────────────────────────────────────────
 api_router.include_router(finance.router)

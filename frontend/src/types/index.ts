@@ -1202,3 +1202,217 @@ export interface FlockHealthSummary {
   active_alert_count: number;
   overdue_vaccinations: number;
 }
+
+// ── Feed Management (Phase 3, Module 4) ───────────────────────────────────────
+
+export interface FeedSupplier {
+  id: string;
+  farm_id: string;
+  name: string;
+  contact_name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  location?: string | null;
+  feed_types: string[];
+  rating?: string | null;
+  is_active: boolean;
+  notes?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+  total_spend_kes?: string | null;
+  purchase_count?: number | null;
+  total_kg_purchased?: string | null;
+}
+
+export interface FeedSupplierInput {
+  name: string;
+  contact_name?: string;
+  phone?: string;
+  email?: string;
+  location?: string;
+  feed_types?: string[];
+  rating?: string;
+  notes?: string;
+}
+
+export interface FeedInventoryItem {
+  id: string;
+  farm_id: string;
+  feed_type: string;
+  name?: string | null;
+  location: string;
+  unit: string;
+  quantity_kg: string;
+  avg_cost_per_kg: string;
+  reorder_level_kg?: string | null;
+  supplier_id?: string | null;
+  supplier_name?: string | null;
+  is_active: boolean;
+  notes?: string | null;
+  stock_value_kes: string;
+  is_low_stock: boolean;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FeedInventoryItemInput {
+  feed_type: string;
+  name?: string;
+  location?: string;
+  unit?: string;
+  reorder_level_kg?: string;
+  supplier_id?: string;
+  opening_quantity_kg?: string;
+  opening_cost_per_kg?: string;
+  notes?: string;
+}
+
+export type FeedTxnType =
+  | "purchase"
+  | "consumption"
+  | "transfer_out"
+  | "transfer_in"
+  | "wastage"
+  | "adjustment";
+
+export interface FeedTransaction {
+  id: string;
+  farm_id: string;
+  item_id: string;
+  flock_id?: string | null;
+  txn_type: FeedTxnType;
+  direction: number;
+  txn_date: string;
+  quantity_kg: string;
+  unit_cost_per_kg: string;
+  total_cost: string;
+  supplier_id?: string | null;
+  counterparty_item_id?: string | null;
+  reason?: string | null;
+  reference?: string | null;
+  expense_id?: string | null;
+  notes?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+  feed_type?: string | null;
+  location?: string | null;
+  flock_name?: string | null;
+}
+
+export interface FeedPurchaseModuleInput {
+  item_id?: string;
+  feed_type?: string;
+  location?: string;
+  quantity_kg: string;
+  price_per_kg: string;
+  purchase_date: string;
+  supplier_id?: string;
+  supplier_name?: string;
+  reference?: string;
+  flock_id?: string;
+  notes?: string;
+}
+
+export interface FeedConsumptionInput {
+  item_id: string;
+  flock_id: string;
+  quantity_kg: string;
+  consumption_date: string;
+  notes?: string;
+}
+
+export interface FeedTransferInput {
+  from_item_id: string;
+  to_location: string;
+  quantity_kg: string;
+  transfer_date: string;
+  reason?: string;
+  notes?: string;
+}
+
+export interface FeedWastageInput {
+  item_id: string;
+  quantity_kg: string;
+  wastage_date: string;
+  reason?: string;
+  flock_id?: string;
+  notes?: string;
+}
+
+export interface FeedReorderAlert {
+  item_id: string;
+  feed_type: string;
+  location: string;
+  quantity_kg: string;
+  reorder_level_kg: string;
+  shortfall_kg: string;
+  supplier_id?: string | null;
+  supplier_name?: string | null;
+}
+
+export interface FeedDashboard {
+  total_stock_kg: string;
+  total_stock_value_kes: string;
+  item_count: number;
+  low_stock_count: number;
+  window_days: number;
+  purchased_kg: string;
+  purchased_cost_kes: string;
+  consumed_kg: string;
+  consumed_cost_kes: string;
+  wasted_kg: string;
+  wasted_cost_kes: string;
+  reorder_alerts: FeedReorderAlert[];
+  items: FeedInventoryItem[];
+  recent_transactions: FeedTransaction[];
+}
+
+export interface FeedUsagePoint {
+  period: string;
+  consumed_kg: string;
+  consumed_cost_kes: string;
+  purchased_kg: string;
+  wasted_kg: string;
+}
+
+export interface FeedTypeBreakdown {
+  feed_type: string;
+  consumed_kg: string;
+  consumed_cost_kes: string;
+  pct_of_total?: string | null;
+}
+
+export interface FeedSupplierSpend {
+  supplier_id?: string | null;
+  supplier_name: string;
+  total_kg: string;
+  total_cost_kes: string;
+  purchase_count: number;
+}
+
+export interface FeedFlockCost {
+  flock_id: string;
+  flock_name: string;
+  consumed_kg: string;
+  feed_cost_kes: string;
+  live_birds: number;
+  cost_per_bird_kes?: string | null;
+  eggs_collected: number;
+  cost_per_egg_kes?: string | null;
+}
+
+export interface FeedAnalytics {
+  window_days: number;
+  total_consumed_kg: string;
+  total_consumed_cost_kes: string;
+  total_wasted_kg: string;
+  wastage_pct?: string | null;
+  avg_cost_per_kg?: string | null;
+  usage_trend: FeedUsagePoint[];
+  by_feed_type: FeedTypeBreakdown[];
+  by_supplier: FeedSupplierSpend[];
+  by_flock: FeedFlockCost[];
+}

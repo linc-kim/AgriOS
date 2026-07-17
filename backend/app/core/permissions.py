@@ -55,6 +55,10 @@ class Permission(StrEnum):
     HEALTH_EVENT_VIEW = "health:event:view"
     HEALTH_ALERT_VIEW = "health:alert:view"
 
+    # Feed Management (Phase 3, Module 4)
+    FEED_MANAGE = "feed:manage"   # Write: purchases, consumption, transfers, wastage, inventory, suppliers
+    FEED_VIEW = "feed:view"       # Read: inventory, transactions, analytics, alerts
+
     # Finance
     FINANCE_EXPENSE_LOG = "finance:expense:log"
     FINANCE_EXPENSE_EDIT = "finance:expense:edit"
@@ -237,6 +241,15 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.MARKET_VIEW,
     },
 }
+
+
+# Feed Management (Phase 3, Module 4) permissions layered onto the base matrix.
+# Operational roles manage feed stock; read-only roles can view it. super_admin
+# already holds every permission via set(Permission).
+for _feed_writer in ("enterprise_owner", "farm_owner", "farm_manager", "farm_worker"):
+    ROLE_PERMISSIONS[_feed_writer] |= {Permission.FEED_MANAGE, Permission.FEED_VIEW}
+for _feed_reader in ("vet_consultant", "viewer"):
+    ROLE_PERMISSIONS[_feed_reader].add(Permission.FEED_VIEW)
 
 
 def get_user_permissions(role_name: str) -> set[Permission]:

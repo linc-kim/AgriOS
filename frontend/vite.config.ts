@@ -64,7 +64,17 @@ export default defineConfig({
     port: Number(process.env.PORT) || 5173,
     proxy: {
       "/api": {
-        target: "http://localhost:8000",
+        // Override with BACKEND_URL to point the dev proxy at a backend on a
+        // non-default port (e.g. running two stacks side by side).
+        target: process.env.BACKEND_URL || "http://localhost:8000",
+        changeOrigin: true,
+      },
+    },
+  },
+  preview: {
+    proxy: {
+      "/api": {
+        target: process.env.BACKEND_URL || "http://localhost:8000",
         changeOrigin: true,
       },
     },
