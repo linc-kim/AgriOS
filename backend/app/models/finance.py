@@ -45,6 +45,7 @@ if TYPE_CHECKING:
 RevenueTypeEnum = Enum(
     "eggs",
     "birds",
+    "chicks",
     "manure",
     "other",
     name="revenue_type",

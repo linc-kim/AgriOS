@@ -105,6 +105,12 @@ export const queryKeys = {
     ["farms", farmId, "finance", "dashboard"] as const,
   categoryBreakdown: (farmId: string) =>
     ["farms", farmId, "finance", "categories", "breakdown"] as const,
+  // Finance analytics (Module 5)
+  financeOverview: (farmId: string) => ["farms", farmId, "finance", "overview"] as const,
+  financeAnalytics: (farmId: string) => ["farms", farmId, "finance", "analytics"] as const,
+  financeTransactions: (farmId: string) => ["farms", farmId, "finance", "transactions"] as const,
+  financeCashflow: (farmId: string) => ["farms", farmId, "finance", "cashflow"] as const,
+  financeReport: (farmId: string) => ["farms", farmId, "finance", "report"] as const,
 
   // AI / ARIA (Sprint 6)
   aiConversations: (farmId: string) =>

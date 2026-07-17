@@ -567,7 +567,7 @@ export interface VaccinationRecordUpdateInput {
 
 // ── Finance Types ─────────────────────────────────────────────────────────────
 
-export type RevenueType = "eggs" | "birds" | "manure" | "other";
+export type RevenueType = "eggs" | "birds" | "chicks" | "manure" | "other";
 export type PaymentMethod = "cash" | "mpesa" | "bank_transfer" | "credit";
 
 export interface ExpenseCategory {
@@ -1477,4 +1477,152 @@ export interface FeedAnalytics {
   by_feed_type: FeedTypeBreakdown[];
   by_supplier: FeedSupplierSpend[];
   by_flock: FeedFlockCost[];
+}
+
+// ── Finance Analytics (Module 5) ──────────────────────────────────────────────
+
+export interface FinMoneyPoint {
+  period: string;
+  revenue: string;
+  expenses: string;
+  profit: string;
+}
+
+export interface FinCategoryAmount {
+  category_id: string | null;
+  name: string;
+  slug: string;
+  icon: string | null;
+  color: string | null;
+  amount: string;
+  pct_of_total: string | null;
+  transaction_count: number;
+}
+
+export interface FinRevenueTypeAmount {
+  revenue_type: string;
+  amount: string;
+  pct_of_total: string | null;
+  transaction_count: number;
+}
+
+export interface FinTransactionRow {
+  id: string;
+  kind: "revenue" | "expense";
+  txn_date: string;
+  label: string;
+  slug: string | null;
+  icon: string | null;
+  color: string | null;
+  description: string | null;
+  amount: string;
+  signed_amount: string;
+  flock_id: string | null;
+  flock_name: string | null;
+  payment_method: string | null;
+}
+
+export interface FinTransactionPage {
+  items: FinTransactionRow[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_revenue: string;
+  total_expenses: string;
+  net: string;
+}
+
+export interface FinanceOverview {
+  today_revenue: string;
+  today_expenses: string;
+  today_profit: string;
+  m30_revenue: string;
+  m30_expenses: string;
+  m30_profit: string;
+  cash_balance: string;
+  outstanding_costs: string;
+  top_expense_category: FinCategoryAmount | null;
+  revenue_series: FinMoneyPoint[];
+  profit_trend: FinMoneyPoint[];
+  category_breakdown: FinCategoryAmount[];
+  revenue_by_type: FinRevenueTypeAmount[];
+  recent_transactions: FinTransactionRow[];
+}
+
+export interface FinWindowStats {
+  window: string;
+  start_date: string | null;
+  end_date: string;
+  revenue: string;
+  expenses: string;
+  direct_costs: string;
+  gross_profit: string;
+  net_profit: string;
+  gross_margin_pct: string | null;
+  net_margin_pct: string | null;
+  revenue_growth_pct: string | null;
+  expense_growth_pct: string | null;
+}
+
+export interface FinPerUnitStats {
+  total_birds: number;
+  total_eggs: number;
+  total_kg: string;
+  cost_per_bird: string | null;
+  revenue_per_bird: string | null;
+  profit_per_bird: string | null;
+  cost_per_egg: string | null;
+  revenue_per_egg: string | null;
+  profit_per_egg: string | null;
+  cost_per_kg: string | null;
+  revenue_per_kg: string | null;
+}
+
+export interface FinCostCentre {
+  flock_id: string;
+  flock_name: string;
+  status: string;
+  revenue: string;
+  expenses: string;
+  profit: string;
+  margin_pct: string | null;
+}
+
+export interface FinanceAnalytics {
+  windows: FinWindowStats[];
+  per_unit: FinPerUnitStats;
+  cost_centres: FinCostCentre[];
+  revenue_trend: FinMoneyPoint[];
+  expense_trend: FinMoneyPoint[];
+}
+
+export interface FinCashflowPoint {
+  period: string;
+  inflow: string;
+  outflow: string;
+  net: string;
+  running_balance: string;
+}
+
+export interface FinCashflow {
+  months: number;
+  points: FinCashflowPoint[];
+  opening_balance: string;
+  closing_balance: string;
+}
+
+export interface FinanceReport {
+  period_type: string;
+  period_label: string;
+  start_date: string;
+  end_date: string;
+  total_revenue: string;
+  total_expenses: string;
+  direct_costs: string;
+  gross_profit: string;
+  net_profit: string;
+  net_margin_pct: string | null;
+  revenue_by_type: FinRevenueTypeAmount[];
+  expense_by_category: FinCategoryAmount[];
+  monthly_breakdown: FinMoneyPoint[];
 }

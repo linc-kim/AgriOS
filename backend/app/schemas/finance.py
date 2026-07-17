@@ -172,7 +172,7 @@ class ExpenseListResponse(AGRIOSSchema):
 
 # ── RevenueRecord ─────────────────────────────────────────────────────────────
 
-REVENUE_TYPES = Literal["eggs", "birds", "manure", "other"]
+REVENUE_TYPES = Literal["eggs", "birds", "chicks", "manure", "other"]
 REVENUE_UNITS = Literal["tray", "kg", "bird", "bag", "piece", "litre"]
 
 

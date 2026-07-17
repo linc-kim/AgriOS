@@ -40,7 +40,7 @@ export const MODULES: ModuleDef[] = [
   { id: "livestock", label: "Livestock", path: "/livestock", icon: Bird, section: "main", ready: true, description: "Track flocks, mortality, weights and vaccinations." },
   { id: "crops", label: "Crops", path: "/crops", icon: Sprout, section: "main", description: "Plan plantings, monitor growth and harvests." },
   { id: "inventory", label: "Inventory", path: "/inventory", icon: Package, section: "main", ready: true, description: "Feed, supplies and stock across your farm." },
-  { id: "finance", label: "Finance", path: "/finance", icon: Wallet, section: "insights", description: "Expenses, revenue and profitability." },
+  { id: "finance", label: "Finance", path: "/finance", icon: Wallet, section: "insights", ready: true, description: "Expenses, revenue and profitability." },
   { id: "analytics", label: "Analytics", path: "/analytics", icon: BarChart3, section: "insights", description: "Trends and performance across your operation." },
   { id: "reports", label: "Reports", path: "/reports", icon: FileText, section: "insights", description: "Export-ready reports for your records." },
   { id: "ai", label: "AI Assistant", path: "/ai", icon: Sparkles, section: "insights", description: "Ask Greena about your farm." },
