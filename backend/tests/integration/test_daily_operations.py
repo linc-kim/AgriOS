@@ -45,6 +45,33 @@ async def test_daily_log_records_culls_and_reduces_count(
     assert metrics["current_count"] == base - 5
 
 
+async def test_log_egg_production_and_weighin(
+    async_client, test_farm, test_flock, auth_headers_owner
+):
+    today = str(date.today())
+    eggs = await async_client.post(
+        f"/api/v1/farms/{test_farm.id}/flocks/{test_flock.id}/production",
+        json={"record_date": today, "eggs_collected": 280, "broken_eggs": 4},
+        headers=auth_headers_owner,
+    )
+    assert eggs.status_code in (200, 201), eggs.text
+    assert eggs.json()["data"]["eggs_collected"] == 280
+
+    weigh = await async_client.post(
+        f"/api/v1/farms/{test_farm.id}/flocks/{test_flock.id}/weighins",
+        json={"weighed_at": today, "sample_size": 30, "average_weight_kg": "1.85"},
+        headers=auth_headers_owner,
+    )
+    assert weigh.status_code in (200, 201), weigh.text
+    assert weigh.json()["data"]["sample_size"] == 30
+
+    # Flock detail now reflects the weigh-in (avg weight populated).
+    detail = await async_client.get(
+        f"/api/v1/farms/{test_farm.id}/flocks/{test_flock.id}", headers=auth_headers_owner
+    )
+    assert detail.json()["data"]["metrics"]["latest_avg_weight_kg"] is not None
+
+
 async def test_worker_can_submit_log_viewer_cannot(
     async_client, test_farm, test_flock, auth_headers_worker, auth_headers_viewer
 ):

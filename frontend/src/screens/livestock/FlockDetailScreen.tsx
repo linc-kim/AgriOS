@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Bird, Pencil, Archive, CheckCircle2, X } from "lucide-react";
 
 import { getFlock, updateFlock, closeFlock, archiveFlock } from "@/api/flocks";
+import { FlockDailyOps } from "./FlockDailyOps";
 import { useWorkspace } from "@/shell/useWorkspace";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
@@ -168,6 +169,8 @@ export default function FlockDetailScreen() {
         <DetailRow label="Batch" value={f.batch_number ?? "—"} />
         {f.close_date && <DetailRow label="Closed" value={new Date(f.close_date).toLocaleDateString()} />}
       </section>
+
+      {farmId && <FlockDailyOps farmId={farmId} flockId={f.id} disabled={f.status !== "active"} />}
 
       {editing && farmId && (
         <EditFlockModal farm={farmId} flock={f} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); invalidate(); }} />

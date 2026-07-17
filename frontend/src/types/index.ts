@@ -424,6 +424,7 @@ export interface DailyLogSubmitInput {
   morning_count?: number;
   mortality_count?: number;
   mortality_cause?: string;
+  culls?: number;
   feed_consumed_kg?: string;
   water_litres?: string;
   house_temp_am?: string;
