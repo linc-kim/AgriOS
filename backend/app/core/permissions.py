@@ -51,6 +51,8 @@ class Permission(StrEnum):
     # Health Management
     HEALTH_VACCINATION_LOG = "health:vaccination:log"
     HEALTH_VACCINATION_VIEW = "health:vaccination:view"
+    HEALTH_EVENT_LOG = "health:event:log"
+    HEALTH_EVENT_VIEW = "health:event:view"
     HEALTH_ALERT_VIEW = "health:alert:view"
 
     # Finance
@@ -115,7 +117,9 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.OPS_PRODUCTION_LOG,
         Permission.OPS_LOG_VIEW,
         Permission.HEALTH_VACCINATION_LOG,
+        Permission.HEALTH_EVENT_LOG,
         Permission.HEALTH_VACCINATION_VIEW,
+        Permission.HEALTH_EVENT_VIEW,
         Permission.HEALTH_ALERT_VIEW,
         Permission.FINANCE_EXPENSE_LOG,
         Permission.FINANCE_EXPENSE_EDIT,
@@ -147,7 +151,9 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.OPS_PRODUCTION_LOG,
         Permission.OPS_LOG_VIEW,
         Permission.HEALTH_VACCINATION_LOG,
+        Permission.HEALTH_EVENT_LOG,
         Permission.HEALTH_VACCINATION_VIEW,
+        Permission.HEALTH_EVENT_VIEW,
         Permission.HEALTH_ALERT_VIEW,
         Permission.FINANCE_EXPENSE_LOG,
         Permission.FINANCE_EXPENSE_EDIT,
@@ -176,7 +182,9 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.OPS_PRODUCTION_LOG,
         Permission.OPS_LOG_VIEW,
         Permission.HEALTH_VACCINATION_LOG,
+        Permission.HEALTH_EVENT_LOG,
         Permission.HEALTH_VACCINATION_VIEW,
+        Permission.HEALTH_EVENT_VIEW,
         Permission.HEALTH_ALERT_VIEW,
         Permission.FINANCE_EXPENSE_LOG,
         Permission.FINANCE_EXPENSE_EDIT,
@@ -193,7 +201,9 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.FLOCK_VIEW,
         Permission.OPS_LOG_VIEW,
         Permission.HEALTH_VACCINATION_LOG,
+        Permission.HEALTH_EVENT_LOG,
         Permission.HEALTH_VACCINATION_VIEW,
+        Permission.HEALTH_EVENT_VIEW,
         Permission.HEALTH_ALERT_VIEW,
         Permission.AI_INSIGHT_VIEW,
         Permission.NOTIFICATION_VIEW,
@@ -208,6 +218,7 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.OPS_PRODUCTION_LOG,
         Permission.OPS_LOG_VIEW,
         Permission.HEALTH_VACCINATION_VIEW,
+        Permission.HEALTH_EVENT_VIEW,
         Permission.HEALTH_ALERT_VIEW,
         Permission.FINANCE_VIEW,
         Permission.NOTIFICATION_VIEW,
@@ -218,6 +229,7 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.FLOCK_VIEW,
         Permission.OPS_LOG_VIEW,
         Permission.HEALTH_VACCINATION_VIEW,
+        Permission.HEALTH_EVENT_VIEW,
         Permission.HEALTH_ALERT_VIEW,
         Permission.FINANCE_VIEW,
         Permission.AI_INSIGHT_VIEW,

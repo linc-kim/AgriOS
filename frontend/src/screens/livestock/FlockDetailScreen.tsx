@@ -10,6 +10,7 @@ import { ArrowLeft, Bird, Pencil, Archive, CheckCircle2, X } from "lucide-react"
 
 import { getFlock, updateFlock, closeFlock, archiveFlock } from "@/api/flocks";
 import { FlockDailyOps } from "./FlockDailyOps";
+import { FlockHealth } from "./FlockHealth";
 import { useWorkspace } from "@/shell/useWorkspace";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
@@ -171,6 +172,8 @@ export default function FlockDetailScreen() {
       </section>
 
       {farmId && <FlockDailyOps farmId={farmId} flockId={f.id} disabled={f.status !== "active"} />}
+
+      {farmId && <FlockHealth farmId={farmId} flockId={f.id} disabled={f.status !== "active"} />}
 
       {editing && farmId && (
         <EditFlockModal farm={farmId} flock={f} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); invalidate(); }} />

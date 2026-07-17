@@ -109,3 +109,64 @@ export async function getActiveAlertBanner(
   );
   return data.data;
 }
+
+// ── Health Events (Phase 3) ───────────────────────────────────────────────────
+
+import type {
+  HealthEvent,
+  HealthEventCreateInput,
+  HealthEventUpdateInput,
+  FlockHealthSummary,
+} from "@/types";
+
+export async function listHealthEvents(
+  farmId: string,
+  flockId: string,
+  params?: { status?: string; limit?: number },
+): Promise<HealthEvent[]> {
+  const { data } = await apiClient.get<APISuccess<HealthEvent[]>>(
+    `/farms/${farmId}/flocks/${flockId}/health-events`,
+    { params },
+  );
+  return data.data;
+}
+
+export async function createHealthEvent(
+  farmId: string,
+  flockId: string,
+  input: HealthEventCreateInput,
+): Promise<HealthEvent> {
+  const { data } = await apiClient.post<APISuccess<HealthEvent>>(
+    `/farms/${farmId}/flocks/${flockId}/health-events`,
+    input,
+  );
+  return data.data;
+}
+
+export async function updateHealthEvent(
+  farmId: string,
+  flockId: string,
+  eventId: string,
+  input: HealthEventUpdateInput,
+): Promise<HealthEvent> {
+  const { data } = await apiClient.patch<APISuccess<HealthEvent>>(
+    `/farms/${farmId}/flocks/${flockId}/health-events/${eventId}`,
+    input,
+  );
+  return data.data;
+}
+
+export async function deleteHealthEvent(
+  farmId: string,
+  flockId: string,
+  eventId: string,
+): Promise<void> {
+  await apiClient.delete(`/farms/${farmId}/flocks/${flockId}/health-events/${eventId}`);
+}
+
+export async function getHealthSummary(farmId: string): Promise<FlockHealthSummary> {
+  const { data } = await apiClient.get<APISuccess<FlockHealthSummary>>(
+    `/farms/${farmId}/health/summary`,
+  );
+  return data.data;
+}

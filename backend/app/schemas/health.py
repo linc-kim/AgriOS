@@ -18,12 +18,13 @@ Admin-only schemas:
 """
 
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
 from pydantic import Field, field_validator, model_validator
 
-from app.schemas.base import AGRIOSSchema
+from app.schemas.base import AGRIOSSchema, TimestampedSchema
 
 # ── Known vaccine protocol presets ────────────────────────────────────────────
 # These are the common Kenyan poultry vaccine names. Free text is also allowed.
@@ -339,3 +340,115 @@ class ActiveAlertSummary(AGRIOSSchema):
     published_at: datetime | None
 
     model_config = {"from_attributes": True}
+
+
+# ── Health Events (Phase 3 Health module) ─────────────────────────────────────
+
+HealthEventType = Literal[
+    "observation", "symptom", "diagnosis", "treatment", "medication",
+    "mortality_investigation", "quarantine", "vet_visit", "recovery", "followup",
+]
+HealthSeverity = Literal["info", "watch", "warning", "critical"]
+HealthStatus = Literal["open", "monitoring", "resolved"]
+
+
+class HealthEventCreate(AGRIOSSchema):
+    """Log a health event against a flock."""
+    event_type: HealthEventType
+    event_date: date
+    title: str = Field(..., min_length=2, max_length=200)
+    symptoms: list[str] = Field(default_factory=list)
+    observations: dict = Field(default_factory=dict)
+    attachments: list[str] = Field(default_factory=list)
+    diagnosis: str | None = Field(default=None, max_length=500)
+    treatment: str | None = Field(default=None, max_length=500)
+    medication_name: str | None = Field(default=None, max_length=200)
+    dosage: str | None = Field(default=None, max_length=200)
+    severity: HealthSeverity = "info"
+    affected_count: int | None = Field(default=None, ge=0)
+    status: HealthStatus = "open"
+    vet_name: str | None = Field(default=None, max_length=200)
+    follow_up_date: date | None = None
+    cost_kes: Decimal | None = Field(default=None, ge=0, decimal_places=2)
+    notes: str | None = None
+
+    @field_validator("event_date")
+    @classmethod
+    def not_future(cls, v: date) -> date:
+        from datetime import date as _d
+        if v > _d.today():
+            raise ValueError("Event date cannot be in the future.")
+        return v
+
+
+class HealthEventUpdate(AGRIOSSchema):
+    """Update / progress a health event. All fields optional."""
+    title: str | None = Field(default=None, min_length=2, max_length=200)
+    symptoms: list[str] | None = None
+    observations: dict | None = None
+    attachments: list[str] | None = None
+    diagnosis: str | None = Field(default=None, max_length=500)
+    treatment: str | None = Field(default=None, max_length=500)
+    medication_name: str | None = Field(default=None, max_length=200)
+    dosage: str | None = Field(default=None, max_length=200)
+    severity: HealthSeverity | None = None
+    affected_count: int | None = Field(default=None, ge=0)
+    status: HealthStatus | None = None
+    resolved_date: date | None = None
+    vet_name: str | None = Field(default=None, max_length=200)
+    follow_up_date: date | None = None
+    notes: str | None = None
+
+    @model_validator(mode="after")
+    def at_least_one(self) -> "HealthEventUpdate":
+        if all(getattr(self, f) is None for f in self.model_fields):
+            raise ValueError("Provide at least one field to update.")
+        return self
+
+
+class HealthEventResponse(TimestampedSchema):
+    """A health event as returned by the API."""
+    farm_id: UUID
+    flock_id: UUID
+    event_type: str
+    event_date: date
+    title: str
+    symptoms: list[str]
+    observations: dict
+    attachments: list[str]
+    diagnosis: str | None
+    treatment: str | None
+    medication_name: str | None
+    dosage: str | None
+    severity: str
+    affected_count: int | None
+    status: str
+    resolved_date: date | None
+    vet_name: str | None
+    follow_up_date: date | None
+    cost_kes: Decimal | None
+    expense_id: UUID | None
+    notes: str | None
+    created_by: UUID | None
+
+
+class HealthFollowUp(AGRIOSSchema):
+    """A due/upcoming follow-up surfaced on the health dashboard."""
+    id: UUID
+    flock_id: UUID
+    title: str
+    follow_up_date: date
+    severity: str
+    status: str
+
+
+class FlockHealthSummary(AGRIOSSchema):
+    """Aggregate health status for a farm — powers the health dashboard."""
+    open_events: int
+    monitoring_events: int
+    resolved_events: int
+    critical_open: int
+    total_affected_open: int
+    upcoming_follow_ups: list[HealthFollowUp]
+    active_alert_count: int
+    overdue_vaccinations: int

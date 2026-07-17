@@ -621,6 +621,49 @@ async def get_financial_snapshot(
     return FinancialSnapshotResponse.model_validate(snapshot)
 
 
+async def record_category_expense(
+    db: AsyncSession,
+    farm_id: UUID,
+    flock_id,
+    category_slug: str,
+    amount,
+    description: str,
+    current_user: User,
+    expense_date=None,
+):
+    """
+    Create an Expense under a system category identified by slug (e.g. a health
+    medication or vet cost). Adds + flushes in the caller's transaction; returns
+    the expense, or None if the category or amount is missing.
+    """
+    from datetime import date as _date
+
+    if amount is None or amount <= 0:
+        return None
+    cat_result = await db.execute(
+        select(ExpenseCategory).where(
+            ExpenseCategory.slug == category_slug,
+            ExpenseCategory.farm_id.is_(None),
+            ExpenseCategory.deleted_at.is_(None),
+        )
+    )
+    category = cat_result.scalar_one_or_none()
+    if category is None:
+        return None
+    expense = Expense(
+        farm_id=farm_id,
+        flock_id=flock_id,
+        category_id=category.id,
+        expense_date=expense_date or _date.today(),
+        amount=amount,
+        description=description,
+        created_by=current_user.id,
+    )
+    db.add(expense)
+    await db.flush()
+    return expense
+
+
 async def record_feed_purchase_expense(
     db: AsyncSession,
     farm_id: UUID,

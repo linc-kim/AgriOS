@@ -29,7 +29,7 @@ from app.models.flock import (
     ProductionRecord,
     WeighinRecord,
 )
-from app.models.health import DiseaseAlert, VaccinationRecord
+from app.models.health import DiseaseAlert, HealthEvent, VaccinationRecord
 from app.models.finance import (
     ExpenseCategory,
     Expense,
@@ -78,6 +78,7 @@ __all__ = [
     # Health (Migrations 017-018)
     "VaccinationRecord",
     "DiseaseAlert",
+    "HealthEvent",
     # Finance (Migrations 019-022)
     "ExpenseCategory",
     "Expense",

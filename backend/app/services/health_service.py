@@ -26,7 +26,7 @@ from app.exceptions import (
 from app.models.auth import User
 from app.models.farm import Farm
 from app.models.flock import Flock
-from app.models.health import DiseaseAlert, VaccinationRecord
+from app.models.health import DiseaseAlert, HealthEvent, VaccinationRecord
 from app.schemas.health import (
     ActiveAlertSummary,
     DiseaseAlertCreate,
@@ -538,3 +538,201 @@ async def admin_list_all_alerts(
     query = query.order_by(DiseaseAlert.created_at.desc()).limit(limit).offset(offset)
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+# ── Health Events (Phase 3) ───────────────────────────────────────────────────
+
+# Map a health event type to the finance category its cost belongs to.
+_HEALTH_COST_CATEGORY = {
+    "medication": "medication",
+    "treatment": "medication",
+    "vet_visit": "vet_fees",
+}
+
+
+async def _get_health_event_or_404(db, farm_id, event_id) -> HealthEvent:
+    result = await db.execute(
+        select(HealthEvent).where(
+            HealthEvent.id == event_id,
+            HealthEvent.farm_id == farm_id,
+            HealthEvent.deleted_at.is_(None),
+        )
+    )
+    event = result.scalar_one_or_none()
+    if event is None:
+        raise NotFoundException("Health event not found.")
+    return event
+
+
+async def create_health_event(db, farm, flock_id, data, current_user) -> HealthEvent:
+    """Log a health event. If a cost is given it also books a finance expense."""
+    flock = await _get_flock_or_404(db, farm.id, flock_id)
+
+    event = HealthEvent(
+        farm_id=farm.id,
+        flock_id=flock.id,
+        event_type=data.event_type,
+        event_date=data.event_date,
+        title=data.title,
+        symptoms=data.symptoms,
+        observations=data.observations,
+        attachments=data.attachments,
+        diagnosis=data.diagnosis,
+        treatment=data.treatment,
+        medication_name=data.medication_name,
+        dosage=data.dosage,
+        severity=data.severity,
+        affected_count=data.affected_count,
+        status=data.status,
+        vet_name=data.vet_name,
+        follow_up_date=data.follow_up_date,
+        cost_kes=data.cost_kes,
+        notes=data.notes,
+        created_by=current_user.id,
+    )
+    db.add(event)
+    await db.flush()
+
+    # Financial integration — medication / vet / treatment costs become expenses.
+    if data.cost_kes and data.cost_kes > 0:
+        from app.services import finance_service
+
+        slug = _HEALTH_COST_CATEGORY.get(data.event_type, "medication")
+        label = data.medication_name or data.title
+        expense = await finance_service.record_category_expense(
+            db, farm.id, flock.id, slug, data.cost_kes,
+            f"Health: {label}", current_user, data.event_date,
+        )
+        if expense is not None:
+            event.expense_id = expense.id
+
+    await db.commit()
+
+    if event.cost_kes and event.expense_id:
+        from app.services import finance_service
+
+        await finance_service.recompute_snapshot(db, farm.id, flock.id)
+
+    await db.refresh(event)
+    return event
+
+
+async def list_health_events(db, farm_id, flock_id, status=None, limit=50, offset=0):
+    query = select(HealthEvent).where(
+        HealthEvent.farm_id == farm_id,
+        HealthEvent.flock_id == flock_id,
+        HealthEvent.deleted_at.is_(None),
+    )
+    if status:
+        query = query.where(HealthEvent.status == status)
+    query = query.order_by(HealthEvent.event_date.desc(), HealthEvent.created_at.desc())
+    query = query.limit(limit).offset(offset)
+    result = await db.execute(query)
+    return list(result.scalars().all())
+
+
+async def get_health_event(db, farm_id, event_id) -> HealthEvent:
+    return await _get_health_event_or_404(db, farm_id, event_id)
+
+
+async def update_health_event(db, farm_id, event_id, data) -> HealthEvent:
+    event = await _get_health_event_or_404(db, farm_id, event_id)
+    fields = [
+        "title", "symptoms", "observations", "attachments", "diagnosis",
+        "treatment", "medication_name", "dosage", "severity", "affected_count",
+        "status", "resolved_date", "vet_name", "follow_up_date", "notes",
+    ]
+    for f in fields:
+        val = getattr(data, f, None)
+        if val is not None:
+            setattr(event, f, val)
+    # Auto-stamp resolution date when marked resolved without an explicit date.
+    if data.status == "resolved" and event.resolved_date is None:
+        event.resolved_date = date.today()
+    await db.commit()
+    await db.refresh(event)
+    return event
+
+
+async def delete_health_event(db, farm_id, event_id) -> None:
+    event = await _get_health_event_or_404(db, farm_id, event_id)
+    event.deleted_at = datetime.now(timezone.utc)
+    await db.commit()
+
+
+async def get_farm_health_summary(db, farm):
+    """Aggregate farm-wide health status for the health dashboard."""
+    from app.schemas.health import FlockHealthSummary, HealthFollowUp
+
+    farm_id = farm.id
+
+    # Event status counts + affected/critical across active (non-resolved) events.
+    counts_result = await db.execute(
+        select(HealthEvent.status, func.count(HealthEvent.id)).where(
+            HealthEvent.farm_id == farm_id,
+            HealthEvent.deleted_at.is_(None),
+        ).group_by(HealthEvent.status)
+    )
+    by_status = {s: int(c) for s, c in counts_result.all()}
+
+    critical_result = await db.execute(
+        select(func.count(HealthEvent.id)).where(
+            HealthEvent.farm_id == farm_id,
+            HealthEvent.deleted_at.is_(None),
+            HealthEvent.status != "resolved",
+            HealthEvent.severity == "critical",
+        )
+    )
+    critical_open = int(critical_result.scalar_one())
+
+    affected_result = await db.execute(
+        select(func.coalesce(func.sum(HealthEvent.affected_count), 0)).where(
+            HealthEvent.farm_id == farm_id,
+            HealthEvent.deleted_at.is_(None),
+            HealthEvent.status != "resolved",
+        )
+    )
+    total_affected = int(affected_result.scalar_one())
+
+    # Upcoming follow-ups (not resolved, due today or later).
+    follow_result = await db.execute(
+        select(HealthEvent).where(
+            HealthEvent.farm_id == farm_id,
+            HealthEvent.deleted_at.is_(None),
+            HealthEvent.status != "resolved",
+            HealthEvent.follow_up_date.isnot(None),
+            HealthEvent.follow_up_date >= date.today(),
+        ).order_by(HealthEvent.follow_up_date.asc()).limit(10)
+    )
+    follow_ups = [
+        HealthFollowUp(
+            id=e.id, flock_id=e.flock_id, title=e.title,
+            follow_up_date=e.follow_up_date, severity=e.severity, status=e.status,
+        )
+        for e in follow_result.scalars().all()
+    ]
+
+    # Overdue vaccinations across the farm's flocks.
+    overdue_result = await db.execute(
+        select(func.count(VaccinationRecord.id)).where(
+            VaccinationRecord.farm_id == farm_id,
+            VaccinationRecord.deleted_at.is_(None),
+            VaccinationRecord.next_due_date.isnot(None),
+            VaccinationRecord.next_due_date < date.today(),
+        )
+    )
+    overdue_vax = int(overdue_result.scalar_one())
+
+    # Active disease alerts relevant to this farm.
+    active_alerts = await get_active_alerts_for_farm(db, farm)
+
+    return FlockHealthSummary(
+        open_events=by_status.get("open", 0),
+        monitoring_events=by_status.get("monitoring", 0),
+        resolved_events=by_status.get("resolved", 0),
+        critical_open=critical_open,
+        total_affected_open=total_affected,
+        upcoming_follow_ups=follow_ups,
+        active_alert_count=len(active_alerts),
+        overdue_vaccinations=overdue_vax,
+    )

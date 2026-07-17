@@ -11,6 +11,7 @@ DiseaseAlert is platform-wide (no farm_id — county-targeted by admin).
 
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
@@ -20,6 +21,7 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     Integer,
+    Numeric,
     String,
     Text,
 )
@@ -254,3 +256,50 @@ class DiseaseAlert(AGRIOSBase):
             return False
         from datetime import datetime as dt, timezone
         return self.expires_at < dt.now(tz=timezone.utc)
+
+
+class HealthEvent(AGRIOSBase):
+    """
+    A flock-scoped health record. One flexible model captures the full health
+    workflow — observations, symptoms, diagnoses, treatments, medication,
+    mortality investigations, quarantine, vet visits, recovery and follow-ups.
+
+    ``symptoms`` / ``observations`` / ``attachments`` are structured JSONB so
+    ARIA can analyse them later without a schema change.
+    """
+
+    __tablename__ = "health_events"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    flock_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("flocks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    event_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    event_type: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+
+    symptoms: Mapped[list] = mapped_column(JSONB, default=list, server_default="[]", nullable=False)
+    observations: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}", nullable=False)
+    attachments: Mapped[list] = mapped_column(JSONB, default=list, server_default="[]", nullable=False)
+
+    diagnosis: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    treatment: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    medication_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    dosage: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    severity: Mapped[str] = mapped_column(String(20), nullable=False, default="info", server_default="info")
+    affected_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="open", server_default="open")
+    resolved_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    vet_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    follow_up_date: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+
+    cost_kes: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    expense_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )

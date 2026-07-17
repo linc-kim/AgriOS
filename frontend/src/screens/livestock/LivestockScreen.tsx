@@ -6,13 +6,14 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bird, Plus, Egg, Wheat, Skull, X, ArrowRight } from "lucide-react";
+import { Bird, Plus, Egg, Wheat, Skull, X, ArrowRight, ShieldAlert, HeartPulse, CalendarClock, Syringe } from "lucide-react";
 
 import {
   listFlocks,
   createFlock,
   getProductionDashboard,
 } from "@/api/flocks";
+import { getHealthSummary } from "@/api/health";
 import { listFarmHouses } from "@/api/farms";
 import { useWorkspace } from "@/shell/useWorkspace";
 import { Button } from "@/components/ui/Button";
@@ -62,9 +63,15 @@ export default function LivestockScreen() {
     queryFn: () => getProductionDashboard(farmId!),
     enabled: !!farmId,
   });
+  const healthQuery = useQuery({
+    queryKey: ["health-summary", farmId],
+    queryFn: () => getHealthSummary(farmId!),
+    enabled: !!farmId,
+  });
 
   const flocks = flocksQuery.data ?? [];
   const d = dashQuery.data;
+  const h = healthQuery.data;
 
   return (
     <div className="space-y-8">
@@ -95,6 +102,37 @@ export default function LivestockScreen() {
           </>
         )}
       </div>
+
+      {/* Health status strip */}
+      {h && (h.open_events > 0 || h.critical_open > 0 || h.upcoming_follow_ups.length > 0 || h.overdue_vaccinations > 0 || h.active_alert_count > 0) && (
+        <div className="flex flex-wrap gap-2">
+          {h.critical_open > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 dark:bg-red-500/15 dark:text-red-300">
+              <ShieldAlert className="h-4 w-4" /> {h.critical_open} critical health {h.critical_open === 1 ? "issue" : "issues"}
+            </span>
+          )}
+          {h.open_events > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+              <HeartPulse className="h-4 w-4" /> {h.open_events} open
+            </span>
+          )}
+          {h.upcoming_follow_ups.length > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-300">
+              <CalendarClock className="h-4 w-4" /> {h.upcoming_follow_ups.length} follow-up{h.upcoming_follow_ups.length === 1 ? "" : "s"} due
+            </span>
+          )}
+          {h.overdue_vaccinations > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+              <Syringe className="h-4 w-4" /> {h.overdue_vaccinations} vaccination{h.overdue_vaccinations === 1 ? "" : "s"} overdue
+            </span>
+          )}
+          {h.active_alert_count > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 dark:bg-red-500/15 dark:text-red-300">
+              <ShieldAlert className="h-4 w-4" /> {h.active_alert_count} disease alert{h.active_alert_count === 1 ? "" : "s"}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Flock list */}
       <section>

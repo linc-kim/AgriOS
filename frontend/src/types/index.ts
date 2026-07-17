@@ -1113,3 +1113,92 @@ export interface SubscriptionPlanSummary {
 export interface AdminUserSuspendInput { reason: string; }
 export interface AdminUserQuotaInput { monthly_limit: number | null; reason: string; }
 export interface AdminFarmPlanInput { plan_name: string; reason: string; }
+
+// ── Health Events (Phase 3 Health module) ─────────────────────────────────────
+
+export type HealthEventType =
+  | "observation" | "symptom" | "diagnosis" | "treatment" | "medication"
+  | "mortality_investigation" | "quarantine" | "vet_visit" | "recovery" | "followup";
+export type HealthSeverity = "info" | "watch" | "warning" | "critical";
+export type HealthStatus = "open" | "monitoring" | "resolved";
+
+export interface HealthEvent {
+  id: string;
+  farm_id: string;
+  flock_id: string;
+  event_type: HealthEventType;
+  event_date: string;
+  title: string;
+  symptoms: string[];
+  observations: Record<string, unknown>;
+  attachments: string[];
+  diagnosis: string | null;
+  treatment: string | null;
+  medication_name: string | null;
+  dosage: string | null;
+  severity: HealthSeverity;
+  affected_count: number | null;
+  status: HealthStatus;
+  resolved_date: string | null;
+  vet_name: string | null;
+  follow_up_date: string | null;
+  cost_kes: string | null;
+  expense_id: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HealthEventCreateInput {
+  event_type: HealthEventType;
+  event_date: string;
+  title: string;
+  symptoms?: string[];
+  observations?: Record<string, unknown>;
+  diagnosis?: string;
+  treatment?: string;
+  medication_name?: string;
+  dosage?: string;
+  severity?: HealthSeverity;
+  affected_count?: number;
+  status?: HealthStatus;
+  vet_name?: string;
+  follow_up_date?: string;
+  cost_kes?: string;
+  notes?: string;
+}
+
+export interface HealthEventUpdateInput {
+  title?: string;
+  symptoms?: string[];
+  diagnosis?: string;
+  treatment?: string;
+  severity?: HealthSeverity;
+  affected_count?: number;
+  status?: HealthStatus;
+  resolved_date?: string;
+  vet_name?: string;
+  follow_up_date?: string;
+  notes?: string;
+}
+
+export interface HealthFollowUp {
+  id: string;
+  flock_id: string;
+  title: string;
+  follow_up_date: string;
+  severity: HealthSeverity;
+  status: HealthStatus;
+}
+
+export interface FlockHealthSummary {
+  open_events: number;
+  monitoring_events: number;
+  resolved_events: number;
+  critical_open: number;
+  total_affected_open: number;
+  upcoming_follow_ups: HealthFollowUp[];
+  active_alert_count: number;
+  overdue_vaccinations: number;
+}

@@ -38,6 +38,10 @@ from app.schemas.health import (
     DiseaseAlertCreate,
     DiseaseAlertResponse,
     DiseaseAlertUpdate,
+    FlockHealthSummary,
+    HealthEventCreate,
+    HealthEventResponse,
+    HealthEventUpdate,
     UpcomingVaccinationsResponse,
     VaccinationRecordCreate,
     VaccinationRecordResponse,
@@ -46,6 +50,141 @@ from app.schemas.health import (
 from app.services import health_service
 
 router = APIRouter()
+
+_HEALTH_WRITE_ROLES = {"farm_owner", "farm_manager", "vet_consultant"}
+
+
+# ── Health Events — Flock-scoped ──────────────────────────────────────────────
+
+@router.post(
+    "/farms/{farm_id}/flocks/{flock_id}/health-events",
+    response_model=SuccessResponse[HealthEventResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="Log a health event (observation, symptom, treatment, medication, ...)",
+    tags=["Health"],
+)
+async def create_health_event(
+    farm_id: str,
+    flock_id: str,
+    body: HealthEventCreate,
+    db: DBSession,
+    current_user: CurrentUser,
+    access: tuple = Depends(require_farm_access(_HEALTH_WRITE_ROLES)),
+    _perm=Depends(require_permission(Permission.HEALTH_EVENT_LOG)),
+) -> SuccessResponse[HealthEventResponse]:
+    import uuid as _uuid
+    farm, _ = access
+    event = await health_service.create_health_event(
+        db, farm, _uuid.UUID(flock_id), body, current_user
+    )
+    return SuccessResponse(data=HealthEventResponse.model_validate(event))
+
+
+@router.get(
+    "/farms/{farm_id}/flocks/{flock_id}/health-events",
+    response_model=SuccessResponse[list[HealthEventResponse]],
+    summary="List a flock's health events",
+    tags=["Health"],
+)
+async def list_health_events(
+    farm_id: str,
+    flock_id: str,
+    db: DBSession,
+    current_user: CurrentUser,
+    access: tuple = Depends(require_farm_access()),
+    _perm=Depends(require_permission(Permission.HEALTH_EVENT_VIEW)),
+    status_filter: str | None = Query(default=None, alias="status"),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+) -> SuccessResponse[list[HealthEventResponse]]:
+    import uuid as _uuid
+    farm, _ = access
+    events = await health_service.list_health_events(
+        db, farm.id, _uuid.UUID(flock_id), status=status_filter, limit=limit, offset=offset
+    )
+    return SuccessResponse(data=[HealthEventResponse.model_validate(e) for e in events])
+
+
+@router.get(
+    "/farms/{farm_id}/flocks/{flock_id}/health-events/{event_id}",
+    response_model=SuccessResponse[HealthEventResponse],
+    summary="Get a health event",
+    tags=["Health"],
+)
+async def get_health_event(
+    farm_id: str,
+    flock_id: str,
+    event_id: str,
+    db: DBSession,
+    current_user: CurrentUser,
+    access: tuple = Depends(require_farm_access()),
+    _perm=Depends(require_permission(Permission.HEALTH_EVENT_VIEW)),
+) -> SuccessResponse[HealthEventResponse]:
+    import uuid as _uuid
+    farm, _ = access
+    event = await health_service.get_health_event(db, farm.id, _uuid.UUID(event_id))
+    return SuccessResponse(data=HealthEventResponse.model_validate(event))
+
+
+@router.patch(
+    "/farms/{farm_id}/flocks/{flock_id}/health-events/{event_id}",
+    response_model=SuccessResponse[HealthEventResponse],
+    summary="Update / progress a health event (e.g. mark resolved)",
+    tags=["Health"],
+)
+async def update_health_event(
+    farm_id: str,
+    flock_id: str,
+    event_id: str,
+    body: HealthEventUpdate,
+    db: DBSession,
+    current_user: CurrentUser,
+    access: tuple = Depends(require_farm_access(_HEALTH_WRITE_ROLES)),
+    _perm=Depends(require_permission(Permission.HEALTH_EVENT_LOG)),
+) -> SuccessResponse[HealthEventResponse]:
+    import uuid as _uuid
+    farm, _ = access
+    event = await health_service.update_health_event(db, farm.id, _uuid.UUID(event_id), body)
+    return SuccessResponse(data=HealthEventResponse.model_validate(event))
+
+
+@router.delete(
+    "/farms/{farm_id}/flocks/{flock_id}/health-events/{event_id}",
+    response_model=SuccessResponse[dict],
+    summary="Soft-delete a health event",
+    tags=["Health"],
+)
+async def delete_health_event(
+    farm_id: str,
+    flock_id: str,
+    event_id: str,
+    db: DBSession,
+    current_user: CurrentUser,
+    access: tuple = Depends(require_farm_access(_HEALTH_WRITE_ROLES)),
+    _perm=Depends(require_permission(Permission.HEALTH_EVENT_LOG)),
+) -> SuccessResponse[dict]:
+    import uuid as _uuid
+    farm, _ = access
+    await health_service.delete_health_event(db, farm.id, _uuid.UUID(event_id))
+    return SuccessResponse(data={"message": "Health event deleted."})
+
+
+@router.get(
+    "/farms/{farm_id}/health/summary",
+    response_model=SuccessResponse[FlockHealthSummary],
+    summary="Farm-wide health dashboard summary",
+    tags=["Health"],
+)
+async def health_summary(
+    farm_id: str,
+    db: DBSession,
+    current_user: CurrentUser,
+    access: tuple = Depends(require_farm_access()),
+    _perm=Depends(require_permission(Permission.HEALTH_EVENT_VIEW)),
+) -> SuccessResponse[FlockHealthSummary]:
+    farm, _ = access
+    summary = await health_service.get_farm_health_summary(db, farm)
+    return SuccessResponse(data=summary)
 
 
 # ── Vaccination Records — Flock-scoped ────────────────────────────────────────
