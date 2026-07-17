@@ -80,6 +80,9 @@ export const queryKeys = {
   flockFeedConsumption: (farmId: string, flockId: string) =>
     ["farms", farmId, "flocks", flockId, "feed-consumption"] as const,
 
+  // ARIA AI Platform (Module 9)
+  aiDashboard: (farmId: string) => ["farms", farmId, "ai", "dashboard"] as const,
+
   // Automation & Notifications (Module 8)
   autoActivity: (farmId: string) => ["farms", farmId, "automation", "activity"] as const,
   autoRules: (farmId: string) => ["farms", farmId, "automation", "rules"] as const,

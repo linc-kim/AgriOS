@@ -19,6 +19,7 @@ from app.api.v1.endpoints import finance_analytics
 from app.api.v1.endpoints import inventory
 from app.api.v1.endpoints import reporting
 from app.api.v1.endpoints import automation
+from app.api.v1.endpoints import ai_platform
 from app.api.v1.endpoints import notifications, market
 from app.api.v1.endpoints import admin
 from app.api.v1.endpoints import exports
@@ -52,6 +53,9 @@ api_router.include_router(reporting.router)
 
 # ── Module 8 (Automation & Notifications) ─────────────────────────────────────
 api_router.include_router(automation.router)
+
+# ── Module 9 (ARIA AI Platform — predictions, forecasts, offline assistant) ───
+api_router.include_router(ai_platform.router)
 
 # ── Sprint 5 (Finance) ────────────────────────────────────────────────────────
 api_router.include_router(finance.router)

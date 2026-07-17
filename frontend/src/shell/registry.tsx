@@ -46,7 +46,7 @@ export const MODULES: ModuleDef[] = [
   { id: "finance", label: "Finance", path: "/finance", icon: Wallet, section: "insights", ready: true, description: "Expenses, revenue and profitability." },
   { id: "analytics", label: "Analytics", path: "/analytics", icon: BarChart3, section: "insights", description: "Trends and performance across your operation." },
   { id: "reports", label: "Reports", path: "/reports", icon: FileText, section: "insights", ready: true, description: "Reports, dashboards, comparisons and exports." },
-  { id: "ai", label: "AI Assistant", path: "/ai", icon: Sparkles, section: "insights", description: "Ask Greena about your farm." },
+  { id: "ai", label: "AI Assistant", path: "/ai", icon: Sparkles, section: "insights", ready: true, description: "Predictions, forecasts and an assistant grounded in your farm." },
   { id: "marketplace", label: "Marketplace", path: "/marketplace", icon: Store, section: "platform", description: "Market prices and trusted suppliers." },
   { id: "automation", label: "Automation", path: "/automation", icon: Zap, section: "platform", ready: true, description: "Triggers, rules, reminders and your activity center." },
   { id: "settings", label: "Settings", path: "/settings", icon: Settings, section: "system", description: "Organization, farm and account settings." },

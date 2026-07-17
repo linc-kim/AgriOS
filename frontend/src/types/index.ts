@@ -2019,3 +2019,56 @@ export interface EngineRunResult {
   rules_matched: number;
   details: Record<string, any>[];
 }
+
+// ── ARIA AI Platform (Module 9) ───────────────────────────────────────────────
+
+export interface AIExplainFactor { factor: string; impact: string; detail?: string | null; }
+export interface AIForecast {
+  metric: string;
+  horizon_days: number;
+  projected_value: string;
+  unit: string;
+  confidence: string;
+  factors: string[];
+  series: Record<string, any>[];
+}
+export interface AIForecasts {
+  feed?: AIForecast | null;
+  financial?: AIForecast | null;
+  inventory?: AIForecast | null;
+  production?: AIForecast | null;
+}
+export interface AIMortalityPrediction {
+  scope: string;
+  predicted_next_7d: number;
+  recent_7d: number;
+  trend: string;
+  confidence: string;
+  factors: AIExplainFactor[];
+  explanation: string;
+}
+export interface AIDiseaseRisk {
+  score: number;
+  level: string;
+  factors: AIExplainFactor[];
+  recommendation: string;
+}
+export interface AIDashboard {
+  generated_at: string;
+  providers: Record<string, boolean>;
+  forecasts: AIForecasts;
+  mortality: AIMortalityPrediction;
+  disease_risk: AIDiseaseRisk;
+  recommendations: Record<string, any>[];
+  insights: Record<string, any>[];
+  headline: string;
+}
+export interface AIAskResponse {
+  answer: string;
+  provider: string;
+  cached: boolean;
+  tokens: number;
+  cost_usd: string;
+  sources: string[];
+  rate_limit_remaining?: number | null;
+}
