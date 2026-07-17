@@ -59,6 +59,10 @@ class Permission(StrEnum):
     FEED_MANAGE = "feed:manage"   # Write: purchases, consumption, transfers, wastage, inventory, suppliers
     FEED_VIEW = "feed:view"       # Read: inventory, transactions, analytics, alerts
 
+    # Inventory & Asset Management (Module 6)
+    INVENTORY_MANAGE = "inventory:manage"   # Write: items, movements, assets, maintenance, suppliers
+    INVENTORY_VIEW = "inventory:view"       # Read: items, movements, assets, analytics, alerts
+
     # Finance
     FINANCE_EXPENSE_LOG = "finance:expense:log"
     FINANCE_EXPENSE_EDIT = "finance:expense:edit"
@@ -250,6 +254,12 @@ for _feed_writer in ("enterprise_owner", "farm_owner", "farm_manager", "farm_wor
     ROLE_PERMISSIONS[_feed_writer] |= {Permission.FEED_MANAGE, Permission.FEED_VIEW}
 for _feed_reader in ("vet_consultant", "viewer"):
     ROLE_PERMISSIONS[_feed_reader].add(Permission.FEED_VIEW)
+
+# Inventory & Asset Management (Module 6) permissions.
+for _inv_writer in ("enterprise_owner", "farm_owner", "farm_manager", "farm_worker"):
+    ROLE_PERMISSIONS[_inv_writer] |= {Permission.INVENTORY_MANAGE, Permission.INVENTORY_VIEW}
+for _inv_reader in ("vet_consultant", "viewer"):
+    ROLE_PERMISSIONS[_inv_reader].add(Permission.INVENTORY_VIEW)
 
 
 def get_user_permissions(role_name: str) -> set[Permission]:

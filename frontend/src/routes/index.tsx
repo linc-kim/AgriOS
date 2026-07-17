@@ -37,7 +37,8 @@ const ModuleScreen = lazy(() => import("@/screens/modules/ModuleScreen"));
 // Modules with bespoke screens
 const LivestockScreen = lazy(() => import("@/screens/livestock/LivestockScreen"));
 const FlockDetailScreen = lazy(() => import("@/screens/livestock/FlockDetailScreen"));
-const InventoryScreen = lazy(() => import("@/screens/inventory/InventoryScreen"));
+const FeedScreen = lazy(() => import("@/screens/inventory/InventoryScreen"));
+const StoreScreen = lazy(() => import("@/screens/store/StoreScreen"));
 const FinanceScreen = lazy(() => import("@/screens/finance/FinanceScreen"));
 
 // Utility / status
@@ -79,7 +80,7 @@ function RequireAuth() {
 
 // Modules that have their own screens are routed explicitly below; the rest
 // fall back to the calm empty-state ModuleScreen.
-const BESPOKE_PATHS = new Set(["/livestock", "/inventory", "/finance"]);
+const BESPOKE_PATHS = new Set(["/livestock", "/inventory", "/feed", "/finance"]);
 const moduleRoutes = MODULES.filter(
   (m) => m.path !== "/" && !BESPOKE_PATHS.has(m.path),
 ).map((m) => ({
@@ -120,7 +121,8 @@ const router = createBrowserRouter([
           { path: "/", element: <DashboardScreen /> },
           { path: "/livestock", element: <LivestockScreen /> },
           { path: "/livestock/:flockId", element: <FlockDetailScreen /> },
-          { path: "/inventory", element: <InventoryScreen /> },
+          { path: "/feed", element: <FeedScreen /> },
+          { path: "/inventory", element: <StoreScreen /> },
           { path: "/finance", element: <FinanceScreen /> },
           ...moduleRoutes,
           { path: "/unauthorized", element: <UnauthorizedScreen /> },

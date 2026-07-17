@@ -35,6 +35,13 @@ from app.models.feed import (
     FeedSupplier,
     FeedTransaction,
 )
+from app.models.inventory import (
+    Asset,
+    AssetMaintenance,
+    InventoryItem,
+    InventoryMovement,
+    InventorySupplier,
+)
 from app.models.finance import (
     ExpenseCategory,
     Expense,
@@ -88,6 +95,12 @@ __all__ = [
     "FeedSupplier",
     "FeedInventoryItem",
     "FeedTransaction",
+    # Inventory & Assets (Migration 044)
+    "InventorySupplier",
+    "InventoryItem",
+    "InventoryMovement",
+    "Asset",
+    "AssetMaintenance",
     # Finance (Migrations 019-022)
     "ExpenseCategory",
     "Expense",

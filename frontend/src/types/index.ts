@@ -1626,3 +1626,295 @@ export interface FinanceReport {
   expense_by_category: FinCategoryAmount[];
   monthly_breakdown: FinMoneyPoint[];
 }
+
+// ── Inventory & Asset Management (Module 6) ───────────────────────────────────
+
+export type InventoryCategory =
+  | "feed" | "medication" | "vaccines" | "equipment" | "consumables"
+  | "cleaning_supplies" | "ppe" | "packaging" | "fuel" | "office_supplies"
+  | "spare_parts" | "miscellaneous";
+
+export type InvMovementType =
+  | "stock_in" | "stock_out" | "transfer_in" | "transfer_out"
+  | "adjustment" | "loss" | "damage" | "return" | "consumption";
+
+export type AssetType =
+  | "building" | "vehicle" | "machinery" | "generator" | "incubator"
+  | "feeder" | "drinker" | "solar_system" | "computer" | "phone" | "tool";
+
+export interface InventorySupplier {
+  id: string;
+  farm_id: string;
+  name: string;
+  contact_name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  products_supplied: string[];
+  rating?: string | null;
+  outstanding_balance: string;
+  is_active: boolean;
+  notes?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+  total_spend?: string | null;
+  order_count?: number | null;
+}
+
+export interface InventoryItem {
+  id: string;
+  farm_id: string;
+  sku?: string | null;
+  barcode?: string | null;
+  qr_code?: string | null;
+  name: string;
+  description?: string | null;
+  category: string;
+  unit: string;
+  quantity: string;
+  min_stock?: string | null;
+  reorder_level?: string | null;
+  location: string;
+  supplier_id?: string | null;
+  supplier_name?: string | null;
+  purchase_price?: string | null;
+  avg_cost: string;
+  current_value: string;
+  batch_number?: string | null;
+  serial_number?: string | null;
+  manufacture_date?: string | null;
+  expiry_date?: string | null;
+  warranty_expiry?: string | null;
+  is_active: boolean;
+  notes?: string | null;
+  is_low_stock: boolean;
+  is_out_of_stock: boolean;
+  is_expired: boolean;
+  is_expiring_soon: boolean;
+  days_to_expiry?: number | null;
+  created_by?: string | null;
+}
+
+export interface InventoryItemInput {
+  name: string;
+  category: InventoryCategory;
+  description?: string;
+  sku?: string;
+  barcode?: string;
+  qr_code?: string;
+  unit?: string;
+  location?: string;
+  min_stock?: string;
+  reorder_level?: string;
+  supplier_id?: string;
+  purchase_price?: string;
+  opening_quantity?: string;
+  opening_cost?: string;
+  batch_number?: string;
+  serial_number?: string;
+  manufacture_date?: string;
+  expiry_date?: string;
+  warranty_expiry?: string;
+  notes?: string;
+}
+
+export interface InventoryMovement {
+  id: string;
+  farm_id: string;
+  item_id: string;
+  item_name?: string | null;
+  category?: string | null;
+  movement_type: InvMovementType;
+  direction: number;
+  quantity: string;
+  qty_before: string;
+  qty_after: string;
+  unit_cost: string;
+  total_cost: string;
+  reason?: string | null;
+  reference?: string | null;
+  location_from?: string | null;
+  location_to?: string | null;
+  expense_id?: string | null;
+  notes?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InventoryMovementInput {
+  item_id: string;
+  movement_type: InvMovementType;
+  quantity: string;
+  unit_cost?: string;
+  movement_date?: string;
+  reason?: string;
+  reference?: string;
+  location_to?: string;
+  supplier_id?: string;
+  notes?: string;
+}
+
+export interface Asset {
+  id: string;
+  farm_id: string;
+  asset_type: string;
+  name: string;
+  description?: string | null;
+  serial_number?: string | null;
+  purchase_date: string;
+  purchase_price: string;
+  depreciation_method: string;
+  useful_life_years?: number | null;
+  salvage_value: string;
+  warranty_expiry?: string | null;
+  location?: string | null;
+  assigned_user_id?: string | null;
+  condition: string;
+  service_interval_days?: number | null;
+  last_service_date?: string | null;
+  next_service_date?: string | null;
+  is_active: boolean;
+  notes?: string | null;
+  age_days: number;
+  current_value: string;
+  accumulated_depreciation: string;
+  is_maintenance_due: boolean;
+  is_warranty_expiring: boolean;
+  created_by?: string | null;
+}
+
+export interface AssetInput {
+  name: string;
+  asset_type: AssetType;
+  description?: string;
+  serial_number?: string;
+  purchase_date: string;
+  purchase_price: string;
+  depreciation_method?: "straight_line" | "none";
+  useful_life_years?: number;
+  salvage_value?: string;
+  warranty_expiry?: string;
+  location?: string;
+  condition?: string;
+  service_interval_days?: number;
+  last_service_date?: string;
+  notes?: string;
+}
+
+export interface AssetMaintenance {
+  id: string;
+  farm_id: string;
+  asset_id: string;
+  asset_name?: string | null;
+  title: string;
+  status: string;
+  scheduled_date?: string | null;
+  completed_date?: string | null;
+  cost: string;
+  parts_used: string[];
+  technician?: string | null;
+  notes?: string | null;
+  attachments: string[];
+  expense_id?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MaintenanceInput {
+  asset_id: string;
+  title: string;
+  status?: string;
+  scheduled_date?: string;
+  completed_date?: string;
+  cost?: string;
+  parts_used?: string[];
+  technician?: string;
+  notes?: string;
+}
+
+export interface InvCategoryValuation {
+  category: string;
+  item_count: number;
+  total_quantity: string;
+  total_value: string;
+}
+
+export interface InventoryAlert {
+  kind: string;
+  severity: string;
+  ref_id: string;
+  ref_type: string;
+  title: string;
+  detail: string;
+}
+
+export interface InvReorderRec {
+  item_id: string;
+  name: string;
+  category: string;
+  quantity: string;
+  reorder_level?: string | null;
+  avg_daily_consumption: string;
+  suggested_order_qty: string;
+  supplier_name?: string | null;
+}
+
+export interface InvMovementTrendPoint {
+  period: string;
+  stock_in: string;
+  stock_out: string;
+}
+
+export interface InvItemVelocity {
+  item_id: string;
+  name: string;
+  category: string;
+  consumed_qty: string;
+  consumed_value: string;
+}
+
+export interface InvSupplierPerformance {
+  supplier_id: string;
+  name: string;
+  total_spend: string;
+  order_count: number;
+  rating?: string | null;
+  outstanding_balance: string;
+}
+
+export interface InventoryDashboard {
+  item_count: number;
+  total_inventory_value: string;
+  low_stock_count: number;
+  out_of_stock_count: number;
+  expiring_count: number;
+  expired_count: number;
+  asset_count: number;
+  total_asset_value: string;
+  maintenance_due_count: number;
+  window_days: number;
+  stock_in_value: string;
+  stock_out_value: string;
+  category_valuation: InvCategoryValuation[];
+  alerts: InventoryAlert[];
+  recent_movements: InventoryMovement[];
+}
+
+export interface InventoryAnalytics {
+  window_days: number;
+  inventory_valuation: string;
+  asset_valuation: string;
+  total_depreciation: string;
+  maintenance_cost: string;
+  category_valuation: InvCategoryValuation[];
+  movement_trend: InvMovementTrendPoint[];
+  most_consumed: InvItemVelocity[];
+  fast_moving: InvItemVelocity[];
+  slow_moving: InvItemVelocity[];
+  dead_stock: InventoryItem[];
+  reorder_recommendations: InvReorderRec[];
+  supplier_performance: InvSupplierPerformance[];
+}

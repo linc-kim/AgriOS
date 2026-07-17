@@ -80,6 +80,16 @@ export const queryKeys = {
   flockFeedConsumption: (farmId: string, flockId: string) =>
     ["farms", farmId, "flocks", flockId, "feed-consumption"] as const,
 
+  // Inventory & Assets (Module 6)
+  invDashboard: (farmId: string) => ["farms", farmId, "inv", "dashboard"] as const,
+  invItems: (farmId: string) => ["farms", farmId, "inv", "items"] as const,
+  invMovements: (farmId: string) => ["farms", farmId, "inv", "movements"] as const,
+  invAssets: (farmId: string) => ["farms", farmId, "inv", "assets"] as const,
+  invMaintenance: (farmId: string) => ["farms", farmId, "inv", "maintenance"] as const,
+  invSuppliers: (farmId: string) => ["farms", farmId, "inv", "suppliers"] as const,
+  invAlerts: (farmId: string) => ["farms", farmId, "inv", "alerts"] as const,
+  invAnalytics: (farmId: string) => ["farms", farmId, "inv", "analytics"] as const,
+
   // Health (Sprint 4)
   flockVaccinations: (farmId: string, flockId: string) =>
     ["farms", farmId, "flocks", flockId, "vaccinations"] as const,
