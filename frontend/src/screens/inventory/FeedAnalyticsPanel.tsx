@@ -123,10 +123,10 @@ export function FeedAnalyticsPanel({ farmId }: { farmId: string }) {
         )}
       </Card>
 
-      {/* Cost per bird / egg */}
-      <Card title="Feed cost by flock">
+      {/* Cost per bird / egg + FCR */}
+      <Card title="Feed conversion & cost by flock">
         {a.by_flock.length === 0 ? (
-          <p className="py-8 text-center text-sm text-gray-400">Record consumption against a flock to see cost per bird and per egg.</p>
+          <p className="py-8 text-center text-sm text-gray-400">Record consumption against a flock to see FCR, cost per bird, per egg and per kg gain.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -134,8 +134,10 @@ export function FeedAnalyticsPanel({ farmId }: { farmId: string }) {
                 <tr className="border-b border-gray-100 text-left text-[11px] uppercase tracking-wide text-gray-400 dark:border-white/10">
                   <th className="pb-2 pr-3 font-semibold">Flock</th>
                   <th className="pb-2 pr-3 text-right font-semibold">Feed cost</th>
+                  <th className="pb-2 pr-3 text-right font-semibold">FCR</th>
                   <th className="pb-2 pr-3 text-right font-semibold">/ bird</th>
-                  <th className="pb-2 text-right font-semibold">/ egg</th>
+                  <th className="pb-2 pr-3 text-right font-semibold">/ egg</th>
+                  <th className="pb-2 text-right font-semibold">/ kg gain</th>
                 </tr>
               </thead>
               <tbody>
@@ -143,8 +145,10 @@ export function FeedAnalyticsPanel({ farmId }: { farmId: string }) {
                   <tr key={f.flock_id} className="border-b border-gray-50 last:border-0 dark:border-white/5">
                     <td className="py-2.5 pr-3 font-medium text-gray-900 dark:text-white">{f.flock_name}</td>
                     <td className="py-2.5 pr-3 text-right text-gray-600 dark:text-gray-300">{kes(f.feed_cost_kes)}</td>
+                    <td className="py-2.5 pr-3 text-right text-gray-600 dark:text-gray-300">{f.fcr ? Number(f.fcr).toFixed(2) : "—"}</td>
                     <td className="py-2.5 pr-3 text-right text-gray-600 dark:text-gray-300">{f.cost_per_bird_kes ? kes(f.cost_per_bird_kes) : "—"}</td>
-                    <td className="py-2.5 text-right text-gray-600 dark:text-gray-300">{f.cost_per_egg_kes ? `KES ${Number(f.cost_per_egg_kes).toFixed(2)}` : "—"}</td>
+                    <td className="py-2.5 pr-3 text-right text-gray-600 dark:text-gray-300">{f.cost_per_egg_kes ? `KES ${Number(f.cost_per_egg_kes).toFixed(2)}` : "—"}</td>
+                    <td className="py-2.5 text-right text-gray-600 dark:text-gray-300">{f.cost_per_kg_gain_kes ? kes(f.cost_per_kg_gain_kes) : "—"}</td>
                   </tr>
                 ))}
               </tbody>

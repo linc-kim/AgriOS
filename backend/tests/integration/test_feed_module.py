@@ -273,6 +273,124 @@ async def test_ai_context_shape(async_client, test_farm, auth_headers_owner):
         assert key in data
 
 
+async def test_purchase_with_batch_expiry_and_expiry_alert(
+    async_client, test_farm, auth_headers_owner
+):
+    from datetime import timedelta
+    soon = date.today() + timedelta(days=5)
+    resp = await async_client.post(
+        f"{_base(test_farm.id)}/purchases",
+        json={
+            "feed_type": "layer_mash", "location": "batch_store", "quantity_kg": "120.0",
+            "price_per_kg": "50.00", "purchase_date": str(date.today()),
+            "brand": "Unga", "batch_number": "LOT-77", "expiry_date": str(soon),
+        },
+        headers=auth_headers_owner,
+    )
+    assert resp.status_code == 201, resp.text
+    item = resp.json()["data"]["item"]
+    assert item["brand"] == "Unga"
+    assert item["batch_number"] == "LOT-77"
+    assert item["expiry_date"] == str(soon)
+    assert item["is_expiring_soon"] is True
+    assert item["days_to_expiry"] == 5
+
+    alerts = await async_client.get(f"{_base(test_farm.id)}/expiry-alerts", headers=auth_headers_owner)
+    assert alerts.status_code == 200, alerts.text
+    assert any(a["item_id"] == item["id"] for a in alerts.json()["data"])
+
+
+async def test_forecast_predicts_days_remaining(
+    async_client, test_farm, test_flock, auth_headers_owner
+):
+    # Stock 200 kg, consume 20 kg today → avg daily 20/window; expect a finite forecast.
+    buy = await async_client.post(
+        f"{_base(test_farm.id)}/purchases",
+        json={"feed_type": "grower_mash", "location": "fc_store", "quantity_kg": "200.0",
+              "price_per_kg": "50.00", "purchase_date": str(date.today())},
+        headers=auth_headers_owner,
+    )
+    item_id = buy.json()["data"]["item"]["id"]
+    await async_client.post(
+        f"{_base(test_farm.id)}/consumption",
+        json={"item_id": item_id, "flock_id": str(test_flock.id), "quantity_kg": "20.0",
+              "consumption_date": str(date.today())},
+        headers=auth_headers_owner,
+    )
+    fc = await async_client.get(
+        f"{_base(test_farm.id)}/forecast?window_days=1&lead_time_days=3",
+        headers=auth_headers_owner,
+    )
+    assert fc.status_code == 200, fc.text
+    data = fc.json()["data"]
+    row = [i for i in data["items"] if i["item_id"] == item_id][0]
+    # 180 kg remaining at 20 kg/day → 9 days.
+    assert float(row["avg_daily_consumption_kg"]) == pytest.approx(20.0)
+    assert row["days_remaining"] == 9
+    assert row["depletion_date"] is not None
+    assert row["recommended_purchase_date"] is not None
+    assert data["next_purchase_date"] is not None
+
+
+async def test_analytics_fcr_from_weighin(
+    async_client, test_farm, test_flock, auth_headers_owner
+):
+    # Record a weigh-in so weight gain (biomass) is known, then feed the flock.
+    wi = await async_client.post(
+        f"/api/v1/farms/{test_farm.id}/flocks/{test_flock.id}/weighins",
+        json={"weighed_at": str(date.today()), "sample_size": 50, "average_weight_kg": "1.800"},
+        headers=auth_headers_owner,
+    )
+    assert wi.status_code in (200, 201), wi.text
+
+    buy = await async_client.post(
+        f"{_base(test_farm.id)}/purchases",
+        json={"feed_type": "broiler_finisher", "location": "fcr_store", "quantity_kg": "400.0",
+              "price_per_kg": "60.00", "purchase_date": str(date.today())},
+        headers=auth_headers_owner,
+    )
+    item_id = buy.json()["data"]["item"]["id"]
+    await async_client.post(
+        f"{_base(test_farm.id)}/consumption",
+        json={"item_id": item_id, "flock_id": str(test_flock.id), "quantity_kg": "300.0",
+              "consumption_date": str(date.today())},
+        headers=auth_headers_owner,
+    )
+    an = await async_client.get(f"{_base(test_farm.id)}/analytics", headers=auth_headers_owner)
+    assert an.status_code == 200, an.text
+    row = [f for f in an.json()["data"]["by_flock"] if f["flock_id"] == str(test_flock.id)][0]
+    # FCR = consumed / biomass; biomass = live birds * 1.8. FCR must be a positive number.
+    assert row["fcr"] is not None
+    assert float(row["fcr"]) > 0
+    assert row["weight_gain_kg"] is not None
+    assert row["cost_per_kg_gain_kes"] is not None
+
+
+async def test_dashboard_has_forecast_and_top_flocks(
+    async_client, test_farm, test_flock, auth_headers_owner
+):
+    buy = await async_client.post(
+        f"{_base(test_farm.id)}/purchases",
+        json={"feed_type": "chick_mash", "location": "dash_store", "quantity_kg": "150.0",
+              "price_per_kg": "55.00", "purchase_date": str(date.today())},
+        headers=auth_headers_owner,
+    )
+    item_id = buy.json()["data"]["item"]["id"]
+    await async_client.post(
+        f"{_base(test_farm.id)}/consumption",
+        json={"item_id": item_id, "flock_id": str(test_flock.id), "quantity_kg": "30.0",
+              "consumption_date": str(date.today())},
+        headers=auth_headers_owner,
+    )
+    dash = await async_client.get(f"{_base(test_farm.id)}/dashboard", headers=auth_headers_owner)
+    assert dash.status_code == 200, dash.text
+    d = dash.json()["data"]
+    assert "forecast" in d and "items" in d["forecast"]
+    assert float(d["consumed_today_kg"]) >= 30.0
+    assert any(tf["flock_id"] == str(test_flock.id) for tf in d["top_flocks"])
+    assert "expiry_alerts" in d and "expiring_count" in d
+
+
 async def test_rbac_worker_can_manage_viewer_cannot(
     async_client, test_farm, auth_headers_worker, auth_headers_viewer
 ):

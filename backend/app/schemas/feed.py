@@ -106,6 +106,9 @@ class FeedSupplierResponse(TimestampedSchema):
 class FeedInventoryItemCreate(AGRIOSSchema):
     feed_type: str = Field(..., min_length=2, max_length=100)
     name: str | None = Field(default=None, max_length=200)
+    brand: str | None = Field(default=None, max_length=150)
+    batch_number: str | None = Field(default=None, max_length=100)
+    expiry_date: date | None = None
     location: str = Field(default="main_store", min_length=1, max_length=150)
     unit: str = Field(default="kg", max_length=20)
     reorder_level_kg: Decimal | None = Field(default=None, ge=0, decimal_places=3)
@@ -117,6 +120,9 @@ class FeedInventoryItemCreate(AGRIOSSchema):
 
 class FeedInventoryItemUpdate(AGRIOSSchema):
     name: str | None = Field(default=None, max_length=200)
+    brand: str | None = Field(default=None, max_length=150)
+    batch_number: str | None = Field(default=None, max_length=100)
+    expiry_date: date | None = None
     location: str | None = Field(default=None, min_length=1, max_length=150)
     reorder_level_kg: Decimal | None = Field(default=None, ge=0, decimal_places=3)
     supplier_id: UUID | None = None
@@ -134,6 +140,9 @@ class FeedInventoryItemResponse(TimestampedSchema):
     farm_id: UUID
     feed_type: str
     name: str | None
+    brand: str | None
+    batch_number: str | None
+    expiry_date: date | None
     location: str
     unit: str
     quantity_kg: Decimal
@@ -145,6 +154,9 @@ class FeedInventoryItemResponse(TimestampedSchema):
     notes: str | None
     stock_value_kes: Decimal
     is_low_stock: bool
+    days_to_expiry: int | None
+    is_expired: bool
+    is_expiring_soon: bool
     created_by: UUID | None
 
 
@@ -162,7 +174,11 @@ class FeedPurchaseInput(AGRIOSSchema):
     purchase_date: date
     supplier_id: UUID | None = None
     supplier_name: str | None = Field(default=None, max_length=200)
-    reference: str | None = Field(default=None, max_length=150)
+    reference: str | None = Field(default=None, max_length=150, description="Invoice / delivery reference.")
+    delivery_date: date | None = None
+    brand: str | None = Field(default=None, max_length=150)
+    batch_number: str | None = Field(default=None, max_length=100)
+    expiry_date: date | None = None
     flock_id: UUID | None = None
     notes: str | None = Field(default=None, max_length=2000)
 
@@ -266,20 +282,66 @@ class FeedReorderAlert(AGRIOSSchema):
     supplier_name: str | None
 
 
+class FeedExpiryAlert(AGRIOSSchema):
+    item_id: UUID
+    feed_type: str
+    location: str
+    batch_number: str | None
+    quantity_kg: Decimal
+    expiry_date: date
+    days_to_expiry: int
+    is_expired: bool
+
+
+class FeedTopFlock(AGRIOSSchema):
+    flock_id: UUID
+    flock_name: str
+    consumed_kg: Decimal
+    feed_cost_kes: Decimal
+
+
+class FeedForecastItem(AGRIOSSchema):
+    item_id: UUID
+    feed_type: str
+    location: str
+    quantity_kg: Decimal
+    avg_daily_consumption_kg: Decimal
+    days_remaining: int | None          # None = no recent consumption (can't forecast)
+    depletion_date: date | None
+    recommended_purchase_date: date | None
+    reorder_level_kg: Decimal | None
+    status: str                         # ok | reorder_soon | critical | depleting | no_data
+
+
+class FeedForecastResponse(AGRIOSSchema):
+    window_days: int
+    lead_time_days: int
+    items: list[FeedForecastItem]
+    soonest_depletion_date: date | None
+    next_purchase_date: date | None
+    items_needing_purchase: int
+
+
 class FeedDashboardResponse(AGRIOSSchema):
     total_stock_kg: Decimal
     total_stock_value_kes: Decimal
     item_count: int
     low_stock_count: int
+    expiring_count: int
     # Rolling window (default 30 days).
     window_days: int
     purchased_kg: Decimal
     purchased_cost_kes: Decimal
     consumed_kg: Decimal
     consumed_cost_kes: Decimal
+    consumed_today_kg: Decimal
+    consumed_week_kg: Decimal
     wasted_kg: Decimal
     wasted_cost_kes: Decimal
     reorder_alerts: list[FeedReorderAlert]
+    expiry_alerts: list[FeedExpiryAlert]
+    top_flocks: list[FeedTopFlock]
+    forecast: FeedForecastResponse
     items: list[FeedInventoryItemResponse]
     recent_transactions: list[FeedTransactionResponse]
 
@@ -318,6 +380,10 @@ class FeedFlockCost(AGRIOSSchema):
     cost_per_bird_kes: Decimal | None
     eggs_collected: int
     cost_per_egg_kes: Decimal | None
+    # Feed conversion — computed from the latest weigh-in biomass.
+    weight_gain_kg: Decimal | None = None
+    fcr: Decimal | None = None
+    cost_per_kg_gain_kes: Decimal | None = None
 
 
 class FeedAnalyticsResponse(AGRIOSSchema):

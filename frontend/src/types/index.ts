@@ -1241,6 +1241,9 @@ export interface FeedInventoryItem {
   farm_id: string;
   feed_type: string;
   name?: string | null;
+  brand?: string | null;
+  batch_number?: string | null;
+  expiry_date?: string | null;
   location: string;
   unit: string;
   quantity_kg: string;
@@ -1252,6 +1255,9 @@ export interface FeedInventoryItem {
   notes?: string | null;
   stock_value_kes: string;
   is_low_stock: boolean;
+  days_to_expiry?: number | null;
+  is_expired: boolean;
+  is_expiring_soon: boolean;
   created_by?: string | null;
   created_at: string;
   updated_at: string;
@@ -1260,6 +1266,9 @@ export interface FeedInventoryItem {
 export interface FeedInventoryItemInput {
   feed_type: string;
   name?: string;
+  brand?: string;
+  batch_number?: string;
+  expiry_date?: string;
   location?: string;
   unit?: string;
   reorder_level_kg?: string;
@@ -1312,6 +1321,10 @@ export interface FeedPurchaseModuleInput {
   supplier_id?: string;
   supplier_name?: string;
   reference?: string;
+  delivery_date?: string;
+  brand?: string;
+  batch_number?: string;
+  expiry_date?: string;
   flock_id?: string;
   notes?: string;
 }
@@ -1358,14 +1371,20 @@ export interface FeedDashboard {
   total_stock_value_kes: string;
   item_count: number;
   low_stock_count: number;
+  expiring_count: number;
   window_days: number;
   purchased_kg: string;
   purchased_cost_kes: string;
   consumed_kg: string;
   consumed_cost_kes: string;
+  consumed_today_kg: string;
+  consumed_week_kg: string;
   wasted_kg: string;
   wasted_cost_kes: string;
   reorder_alerts: FeedReorderAlert[];
+  expiry_alerts: FeedExpiryAlert[];
+  top_flocks: FeedTopFlock[];
+  forecast: FeedForecast;
   items: FeedInventoryItem[];
   recent_transactions: FeedTransaction[];
 }
@@ -1402,6 +1421,49 @@ export interface FeedFlockCost {
   cost_per_bird_kes?: string | null;
   eggs_collected: number;
   cost_per_egg_kes?: string | null;
+  weight_gain_kg?: string | null;
+  fcr?: string | null;
+  cost_per_kg_gain_kes?: string | null;
+}
+
+export interface FeedExpiryAlert {
+  item_id: string;
+  feed_type: string;
+  location: string;
+  batch_number?: string | null;
+  quantity_kg: string;
+  expiry_date: string;
+  days_to_expiry: number;
+  is_expired: boolean;
+}
+
+export interface FeedTopFlock {
+  flock_id: string;
+  flock_name: string;
+  consumed_kg: string;
+  feed_cost_kes: string;
+}
+
+export interface FeedForecastItem {
+  item_id: string;
+  feed_type: string;
+  location: string;
+  quantity_kg: string;
+  avg_daily_consumption_kg: string;
+  days_remaining?: number | null;
+  depletion_date?: string | null;
+  recommended_purchase_date?: string | null;
+  reorder_level_kg?: string | null;
+  status: "ok" | "reorder_soon" | "critical" | "depleting" | "no_data";
+}
+
+export interface FeedForecast {
+  window_days: number;
+  lead_time_days: number;
+  items: FeedForecastItem[];
+  soonest_depletion_date?: string | null;
+  next_purchase_date?: string | null;
+  items_needing_purchase: number;
 }
 
 export interface FeedAnalytics {

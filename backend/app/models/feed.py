@@ -125,7 +125,16 @@ class FeedInventoryItem(AGRIOSBase):
         comment="e.g. broiler_starter, broiler_finisher, layer_mash, grower.",
     )
     name: Mapped[str | None] = mapped_column(
-        String(200), nullable=True, comment="Optional display name / brand."
+        String(200), nullable=True, comment="Optional display name."
+    )
+    brand: Mapped[str | None] = mapped_column(
+        String(150), nullable=True, comment="Feed brand, e.g. 'Unga', 'Pembe'."
+    )
+    batch_number: Mapped[str | None] = mapped_column(
+        String(100), nullable=True, comment="Current batch / lot number."
+    )
+    expiry_date: Mapped[date | None] = mapped_column(
+        Date, nullable=True, index=True, comment="Expiry of the current batch."
     )
     location: Mapped[str] = mapped_column(
         String(150), nullable=False, server_default="main_store",
@@ -177,6 +186,24 @@ class FeedInventoryItem(AGRIOSBase):
         if self.reorder_level_kg is None:
             return False
         return self.quantity_kg <= self.reorder_level_kg
+
+    @property
+    def days_to_expiry(self) -> int | None:
+        if self.expiry_date is None:
+            return None
+        from datetime import date as _d
+        return (self.expiry_date - _d.today()).days
+
+    @property
+    def is_expired(self) -> bool:
+        d = self.days_to_expiry
+        return d is not None and d < 0
+
+    @property
+    def is_expiring_soon(self) -> bool:
+        """Within 14 days of expiry (and not already expired)."""
+        d = self.days_to_expiry
+        return d is not None and 0 <= d <= 14
 
     def __repr__(self) -> str:
         return (

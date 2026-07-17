@@ -51,6 +51,8 @@ from app.schemas.feed import (
     FeedAnalyticsResponse,
     FeedConsumptionInput,
     FeedDashboardResponse,
+    FeedExpiryAlert,
+    FeedForecastResponse,
     FeedInventoryItemCreate,
     FeedInventoryItemResponse,
     FeedInventoryItemUpdate,
@@ -426,6 +428,43 @@ async def feed_alerts(
 ) -> SuccessResponse[list[FeedReorderAlert]]:
     farm, _ = access
     return SuccessResponse(data=await feed_service.get_reorder_alerts(db, farm.id))
+
+
+@router.get(
+    "/farms/{farm_id}/feed/forecast",
+    response_model=SuccessResponse[FeedForecastResponse],
+    summary="Feed forecast: days remaining, depletion date, purchase recommendation",
+    tags=["Feed"],
+)
+async def feed_forecast(
+    farm_id: str,
+    db: DBSession,
+    current_user: CurrentUser,
+    access: tuple = Depends(require_farm_access()),
+    _perm=Depends(require_permission(Permission.FEED_VIEW)),
+    window_days: int = Query(default=30, ge=1, le=365),
+    lead_time_days: int = Query(default=7, ge=0, le=90),
+) -> SuccessResponse[FeedForecastResponse]:
+    farm, _ = access
+    return SuccessResponse(data=await feed_service.get_forecast(db, farm.id, window_days, lead_time_days))
+
+
+@router.get(
+    "/farms/{farm_id}/feed/expiry-alerts",
+    response_model=SuccessResponse[list[FeedExpiryAlert]],
+    summary="Feed expiry alerts (expired / expiring soon)",
+    tags=["Feed"],
+)
+async def feed_expiry_alerts(
+    farm_id: str,
+    db: DBSession,
+    current_user: CurrentUser,
+    access: tuple = Depends(require_farm_access()),
+    _perm=Depends(require_permission(Permission.FEED_VIEW)),
+    within_days: int = Query(default=14, ge=0, le=365),
+) -> SuccessResponse[list[FeedExpiryAlert]]:
+    farm, _ = access
+    return SuccessResponse(data=await feed_service.get_expiry_alerts(db, farm.id, within_days))
 
 
 @router.get(

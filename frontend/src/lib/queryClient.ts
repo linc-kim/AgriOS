@@ -76,6 +76,7 @@ export const queryKeys = {
   feedSuppliers: (farmId: string) => ["farms", farmId, "feed", "suppliers"] as const,
   feedTransactions: (farmId: string) => ["farms", farmId, "feed", "transactions"] as const,
   feedAnalytics: (farmId: string) => ["farms", farmId, "feed", "analytics"] as const,
+  feedForecast: (farmId: string) => ["farms", farmId, "feed", "forecast"] as const,
   flockFeedConsumption: (farmId: string, flockId: string) =>
     ["farms", farmId, "flocks", flockId, "feed-consumption"] as const,
 

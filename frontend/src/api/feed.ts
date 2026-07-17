@@ -10,6 +10,8 @@ import type {
   FeedAnalytics,
   FeedConsumptionInput,
   FeedDashboard,
+  FeedExpiryAlert,
+  FeedForecast,
   FeedInventoryItem,
   FeedInventoryItemInput,
   FeedPurchaseModuleInput,
@@ -141,6 +143,20 @@ export async function getFeedDashboard(farmId: string, windowDays = 30): Promise
 
 export async function getReorderAlerts(farmId: string): Promise<FeedReorderAlert[]> {
   const { data } = await apiClient.get<APISuccess<FeedReorderAlert[]>>(`${base(farmId)}/alerts`);
+  return data.data;
+}
+
+export async function getFeedForecast(farmId: string, windowDays = 30, leadTimeDays = 7): Promise<FeedForecast> {
+  const { data } = await apiClient.get<APISuccess<FeedForecast>>(`${base(farmId)}/forecast`, {
+    params: { window_days: windowDays, lead_time_days: leadTimeDays },
+  });
+  return data.data;
+}
+
+export async function getExpiryAlerts(farmId: string, withinDays = 14): Promise<FeedExpiryAlert[]> {
+  const { data } = await apiClient.get<APISuccess<FeedExpiryAlert[]>>(`${base(farmId)}/expiry-alerts`, {
+    params: { within_days: withinDays },
+  });
   return data.data;
 }
 

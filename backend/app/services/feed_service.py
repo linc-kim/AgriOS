@@ -32,20 +32,23 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional, Sequence
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, case as sa_case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import NotFoundException, ValidationException
 from app.models.auth import User
 from app.models.farm import Farm
 from app.models.feed import FeedInventoryItem, FeedSupplier, FeedTransaction
-from app.models.flock import DailyLog, Flock, ProductionRecord
+from app.models.flock import DailyLog, Flock, ProductionRecord, WeighinRecord
 from app.schemas.feed import (
     FeedAIContext,
     FeedAnalyticsResponse,
     FeedConsumptionInput,
     FeedDashboardResponse,
+    FeedExpiryAlert,
     FeedFlockCost,
+    FeedForecastItem,
+    FeedForecastResponse,
     FeedInventoryItemCreate,
     FeedInventoryItemResponse,
     FeedInventoryItemUpdate,
@@ -55,6 +58,7 @@ from app.schemas.feed import (
     FeedSupplierResponse,
     FeedSupplierSpend,
     FeedSupplierUpdate,
+    FeedTopFlock,
     FeedTransactionResponse,
     FeedTransferInput,
     FeedTypeBreakdown,
@@ -136,6 +140,9 @@ def _item_response(
         farm_id=item.farm_id,
         feed_type=item.feed_type,
         name=item.name,
+        brand=item.brand,
+        batch_number=item.batch_number,
+        expiry_date=item.expiry_date,
         location=item.location,
         unit=item.unit,
         quantity_kg=item.quantity_kg,
@@ -147,6 +154,9 @@ def _item_response(
         notes=item.notes,
         stock_value_kes=item.stock_value_kes,
         is_low_stock=item.is_low_stock,
+        days_to_expiry=item.days_to_expiry,
+        is_expired=item.is_expired,
+        is_expiring_soon=item.is_expiring_soon,
         created_by=item.created_by,
     )
 
@@ -304,6 +314,9 @@ async def create_item(
         farm_id=farm.id,
         feed_type=data.feed_type,
         name=data.name,
+        brand=data.brand,
+        batch_number=data.batch_number,
+        expiry_date=data.expiry_date,
         location=data.location,
         unit=data.unit,
         quantity_kg=data.opening_quantity_kg,
@@ -366,7 +379,8 @@ async def update_item(
     item = await _get_item_or_404(db, farm_id, item_id)
     if data.supplier_id is not None:
         await _get_supplier_or_404(db, farm_id, data.supplier_id)
-    for field in ("name", "location", "reorder_level_kg", "supplier_id", "is_active", "notes"):
+    for field in ("name", "brand", "batch_number", "expiry_date", "location",
+                  "reorder_level_kg", "supplier_id", "is_active", "notes"):
         val = getattr(data, field)
         if val is not None:
             setattr(item, field, val)
@@ -453,6 +467,13 @@ async def record_purchase(
     item = await _find_or_create_item_for_purchase(db, farm, data, current_user)
     if supplier_id is not None and item.supplier_id is None:
         item.supplier_id = supplier_id
+    # A purchase brings a new batch — record its brand / batch / expiry on the item.
+    if data.brand is not None:
+        item.brand = data.brand
+    if data.batch_number is not None:
+        item.batch_number = data.batch_number
+    if data.expiry_date is not None:
+        item.expiry_date = data.expiry_date
 
     qty = data.quantity_kg
     price = data.price_per_kg
@@ -486,6 +507,10 @@ async def record_purchase(
             "feed_type": item.feed_type,
             "location": item.location,
             "avg_cost_after": str(item.avg_cost_per_kg),
+            "brand": data.brand,
+            "batch_number": data.batch_number,
+            "expiry_date": data.expiry_date.isoformat() if data.expiry_date else None,
+            "delivery_date": data.delivery_date.isoformat() if data.delivery_date else None,
         },
         created_by=current_user.id,
     )
@@ -783,6 +808,139 @@ async def get_reorder_alerts(db: AsyncSession, farm_id: uuid.UUID) -> list[FeedR
     return alerts
 
 
+async def get_expiry_alerts(
+    db: AsyncSession, farm_id: uuid.UUID, within_days: int = 14
+) -> list["FeedExpiryAlert"]:
+    """Items whose current batch is expired or expiring within ``within_days``."""
+    from app.schemas.feed import FeedExpiryAlert
+
+    horizon = date.today() + timedelta(days=within_days)
+    res = await db.execute(
+        select(FeedInventoryItem)
+        .where(
+            FeedInventoryItem.farm_id == farm_id,
+            FeedInventoryItem.deleted_at.is_(None),
+            FeedInventoryItem.is_active.is_(True),
+            FeedInventoryItem.expiry_date.is_not(None),
+            FeedInventoryItem.expiry_date <= horizon,
+            FeedInventoryItem.quantity_kg > 0,
+        )
+        .order_by(FeedInventoryItem.expiry_date.asc())
+    )
+    alerts: list[FeedExpiryAlert] = []
+    for item in res.scalars().all():
+        alerts.append(FeedExpiryAlert(
+            item_id=item.id,
+            feed_type=item.feed_type,
+            location=item.location,
+            batch_number=item.batch_number,
+            quantity_kg=item.quantity_kg,
+            expiry_date=item.expiry_date,
+            days_to_expiry=item.days_to_expiry,
+            is_expired=item.is_expired,
+        ))
+    return alerts
+
+
+async def _avg_daily_consumption(
+    db: AsyncSession, farm_id: uuid.UUID, window_days: int
+) -> dict[uuid.UUID, Decimal]:
+    """Average kg/day consumed per inventory item over the trailing window."""
+    since = date.today() - timedelta(days=window_days)
+    res = await db.execute(
+        select(
+            FeedTransaction.item_id,
+            func.coalesce(func.sum(FeedTransaction.quantity_kg), 0),
+        )
+        .where(
+            FeedTransaction.farm_id == farm_id,
+            FeedTransaction.deleted_at.is_(None),
+            FeedTransaction.txn_type == "consumption",
+            FeedTransaction.txn_date >= since,
+        )
+        .group_by(FeedTransaction.item_id)
+    )
+    out: dict[uuid.UUID, Decimal] = {}
+    for item_id, total in res.all():
+        out[item_id] = (Decimal(total) / Decimal(window_days)).quantize(_Q_KG)
+    return out
+
+
+async def get_forecast(
+    db: AsyncSession, farm_id: uuid.UUID, window_days: int = 30, lead_time_days: int = 7
+) -> FeedForecastResponse:
+    """
+    Forecast stock depletion from trailing consumption.
+
+    For each stocked item: average daily consumption over ``window_days`` drives
+    days-remaining, an expected depletion date, and a recommended purchase date
+    (depletion minus a ``lead_time_days`` buffer).
+    """
+    items = await list_items(db, farm_id)
+    avg_daily = await _avg_daily_consumption(db, farm_id, window_days)
+    today = date.today()
+
+    forecast_items: list[FeedForecastItem] = []
+    soonest_depletion: Optional[date] = None
+    next_purchase: Optional[date] = None
+    needing = 0
+
+    for it in items:
+        qty = it.quantity_kg
+        rate = avg_daily.get(it.id, Decimal("0"))
+        days_remaining: Optional[int] = None
+        depletion: Optional[date] = None
+        rec_purchase: Optional[date] = None
+
+        if rate > 0:
+            days_remaining = int((qty / rate).to_integral_value(rounding="ROUND_FLOOR"))
+            depletion = today + timedelta(days=days_remaining)
+            rec_purchase = depletion - timedelta(days=lead_time_days)
+            if rec_purchase < today:
+                rec_purchase = today
+            if soonest_depletion is None or depletion < soonest_depletion:
+                soonest_depletion = depletion
+            if next_purchase is None or rec_purchase < next_purchase:
+                next_purchase = rec_purchase
+
+        # Status classification.
+        if rate <= 0:
+            status = "no_data"
+        elif it.is_low_stock or (days_remaining is not None and days_remaining <= 3):
+            status = "critical"; needing += 1
+        elif days_remaining is not None and days_remaining <= lead_time_days:
+            status = "reorder_soon"; needing += 1
+        elif days_remaining is not None and days_remaining <= window_days:
+            status = "depleting"
+        else:
+            status = "ok"
+
+        forecast_items.append(FeedForecastItem(
+            item_id=it.id,
+            feed_type=it.feed_type,
+            location=it.location,
+            quantity_kg=qty,
+            avg_daily_consumption_kg=rate,
+            days_remaining=days_remaining,
+            depletion_date=depletion,
+            recommended_purchase_date=rec_purchase,
+            reorder_level_kg=it.reorder_level_kg,
+            status=status,
+        ))
+
+    # Surface the most urgent items first.
+    forecast_items.sort(key=lambda f: (f.days_remaining is None, f.days_remaining if f.days_remaining is not None else 1_000_000))
+
+    return FeedForecastResponse(
+        window_days=window_days,
+        lead_time_days=lead_time_days,
+        items=forecast_items,
+        soonest_depletion_date=soonest_depletion,
+        next_purchase_date=next_purchase,
+        items_needing_purchase=needing,
+    )
+
+
 async def get_dashboard(
     db: AsyncSession, farm_id: uuid.UUID, window_days: int = 30
 ) -> FeedDashboardResponse:
@@ -810,22 +968,76 @@ async def get_dashboard(
     consumed = by_type.get("consumption", (Decimal("0"), Decimal("0")))
     wasted = by_type.get("wastage", (Decimal("0"), Decimal("0")))
 
+    # Today's + this week's consumption.
+    today = date.today()
+    week_start = today - timedelta(days=6)
+    span_res = await db.execute(
+        select(
+            func.coalesce(func.sum(
+                sa_case((FeedTransaction.txn_date == today, FeedTransaction.quantity_kg), else_=0)
+            ), 0),
+            func.coalesce(func.sum(
+                sa_case((FeedTransaction.txn_date >= week_start, FeedTransaction.quantity_kg), else_=0)
+            ), 0),
+        ).where(
+            FeedTransaction.farm_id == farm_id,
+            FeedTransaction.deleted_at.is_(None),
+            FeedTransaction.txn_type == "consumption",
+        )
+    )
+    consumed_today, consumed_week = span_res.one()
+
     alerts = await get_reorder_alerts(db, farm_id)
+    expiry_alerts = await get_expiry_alerts(db, farm_id)
     recent = await list_transactions(db, farm_id, limit=10)
+    forecast = await get_forecast(db, farm_id, window_days=window_days)
+
+    # Top consuming flocks over the window.
+    top_res = await db.execute(
+        select(
+            Flock.id, Flock.name,
+            func.coalesce(func.sum(FeedTransaction.quantity_kg), 0),
+            func.coalesce(func.sum(FeedTransaction.total_cost), 0),
+        )
+        .join(FeedTransaction, FeedTransaction.flock_id == Flock.id)
+        .where(
+            FeedTransaction.farm_id == farm_id,
+            FeedTransaction.deleted_at.is_(None),
+            FeedTransaction.txn_type == "consumption",
+            FeedTransaction.txn_date >= since,
+            Flock.deleted_at.is_(None),
+        )
+        .group_by(Flock.id, Flock.name)
+        .order_by(func.sum(FeedTransaction.quantity_kg).desc())
+        .limit(5)
+    )
+    top_flocks = [
+        FeedTopFlock(
+            flock_id=fid, flock_name=name,
+            consumed_kg=Decimal(kg).quantize(_Q_KG), feed_cost_kes=Decimal(cost).quantize(_Q_KES),
+        )
+        for fid, name, kg, cost in top_res.all()
+    ]
 
     return FeedDashboardResponse(
         total_stock_kg=total_stock.quantize(_Q_KG),
         total_stock_value_kes=total_value.quantize(_Q_KES),
         item_count=len(items),
         low_stock_count=low_count,
+        expiring_count=len(expiry_alerts),
         window_days=window_days,
         purchased_kg=purchased[0].quantize(_Q_KG),
         purchased_cost_kes=purchased[1].quantize(_Q_KES),
         consumed_kg=consumed[0].quantize(_Q_KG),
         consumed_cost_kes=consumed[1].quantize(_Q_KES),
+        consumed_today_kg=Decimal(consumed_today).quantize(_Q_KG),
+        consumed_week_kg=Decimal(consumed_week).quantize(_Q_KG),
         wasted_kg=wasted[0].quantize(_Q_KG),
         wasted_cost_kes=wasted[1].quantize(_Q_KES),
         reorder_alerts=alerts,
+        expiry_alerts=expiry_alerts,
+        top_flocks=top_flocks,
+        forecast=forecast,
         items=items,
         recent_transactions=recent,
     )
@@ -853,6 +1065,28 @@ async def _flock_bird_and_egg_counts(
     )
     eggs = int(eggs_res.scalar_one())
     return live, eggs
+
+
+async def _flock_weight_gain_kg(
+    db: AsyncSession, flock: Flock, live_birds: int
+) -> Optional[Decimal]:
+    """
+    Total live-weight gain (kg) for a flock, from its most recent weigh-in.
+
+    Approximated as current biomass: live birds × latest average weight. Day-old
+    placement weight is negligible against market weight, so this is the standard
+    field estimate used for FCR when a flock has not yet been sold.
+    """
+    res = await db.execute(
+        select(WeighinRecord.average_weight_kg)
+        .where(WeighinRecord.flock_id == flock.id, WeighinRecord.deleted_at.is_(None))
+        .order_by(WeighinRecord.weighed_at.desc())
+        .limit(1)
+    )
+    avg_wt = res.scalar_one_or_none()
+    if avg_wt is None or live_birds <= 0:
+        return None
+    return (Decimal(avg_wt) * Decimal(live_birds)).quantize(_Q_KG)
 
 
 async def get_analytics(
@@ -994,13 +1228,26 @@ async def get_analytics(
     for flock, kg, cost in flock_res.all():
         live, eggs = await _flock_bird_and_egg_counts(db, farm_id, flock)
         cost_kes = Decimal(cost)
+        consumed = Decimal(kg)
+
+        # Feed conversion — from the latest weigh-in biomass (live birds × avg wt).
+        weight_gain = await _flock_weight_gain_kg(db, flock, live)
+        fcr = None
+        cost_per_kg_gain = None
+        if weight_gain and weight_gain > 0:
+            fcr = (consumed / weight_gain).quantize(Decimal("0.001"))
+            cost_per_kg_gain = (cost_kes / weight_gain).quantize(_Q_KES)
+
         by_flock.append(FeedFlockCost(
             flock_id=flock.id, flock_name=flock.name,
-            consumed_kg=Decimal(kg).quantize(_Q_KG), feed_cost_kes=cost_kes.quantize(_Q_KES),
+            consumed_kg=consumed.quantize(_Q_KG), feed_cost_kes=cost_kes.quantize(_Q_KES),
             live_birds=live,
             cost_per_bird_kes=(cost_kes / live).quantize(_Q_KES) if live > 0 else None,
             eggs_collected=eggs,
             cost_per_egg_kes=(cost_kes / eggs).quantize(_Q_KES) if eggs > 0 else None,
+            weight_gain_kg=weight_gain.quantize(_Q_KG) if weight_gain else None,
+            fcr=fcr,
+            cost_per_kg_gain_kes=cost_per_kg_gain,
         ))
 
     return FeedAnalyticsResponse(
@@ -1057,8 +1304,24 @@ async def get_ai_context(
             "live_birds": fc.live_birds, "eggs_collected": fc.eggs_collected,
             "cost_per_bird_kes": str(fc.cost_per_bird_kes) if fc.cost_per_bird_kes else None,
             "cost_per_egg_kes": str(fc.cost_per_egg_kes) if fc.cost_per_egg_kes else None,
+            "weight_gain_kg": str(fc.weight_gain_kg) if fc.weight_gain_kg else None,
+            "fcr": str(fc.fcr) if fc.fcr else None,
+            "cost_per_kg_gain_kes": str(fc.cost_per_kg_gain_kes) if fc.cost_per_kg_gain_kes else None,
         }
         for fc in analytics.by_flock
+    ]
+    forecast = await get_forecast(db, farm_id, window_days=30)
+    forecast_context = [
+        {
+            "feed_type": fi.feed_type, "location": fi.location,
+            "quantity_kg": str(fi.quantity_kg),
+            "avg_daily_consumption_kg": str(fi.avg_daily_consumption_kg),
+            "days_remaining": fi.days_remaining,
+            "depletion_date": fi.depletion_date.isoformat() if fi.depletion_date else None,
+            "recommended_purchase_date": fi.recommended_purchase_date.isoformat() if fi.recommended_purchase_date else None,
+            "status": fi.status,
+        }
+        for fi in forecast.items
     ]
     supplier_history = [
         {
@@ -1082,6 +1345,12 @@ async def get_ai_context(
         "total_stock_kg": str(sum((i.quantity_kg for i in items), Decimal("0"))),
         "total_stock_value_kes": str(sum((i.stock_value_kes for i in items), Decimal("0"))),
         "low_stock_items": [i.feed_type for i in items if i.is_low_stock],
+        "expiring_items": [
+            {"feed_type": i.feed_type, "expiry_date": i.expiry_date.isoformat(), "days_to_expiry": i.days_to_expiry}
+            for i in items if i.is_expiring_soon or i.is_expired
+        ],
+        "forecast": forecast_context,
+        "next_purchase_date": forecast.next_purchase_date.isoformat() if forecast.next_purchase_date else None,
     }
 
     return FeedAIContext(

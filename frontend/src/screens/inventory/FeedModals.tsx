@@ -105,6 +105,10 @@ export function AddPurchaseModal({
     purchase_date: TODAY(),
     supplier_id: "",
     reference: "",
+    brand: "",
+    batch_number: "",
+    expiry_date: "",
+    delivery_date: "",
   });
   const set = (p: Partial<typeof f>) => setF((s) => ({ ...s, ...p }));
   const [error, setError] = useState<string | null>(null);
@@ -119,6 +123,10 @@ export function AddPurchaseModal({
         purchase_date: f.purchase_date,
         supplier_id: f.supplier_id || undefined,
         reference: f.reference || undefined,
+        brand: f.brand || undefined,
+        batch_number: f.batch_number || undefined,
+        expiry_date: f.expiry_date || undefined,
+        delivery_date: f.delivery_date || undefined,
       }),
     onSuccess: onSaved,
     onError: (e) => setError(errMsg(e, "Couldn't record the purchase.")),
@@ -146,7 +154,15 @@ export function AddPurchaseModal({
           value={f.supplier_id}
           onChange={(e) => set({ supplier_id: e.target.value })}
         />
-        <TextField label="Reference (optional)" hint="Invoice or delivery note" value={f.reference} onChange={(e) => set({ reference: e.target.value })} />
+        <div className="grid grid-cols-2 gap-3">
+          <TextField label="Brand (optional)" value={f.brand} onChange={(e) => set({ brand: e.target.value })} />
+          <TextField label="Batch no. (optional)" value={f.batch_number} onChange={(e) => set({ batch_number: e.target.value })} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <TextField label="Expiry date (optional)" type="date" value={f.expiry_date} onChange={(e) => set({ expiry_date: e.target.value })} />
+          <TextField label="Delivery date (optional)" type="date" value={f.delivery_date} onChange={(e) => set({ delivery_date: e.target.value })} />
+        </div>
+        <TextField label="Invoice reference (optional)" hint="Invoice or delivery note" value={f.reference} onChange={(e) => set({ reference: e.target.value })} />
         {total > 0 && (
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Total: <span className="font-semibold text-gray-900 dark:text-white">KES {total.toLocaleString()}</span> · booked as a farm expense.
