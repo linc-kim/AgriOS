@@ -17,6 +17,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import auth, farms, flocks, health, finance, aria, feed
 from app.api.v1.endpoints import finance_analytics
 from app.api.v1.endpoints import inventory
+from app.api.v1.endpoints import reporting
 from app.api.v1.endpoints import notifications, market
 from app.api.v1.endpoints import admin
 from app.api.v1.endpoints import exports
@@ -44,6 +45,9 @@ api_router.include_router(feed.router)
 
 # ── Module 6 (Inventory & Asset Management) ───────────────────────────────────
 api_router.include_router(inventory.router)
+
+# ── Module 7 (Reporting & Business Intelligence) ──────────────────────────────
+api_router.include_router(reporting.router)
 
 # ── Sprint 5 (Finance) ────────────────────────────────────────────────────────
 api_router.include_router(finance.router)

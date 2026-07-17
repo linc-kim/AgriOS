@@ -80,6 +80,12 @@ export const queryKeys = {
   flockFeedConsumption: (farmId: string, flockId: string) =>
     ["farms", farmId, "flocks", flockId, "feed-consumption"] as const,
 
+  // Reporting & BI (Module 7)
+  reportGenerate: (farmId: string) => ["farms", farmId, "reporting", "generate"] as const,
+  reportDashboard: (farmId: string) => ["farms", farmId, "reporting", "dashboard"] as const,
+  reportComparison: (farmId: string) => ["farms", farmId, "reporting", "comparison"] as const,
+  savedReports: (farmId: string) => ["farms", farmId, "reporting", "saved"] as const,
+
   // Inventory & Assets (Module 6)
   invDashboard: (farmId: string) => ["farms", farmId, "inv", "dashboard"] as const,
   invItems: (farmId: string) => ["farms", farmId, "inv", "items"] as const,

@@ -1918,3 +1918,40 @@ export interface InventoryAnalytics {
   reorder_recommendations: InvReorderRec[];
   supplier_performance: InvSupplierPerformance[];
 }
+
+// ── Reporting & BI (Module 7) ─────────────────────────────────────────────────
+
+export interface ReportKpi { label: string; value: string; sub?: string | null; tone?: string | null; }
+export interface ReportBreakdownRow { label: string; value: string; pct?: string | null; }
+export interface ReportSection {
+  heading: string;
+  kind: "kpis" | "series" | "table" | "breakdown" | "note";
+  kpis: ReportKpi[];
+  series: Record<string, any>[];
+  series_keys: string[];
+  table_columns: string[];
+  table_rows: any[][];
+  breakdown: ReportBreakdownRow[];
+  note?: string | null;
+}
+export interface Report {
+  report_type: string;
+  title: string;
+  period_label: string;
+  start_date: string;
+  end_date: string;
+  generated_at: string;
+  sections: ReportSection[];
+  ai_context: Record<string, any>;
+}
+export interface SavedReport {
+  id: string;
+  farm_id: string;
+  user_id: string | null;
+  name: string;
+  report_type: string;
+  config: Record<string, any>;
+  is_pinned: boolean;
+  created_at: string;
+  updated_at: string;
+}
