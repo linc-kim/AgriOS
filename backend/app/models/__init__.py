@@ -43,6 +43,7 @@ from app.models.inventory import (
     InventorySupplier,
 )
 from app.models.reporting import SavedReport
+from app.models.automation import AutomationRule, Reminder
 from app.models.finance import (
     ExpenseCategory,
     Expense,
@@ -104,6 +105,9 @@ __all__ = [
     "AssetMaintenance",
     # Reporting (Migration 045)
     "SavedReport",
+    # Automation (Migration 046)
+    "AutomationRule",
+    "Reminder",
     # Finance (Migrations 019-022)
     "ExpenseCategory",
     "Expense",

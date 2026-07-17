@@ -1955,3 +1955,67 @@ export interface SavedReport {
   created_at: string;
   updated_at: string;
 }
+
+// ── Automation & Notifications (Module 8) ─────────────────────────────────────
+
+export type TriggerType =
+  | "low_feed" | "low_inventory" | "vaccination_due" | "health_alert"
+  | "mortality_spike" | "maintenance_due" | "financial_anomaly" | "tasks_overdue";
+
+export interface AutomationRule {
+  id: string;
+  farm_id: string;
+  name: string;
+  description?: string | null;
+  trigger_type: string;
+  conditions: Record<string, any>;
+  actions: Record<string, any>[];
+  priority: string;
+  is_active: boolean;
+  last_run_at?: string | null;
+  run_count: number;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Reminder {
+  id: string;
+  farm_id: string;
+  user_id?: string | null;
+  title: string;
+  notes?: string | null;
+  due_at: string;
+  recurrence: string;
+  priority: string;
+  is_done: boolean;
+  done_at?: string | null;
+  next_fire_at?: string | null;
+  is_overdue: boolean;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ActivityNotification {
+  id: string;
+  notification_type: string;
+  title: string;
+  body: string;
+  action_route?: string | null;
+  is_read: boolean;
+  is_archived: boolean;
+  priority: string;
+  source?: string | null;
+  created_at: string;
+  read_at?: string | null;
+}
+
+export interface EngineRunResult {
+  triggers_fired: number;
+  notifications_created: number;
+  reminders_fired: number;
+  rules_evaluated: number;
+  rules_matched: number;
+  details: Record<string, any>[];
+}

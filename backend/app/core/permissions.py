@@ -63,6 +63,10 @@ class Permission(StrEnum):
     INVENTORY_MANAGE = "inventory:manage"   # Write: items, movements, assets, maintenance, suppliers
     INVENTORY_VIEW = "inventory:view"       # Read: items, movements, assets, analytics, alerts
 
+    # Automation & Notifications (Module 8)
+    AUTOMATION_MANAGE = "automation:manage"  # Write: rules, reminders, run engine
+    AUTOMATION_VIEW = "automation:view"      # Read: rules, reminders, activity
+
     # Finance
     FINANCE_EXPENSE_LOG = "finance:expense:log"
     FINANCE_EXPENSE_EDIT = "finance:expense:edit"
@@ -260,6 +264,13 @@ for _inv_writer in ("enterprise_owner", "farm_owner", "farm_manager", "farm_work
     ROLE_PERMISSIONS[_inv_writer] |= {Permission.INVENTORY_MANAGE, Permission.INVENTORY_VIEW}
 for _inv_reader in ("vet_consultant", "viewer"):
     ROLE_PERMISSIONS[_inv_reader].add(Permission.INVENTORY_VIEW)
+
+# Automation & Notifications (Module 8) permissions. Managing rules is an
+# owner/manager concern; everyone can view their activity + reminders.
+for _auto_writer in ("enterprise_owner", "farm_owner", "farm_manager"):
+    ROLE_PERMISSIONS[_auto_writer] |= {Permission.AUTOMATION_MANAGE, Permission.AUTOMATION_VIEW}
+for _auto_reader in ("farm_worker", "vet_consultant", "viewer"):
+    ROLE_PERMISSIONS[_auto_reader].add(Permission.AUTOMATION_VIEW)
 
 
 def get_user_permissions(role_name: str) -> set[Permission]:

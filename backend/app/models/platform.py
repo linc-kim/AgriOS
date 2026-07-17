@@ -64,6 +64,11 @@ class Notification(AGRIOSBase):
     # Origin
     source: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
+    # Activity Center (Module 8): priority + archive state.
+    priority: Mapped[str] = mapped_column(String(20), nullable=False, default="normal", server_default="normal")
+    is_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
     # ── Relationships ─────────────────────────────────────────────────────
     farm: Mapped["Farm"] = relationship("Farm", lazy="joined", foreign_keys=[farm_id])  # type: ignore[name-defined]
     user: Mapped["User"] = relationship("User", lazy="joined", foreign_keys=[user_id])  # type: ignore[name-defined]
