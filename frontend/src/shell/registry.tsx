@@ -51,7 +51,7 @@ export const MODULES: ModuleDef[] = [
   { id: "automation", label: "Automation", path: "/automation", icon: Zap, section: "platform", ready: true, description: "Triggers, rules, reminders and your activity center." },
   { id: "settings", label: "Settings", path: "/settings", icon: Settings, section: "system", description: "Organization, farm and account settings." },
   { id: "billing", label: "Billing", path: "/billing", icon: CreditCard, section: "system", description: "Your plan and invoices." },
-  { id: "admin", label: "Administration", path: "/admin", icon: ShieldCheck, section: "system", adminOnly: true, description: "Platform administration." },
+  { id: "admin", label: "Administration", path: "/admin", icon: ShieldCheck, section: "system", ready: true, adminOnly: true, description: "Platform administration." },
 ];
 
 export const SECTIONS: { id: ModuleSection; label: string }[] = [

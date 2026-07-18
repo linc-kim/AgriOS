@@ -92,6 +92,10 @@ class Permission(StrEnum):
     ADMIN_FARM_MANAGE = "admin:farm:manage"
     ADMIN_AI_USAGE_VIEW = "admin:ai:usage:view"
 
+    # Admin Platform (Module 10)
+    ADMIN_ORG_MANAGE = "admin:org:manage"
+    ADMIN_PLATFORM_CONFIG = "admin:platform:config"   # feature flags, system config, maintenance, jobs
+
 
 # ── Role → Permission Mapping ─────────────────────────────────────────────────
 # Derived from Engineering Constitution Section 5 RBAC matrix.
@@ -100,6 +104,8 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
     "super_admin": set(Permission),  # All permissions
 
     "platform_admin": {
+        Permission.ADMIN_ORG_MANAGE,
+        Permission.ADMIN_PLATFORM_CONFIG,
         Permission.ADMIN_DASHBOARD,
         Permission.ADMIN_ALERT_PUBLISH,
         Permission.ADMIN_MARKET_MANAGE,

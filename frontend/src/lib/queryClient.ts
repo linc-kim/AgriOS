@@ -80,6 +80,18 @@ export const queryKeys = {
   flockFeedConsumption: (farmId: string, flockId: string) =>
     ["farms", farmId, "flocks", flockId, "feed-consumption"] as const,
 
+  // Admin Platform (Module 10)
+  adminDashboard: () => ["admin", "platform", "dashboard"] as const,
+  adminAnalytics: () => ["admin", "platform", "analytics"] as const,
+  adminOrgs: () => ["admin", "platform", "orgs"] as const,
+  adminUsers2: () => ["admin", "platform", "users"] as const,
+  adminFarms2: () => ["admin", "platform", "farms"] as const,
+  adminAudit: () => ["admin", "platform", "audit"] as const,
+  adminFlags: () => ["admin", "platform", "flags"] as const,
+  adminConfig: () => ["admin", "platform", "config"] as const,
+  adminHealth: () => ["admin", "platform", "health"] as const,
+  adminJobs: () => ["admin", "platform", "jobs"] as const,
+
   // ARIA AI Platform (Module 9)
   aiDashboard: (farmId: string) => ["farms", farmId, "ai", "dashboard"] as const,
 

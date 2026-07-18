@@ -45,6 +45,7 @@ from app.models.inventory import (
 from app.models.reporting import SavedReport
 from app.models.automation import AutomationRule, Reminder
 from app.models.ai_platform import AIResponseCache
+from app.models.admin_platform import BackgroundJob, FeatureFlag, SystemConfig
 from app.models.finance import (
     ExpenseCategory,
     Expense,
@@ -111,6 +112,10 @@ __all__ = [
     "Reminder",
     # AI Platform (Migration 047)
     "AIResponseCache",
+    # Admin Platform (Migration 048)
+    "FeatureFlag",
+    "SystemConfig",
+    "BackgroundJob",
     # Finance (Migrations 019-022)
     "ExpenseCategory",
     "Expense",

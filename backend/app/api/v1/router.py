@@ -22,6 +22,7 @@ from app.api.v1.endpoints import automation
 from app.api.v1.endpoints import ai_platform
 from app.api.v1.endpoints import notifications, market
 from app.api.v1.endpoints import admin
+from app.api.v1.endpoints import admin_platform
 from app.api.v1.endpoints import exports
 from app.api.v1.endpoints import organizations
 
@@ -72,6 +73,9 @@ api_router.include_router(market.router)
 
 # ── Sprint 8 (Admin Module) ───────────────────────────────────────────────────
 api_router.include_router(admin.router)
+
+# ── Module 10 (Admin Platform) ────────────────────────────────────────────────
+api_router.include_router(admin_platform.router)
 
 # ── Sprint 11 (Farm Data Export) ─────────────────────────────────────────────
 api_router.include_router(exports.router)

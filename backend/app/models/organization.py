@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -46,6 +46,10 @@ class Organization(AGRIOSBase):
     country: Mapped[str | None] = mapped_column(String(2), nullable=True)
     timezone: Mapped[str] = mapped_column(String(50), default="Africa/Nairobi", nullable=False)
     currency: Mapped[str] = mapped_column(String(3), default="KES", nullable=False)
+    # Platform admin can suspend an organization (Module 10).
+    is_suspended: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
 
     owner: Mapped["User"] = relationship(foreign_keys=[owner_id], lazy="noload")
     plan: Mapped["SubscriptionPlan | None"] = relationship(lazy="noload")
