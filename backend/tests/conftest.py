@@ -96,6 +96,22 @@ async def setup_test_database():
     await test_engine.dispose()
 
 
+@pytest.fixture(autouse=True)
+def _reset_rate_limits():
+    """
+    Clear the auth rate-limit window before each test.
+
+    The limiter is process-wide sliding-window state. Without this, a run of
+    auth tests accumulates past the 20-request limit and later tests get 429s
+    for reasons unrelated to what they assert. Cleared rather than disabled, so
+    the middleware is still exercised on every request.
+    """
+    from app.core.middleware import reset_rate_limits
+
+    reset_rate_limits()
+    yield
+
+
 @pytest_asyncio.fixture(autouse=True)
 async def _dispose_app_engine():
     """

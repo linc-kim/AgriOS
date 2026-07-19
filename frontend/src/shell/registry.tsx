@@ -20,6 +20,7 @@ import {
   Settings,
   CreditCard,
   ShieldCheck,
+  Rocket,
 } from "lucide-react";
 
 export type ModuleSection = "main" | "insights" | "platform" | "system";
@@ -49,6 +50,7 @@ export const MODULES: ModuleDef[] = [
   { id: "ai", label: "AI Assistant", path: "/ai", icon: Sparkles, section: "insights", ready: true, description: "Predictions, forecasts and an assistant grounded in your farm." },
   { id: "marketplace", label: "Marketplace", path: "/marketplace", icon: Store, section: "platform", description: "Market prices and trusted suppliers." },
   { id: "automation", label: "Automation", path: "/automation", icon: Zap, section: "platform", ready: true, description: "Triggers, rules, reminders and your activity center." },
+  { id: "production", label: "Production", path: "/production", icon: Rocket, section: "platform", ready: true, description: "System status, diagnostics, backups, imports, exports and release readiness." },
   { id: "settings", label: "Settings", path: "/settings", icon: Settings, section: "system", description: "Organization, farm and account settings." },
   { id: "billing", label: "Billing", path: "/billing", icon: CreditCard, section: "system", description: "Your plan and invoices." },
   { id: "admin", label: "Administration", path: "/admin", icon: ShieldCheck, section: "system", ready: true, adminOnly: true, description: "Platform administration." },

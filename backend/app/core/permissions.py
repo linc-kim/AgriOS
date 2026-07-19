@@ -96,6 +96,13 @@ class Permission(StrEnum):
     ADMIN_ORG_MANAGE = "admin:org:manage"
     ADMIN_PLATFORM_CONFIG = "admin:platform:config"   # feature flags, system config, maintenance, jobs
 
+    # Production Readiness (Module 11)
+    PRODUCTION_VIEW = "production:view"        # Read: reports, diagnostics, status, release info
+    DATA_EXPORT = "data:export"                # Export farm data (CSV / Excel / JSON / PDF)
+    DATA_IMPORT = "data:import"                # Bulk-import farm data
+    BACKUP_MANAGE = "backup:manage"            # Create, delete and restore backups
+    DIAGNOSTICS_RUN = "diagnostics:run"        # Run diagnostic sweeps and deployment verification
+
 
 # ── Role → Permission Mapping ─────────────────────────────────────────────────
 # Derived from Engineering Constitution Section 5 RBAC matrix.
@@ -277,6 +284,35 @@ for _auto_writer in ("enterprise_owner", "farm_owner", "farm_manager"):
     ROLE_PERMISSIONS[_auto_writer] |= {Permission.AUTOMATION_MANAGE, Permission.AUTOMATION_VIEW}
 for _auto_reader in ("farm_worker", "vet_consultant", "viewer"):
     ROLE_PERMISSIONS[_auto_reader].add(Permission.AUTOMATION_VIEW)
+
+# Production Readiness (Module 11) permissions.
+#
+# Graded by blast radius rather than seniority alone:
+#   view      — anyone who can see the farm may read status and reports.
+#   export    — data leaves the system, so it stops at owner/manager.
+#   import    — writes bulk records, same bar as export.
+#   backups   — restoring overwrites live data, so owners only.
+#   diagnostics — read-only sweeps, but they surface configuration detail.
+for _prod_reader in (
+    "enterprise_owner", "farm_owner", "farm_manager", "farm_worker", "vet_consultant", "viewer",
+):
+    ROLE_PERMISSIONS[_prod_reader].add(Permission.PRODUCTION_VIEW)
+for _data_mover in ("enterprise_owner", "farm_owner", "farm_manager"):
+    ROLE_PERMISSIONS[_data_mover] |= {
+        Permission.DATA_EXPORT, Permission.DATA_IMPORT, Permission.DIAGNOSTICS_RUN,
+    }
+for _backup_admin in ("enterprise_owner", "farm_owner"):
+    ROLE_PERMISSIONS[_backup_admin].add(Permission.BACKUP_MANAGE)
+
+# platform_admin is an explicit set rather than a farm role, so it is granted
+# the production permissions directly.
+ROLE_PERMISSIONS["platform_admin"] |= {
+    Permission.PRODUCTION_VIEW,
+    Permission.DATA_EXPORT,
+    Permission.DATA_IMPORT,
+    Permission.BACKUP_MANAGE,
+    Permission.DIAGNOSTICS_RUN,
+}
 
 
 def get_user_permissions(role_name: str) -> set[Permission]:

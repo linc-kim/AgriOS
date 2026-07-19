@@ -18,7 +18,13 @@ from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
 from app.api.v1.router import api_router
 from app.config import settings
-from app.core.middleware import RequestIDMiddleware, SecurityHeadersMiddleware, TimingMiddleware
+from app.core.middleware import (
+    MetricsMiddleware,
+    RateLimitMiddleware,
+    RequestIDMiddleware,
+    SecurityHeadersMiddleware,
+    TimingMiddleware,
+)
 from app.exceptions import register_exception_handlers
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -49,8 +55,34 @@ async def lifespan(app: FastAPI):
     FastAPI lifespan context manager.
     Starts APScheduler on startup, stops it on shutdown.
     AD-13 (Frozen): APScheduler embedded in FastAPI handles background jobs in V1.
+
+    Module 11: startup validation runs first. In production an invalid
+    configuration raises here, so the process exits and the orchestrator never
+    routes traffic to it — a bad deploy fails at boot rather than at request
+    time. The running version is then recorded as a release, which is what makes
+    a later deployment or rollback verifiable.
     """
+    from app.services.diagnostics_service import run_startup_validation
     from app.services.scheduler import start_scheduler, stop_scheduler
+
+    await run_startup_validation()
+
+    try:
+        from app.database import AsyncSessionLocal
+        from app.services.release_service import record_release
+
+        async with AsyncSessionLocal() as session:
+            release = await record_release(session)
+            logger.info(
+                "Release recorded: v%s (%s)%s",
+                release.version,
+                (release.git_sha or "no-sha")[:8],
+                " [ROLLBACK]" if release.is_rollback else "",
+            )
+    except Exception as exc:
+        # Release bookkeeping is observability, not a serving dependency —
+        # never let it stop the app from coming up.
+        logger.warning("Could not record release: %s", exc)
 
     scheduler = start_scheduler()
     logger.info("Greena background scheduler started")
@@ -75,12 +107,19 @@ app = FastAPI(
 
 # ── Middleware (order matters — applied bottom-up) ────────────────────────────
 # Starlette applies middleware in reverse registration order (last registered = outermost).
-# Order here (innermost first): Timing → RequestID → Security → CORS
-# Result (outermost first):     CORS → Security → RequestID → Timing
+# Order here (innermost first): Metrics → Timing → RequestID → Security → RateLimit → CORS
+# Result (outermost first):     CORS → RateLimit → Security → RequestID → Timing → Metrics
+#
+# Metrics is innermost so the latency it records is handler time, not time spent
+# in the rest of the stack. RateLimit is outermost (below CORS) so a throttled
+# request is rejected before any other work happens — including before CORS
+# preflight succeeds against a real handler.
 
+app.add_middleware(MetricsMiddleware)
 app.add_middleware(TimingMiddleware)
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,

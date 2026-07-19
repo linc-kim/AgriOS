@@ -287,6 +287,25 @@ async def job_aria_daily_insights() -> None:
 
 # ── Scheduler Lifecycle ───────────────────────────────────────────────────────
 
+async def job_backup_retention() -> None:
+    """
+    02:30 EAT: enforce the backup retention policy across every farm.
+
+    Expired backups are soft-deleted and each farm is pruned to its cap, so
+    snapshot storage cannot grow without bound.
+    """
+    logger.info("SCHEDULER: Running backup_retention job")
+    try:
+        from app.database import AsyncSessionLocal
+        from app.services import backup_service
+
+        async with AsyncSessionLocal() as session:
+            result = await backup_service.apply_retention(session)
+            logger.info("SCHEDULER: backup_retention complete — %s", result)
+    except Exception as exc:
+        logger.error("SCHEDULER: backup_retention failed: %s", exc)
+
+
 def start_scheduler() -> AsyncIOScheduler:
     """
     Create, configure, and start the APScheduler instance.
@@ -345,8 +364,19 @@ def start_scheduler() -> AsyncIOScheduler:
         misfire_grace_time=600,
     )
 
+    # 02:30 EAT — backup retention sweep (Module 11). Runs in the quiet window,
+    # after the day's data has settled and well before morning traffic.
+    scheduler.add_job(
+        job_backup_retention,
+        CronTrigger(hour=2, minute=30, timezone="Africa/Nairobi"),
+        id="backup_retention",
+        name="Backup Retention Sweep",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
     scheduler.start()
-    logger.info("APScheduler started — 5 jobs registered")
+    logger.info("APScheduler started — 6 jobs registered")
     return scheduler
 
 

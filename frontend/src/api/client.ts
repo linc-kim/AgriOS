@@ -45,12 +45,38 @@ let failedRequestQueue: Array<{
   reject: (reason?: unknown) => void;
 }> = [];
 
+/**
+ * The refresh call must never go through the refresh-on-401 recovery below.
+ *
+ * If it did, a 401 from /auth/refresh would trigger a second /auth/refresh;
+ * that inner call sees isRefreshing === true, parks itself on
+ * failedRequestQueue, and returns a promise that only settles once the outer
+ * refresh settles — while the outer refresh is awaiting the inner one. The two
+ * deadlock, the promise never resolves, and the app hangs on its loading
+ * spinner instead of redirecting to login. Users with an expired refresh token
+ * saw a permanent spinner.
+ */
+const isRefreshRequest = (config?: InternalAxiosRequestConfig): boolean =>
+  Boolean(config?.url?.includes("/auth/refresh"));
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<APIError>) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean;
     };
+
+    // A failed refresh is terminal: clear auth and let the caller redirect.
+    if (error.response?.status === 401 && isRefreshRequest(originalRequest)) {
+      failedRequestQueue.forEach(({ reject }) => reject(error));
+      failedRequestQueue = [];
+      isRefreshing = false;
+
+      const { useAuthStore } = await import("@/stores/authStore");
+      useAuthStore.getState().clearAuth();
+
+      return Promise.reject(error);
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {

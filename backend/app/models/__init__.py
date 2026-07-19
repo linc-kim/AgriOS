@@ -46,6 +46,13 @@ from app.models.reporting import SavedReport
 from app.models.automation import AutomationRule, Reminder
 from app.models.ai_platform import AIResponseCache
 from app.models.admin_platform import BackgroundJob, FeatureFlag, SystemConfig
+from app.models.production import (
+    Backup,
+    ExportJob,
+    ImportJob,
+    ReleaseRecord,
+    RestoreRun,
+)
 from app.models.finance import (
     ExpenseCategory,
     Expense,
@@ -116,6 +123,12 @@ __all__ = [
     "FeatureFlag",
     "SystemConfig",
     "BackgroundJob",
+    # Production Readiness (Migration 050)
+    "Backup",
+    "RestoreRun",
+    "ImportJob",
+    "ExportJob",
+    "ReleaseRecord",
     # Finance (Migrations 019-022)
     "ExpenseCategory",
     "Expense",

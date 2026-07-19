@@ -25,6 +25,7 @@ from app.api.v1.endpoints import admin
 from app.api.v1.endpoints import admin_platform
 from app.api.v1.endpoints import exports
 from app.api.v1.endpoints import organizations
+from app.api.v1.endpoints import production
 
 api_router = APIRouter()
 
@@ -79,3 +80,6 @@ api_router.include_router(admin_platform.router)
 
 # ── Sprint 11 (Farm Data Export) ─────────────────────────────────────────────
 api_router.include_router(exports.router)
+
+# ── Module 11 (Production Readiness — backups, imports, diagnostics, release) ─
+api_router.include_router(production.router)

@@ -254,6 +254,129 @@ async def get_forecasts(db: AsyncSession, farm: Farm) -> ForecastsResponse:
 
 # ── Assistant (offline-safe) ──────────────────────────────────────────────────
 
+# Words that mark "production" as meaning the deployed system rather than the
+# farm's egg output.
+_OPS_MARKERS = (
+    "environment", "deploy", "release", "server", "system", "uptime",
+    "healthy", "unhealthy", "degraded", "incident", "outage", "version",
+    "database", "migration", "backup", "monitoring", "diagnostics",
+)
+
+# Any of these makes a question operational enough to be worth loading the ops
+# context, which runs a diagnostic sweep and so is not free.
+_OPS_TRIGGERS = _OPS_MARKERS + (
+    "restore", "snapshot", "diagnostic", "rollback", "metric", "latency",
+    "slow", "error rate", "traffic", "import", "export", "download", "upload",
+    "csv", "spreadsheet", "production",
+)
+
+
+def needs_ops_context(question: str) -> bool:
+    q = question.lower()
+    return any(trigger in q for trigger in _OPS_TRIGGERS)
+
+
+def _is_ops_question(q: str) -> bool:
+    """True when a question mentioning "production" means the deployment."""
+    return any(marker in q for marker in _OPS_MARKERS)
+
+
+async def collect_ops_context(db: AsyncSession, farm: Farm) -> dict:
+    """
+    Gather the production-readiness facts ARIA answers from (Module 11).
+
+    Every value is read live from the system, so ARIA reports what is actually
+    true rather than a plausible-sounding guess. Each block is independently
+    guarded: an operational question must still get a partial answer if one
+    subsystem cannot be read.
+    """
+    from sqlalchemy import func as sa_func
+
+    from app.models.production import Backup, ExportJob, ImportJob
+    from app.services import diagnostics_service, metrics_service, release_service
+
+    ops: dict = {}
+
+    try:
+        result = await db.execute(
+            select(Backup)
+            .where(Backup.farm_id == farm.id, Backup.deleted_at.is_(None))
+            .order_by(Backup.created_at.desc())
+        )
+        backups = list(result.scalars().all())
+        latest = backups[0] if backups else None
+        ops["backups"] = {
+            "total": len(backups),
+            "failed": sum(1 for b in backups if b.status == "failed"),
+            "latest_at": latest.created_at.strftime("%Y-%m-%d %H:%M") if latest else None,
+            "latest_status": latest.status if latest else None,
+            "latest_size_kb": round(latest.size_bytes / 1024, 1) if latest else 0,
+        }
+    except Exception:
+        pass
+
+    try:
+        report = await diagnostics_service.run_diagnostics(db)
+        ops["diagnostics"] = {
+            "status": report["status"],
+            "passed": report["passed_count"],
+            "total": len(report["checks"]),
+            "failing": [c["name"] for c in report["checks"] if not c["passed"]],
+        }
+    except Exception:
+        pass
+
+    try:
+        info = release_service.version_info()
+        current = await release_service.current_migration_revision(db)
+        expected = release_service.expected_migration_revision()
+        latest_release = await release_service.latest_release(db)
+        ops["release"] = {
+            "version": info["version"],
+            "environment": info["environment"],
+            "git_sha_short": info["git_sha_short"],
+            "uptime_hours": round(info["uptime_seconds"] / 3600, 1),
+            "migration_current": current,
+            "migration_expected": expected,
+            "migrations_at_head": bool(current and expected and current == expected),
+            "is_rollback": bool(latest_release and latest_release.is_rollback),
+        }
+    except Exception:
+        pass
+
+    try:
+        summary = metrics_service.registry.summary()
+        slowest = summary["slowest_routes"][0] if summary["slowest_routes"] else None
+        ops["metrics"] = {
+            "total_requests": summary["total_requests"],
+            "error_rate_pct": round(summary["error_rate"] * 100, 2),
+            "avg_latency_ms": summary["avg_latency_ms"],
+            "slowest": f"{slowest['path']} at {slowest['avg_ms']} ms" if slowest else None,
+        }
+    except Exception:
+        pass
+
+    try:
+        exports = await db.execute(
+            select(sa_func.count(ExportJob.id)).where(
+                ExportJob.farm_id == farm.id, ExportJob.deleted_at.is_(None))
+        )
+        imports = await db.execute(
+            select(ImportJob.status).where(
+                ImportJob.farm_id == farm.id, ImportJob.deleted_at.is_(None))
+        )
+        import_statuses = [r for r in imports.scalars().all()]
+        ops["data_io"] = {
+            "exports": int(exports.scalar() or 0),
+            "imports": len(import_statuses),
+            "failed_imports": sum(1 for s in import_statuses if s == "failed"),
+        }
+    except Exception:
+        pass
+
+    return ops
+
+
 def _build_offline_answer(question: str, ctx: AIPlatformContext, extra: dict) -> tuple[str, list[str]]:
     """A grounded, deterministic answer from the farm context, used when no LLM
     is configured or providers fail. Returns (answer, sources)."""
@@ -293,10 +416,73 @@ def _build_offline_answer(question: str, ctx: AIPlatformContext, extra: dict) ->
         add("inventory", f"Inventory: KES {ctx.inventory['value']} across {ctx.inventory['items']} item(s); "
                          f"{ctx.inventory['low_stock']} low, {ctx.inventory['out_of_stock']} out, "
                          f"{ctx.inventory['expiring']} expiring; {ctx.inventory['maintenance_due']} asset(s) need service.")
-    if any(w in q for w in ("egg", "production", "lay")):
+    if any(w in q for w in ("egg", "lay", "hatch")) or (
+        "production" in q and not _is_ops_question(q)
+    ):
         matched = True
         add("production", f"Production: {ctx.production['eggs_30d']} eggs in the last 30 days across "
                           f"{ctx.production['active_flocks']} active flock(s).")
+
+    # ── Module 11: operational topics ─────────────────────────────────────────
+    # "production" is deliberately ambiguous in this domain — it means both egg
+    # output and the deployed environment. _is_ops_question decides which sense
+    # is meant, so "how is production doing?" still answers about the flock while
+    # "is production healthy?" answers about the system.
+    ops = extra.get("ops") or {}
+
+    if any(w in q for w in ("backup", "restore", "snapshot")):
+        matched = True
+        b = ops.get("backups")
+        if b:
+            latest = b["latest_at"] or "never"
+            add("backups", (
+                f"Backups: {b['total']} stored for this farm, most recent {latest}"
+                + (f" ({b['latest_size_kb']} KB, {b['latest_status']})." if b["total"] else ".")
+                + (f" {b['failed']} failed backup(s) need attention." if b["failed"] else "")
+                + (" No backup has been taken yet — create one before the next data change."
+                   if not b["total"] else "")
+            ))
+
+    if any(w in q for w in ("diagnostic", "healthy", "system health", "unhealthy", "degraded")):
+        matched = True
+        d = ops.get("diagnostics")
+        if d:
+            failing = ", ".join(d["failing"]) if d["failing"] else "none"
+            add("diagnostics", (
+                f"System diagnostics: {d['status']} — {d['passed']} of {d['total']} checks passing. "
+                f"Failing: {failing}."
+            ))
+
+    if any(w in q for w in ("deploy", "release", "version", "rollback", "rolled back")):
+        matched = True
+        r = ops.get("release")
+        if r:
+            add("release", (
+                f"Release: running v{r['version']} in {r['environment']}"
+                + (f" ({r['git_sha_short']})" if r.get("git_sha_short") else "")
+                + f", up {r['uptime_hours']}h. Migrations "
+                + ("at head." if r["migrations_at_head"] else f"BEHIND — database at {r['migration_current']}, code expects {r['migration_expected']}.")
+                + (" The last deployment was a rollback." if r.get("is_rollback") else "")
+            ))
+
+    if any(w in q for w in ("monitor", "metric", "latency", "slow", "error rate", "uptime", "traffic")):
+        matched = True
+        m = ops.get("metrics")
+        if m:
+            add("monitoring", (
+                f"Monitoring: {m['total_requests']} requests since restart, "
+                f"{m['error_rate_pct']}% server-error rate, {m['avg_latency_ms']} ms average response. "
+                + (f"Slowest route: {m['slowest']}." if m.get("slowest") else "No route timings yet.")
+            ))
+
+    if any(w in q for w in ("import", "export", "download", "upload", "csv", "spreadsheet")):
+        matched = True
+        io_stats = ops.get("data_io")
+        if io_stats:
+            add("data", (
+                f"Data transfer: {io_stats['exports']} export(s) and {io_stats['imports']} import(s) recorded"
+                + (f", {io_stats['failed_imports']} import(s) failed." if io_stats["failed_imports"] else ".")
+            ))
 
     if not matched:
         add("finance", f"Here's a quick snapshot — 30-day net profit KES {ctx.finance['profit_30d']}, cash KES {ctx.finance['cash_balance']}.")
@@ -344,12 +530,21 @@ async def ask(db: AsyncSession, farm: Farm, user: User, question: str,
     ctx = await build_context(db, farm)
     mortality = await predict_mortality(db, farm)
     risk = await disease_risk(db, farm)
-    offline_answer, sources = _build_offline_answer(
-        question, ctx, {"mortality": mortality.model_dump(), "risk": risk.model_dump()})
+
+    # Operational context is only gathered for operational questions — it runs a
+    # diagnostic sweep, which is too costly to attach to every "how are my
+    # birds?" question.
+    extra: dict = {"mortality": mortality.model_dump(), "risk": risk.model_dump()}
+    if needs_ops_context(question):
+        extra["ops"] = await collect_ops_context(db, farm)
+
+    offline_answer, sources = _build_offline_answer(question, ctx, extra)
 
     prompt = (
         "You are ARIA, a concise poultry-farm assistant. Answer the farmer's question using ONLY the "
-        f"structured farm context. Context: {ctx.model_dump_json()}. Question: {question}"
+        f"structured farm context. Context: {ctx.model_dump_json()}."
+        + (f" Operational status: {extra['ops']}." if "ops" in extra else "")
+        + f" Question: {question}"
     )
     from app.services import ai_provider
     result = await ai_provider.complete(prompt, offline_answer=offline_answer)
