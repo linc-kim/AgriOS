@@ -24,7 +24,9 @@ class TestRegistrationFlow:
         phone = "+254711111111"
 
         with patch(
-            "app.services.sms_service.SMSService.send_otp",
+            # Patched where it is used, not where it is defined: auth_service
+            # imports send_sms into its own namespace at import time.
+            "app.services.auth_service.send_sms",
             new_callable=AsyncMock,
             return_value=True,
         ):

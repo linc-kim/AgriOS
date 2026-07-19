@@ -23,6 +23,7 @@ import subprocess
 import sys
 import uuid
 from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 from pathlib import Path
 from typing import AsyncGenerator
 
@@ -36,6 +37,7 @@ from sqlalchemy.pool import NullPool
 from app.config import settings
 from app.core.security import create_access_token
 from app.database import Base, get_db
+from app.database import engine as app_engine
 from app.main import app
 from app.models.auth import Role, User, UserRole
 from app.models.farm import (
@@ -45,7 +47,7 @@ from app.models.farm import (
     ProductionHouse,
     SubscriptionPlan,
 )
-from app.models.flock import Flock
+from app.models.flock import DailyLog, Flock
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 
@@ -94,14 +96,56 @@ async def setup_test_database():
     await test_engine.dispose()
 
 
+@pytest_asyncio.fixture(autouse=True)
+async def _dispose_app_engine():
+    """
+    Dispose the application's own engine after every test.
+
+    A few endpoints (notably ``/health``) open a session from
+    ``app.database.AsyncSessionLocal`` directly rather than through the injected
+    ``get_db``, so they bypass the test session and use the app's pooled engine.
+    pytest-asyncio runs each test in a fresh event loop, and a pooled asyncpg
+    connection checked out under one loop is unusable from the next — which made
+    ``test_health_db_connected`` report "'NoneType' object has no attribute
+    'send'" whenever any earlier test had touched that pool, while passing when
+    run alone.
+
+    Disposing between tests keeps no connection alive across loops. This is the
+    same reasoning behind ``test_engine``'s NullPool; the application's pooling
+    config is correct for production, where there is a single loop.
+    """
+    yield
+    await app_engine.dispose()
+
+
 # ── Unit-test fixtures (function-scoped, rolled back) ─────────────────────────
 
 @pytest_asyncio.fixture
 async def db() -> AsyncGenerator[AsyncSession, None]:
-    """An async session whose changes are rolled back after each test."""
-    async with TestSessionLocal() as session:
+    """
+    An async session whose changes are undone after each test.
+
+    Bound to a dedicated connection inside an outer transaction, with
+    ``create_savepoint`` join mode — the same isolation ``integration_conn``
+    gives the flow tests. A plain session was used here before, which meant any
+    ``commit()`` the endpoint itself issued was a real commit that the teardown
+    rollback could not undo: seeded users and farms survived into later tests and
+    tripped unique constraints, and left rows that made ``test_health_db_connected``
+    pass alone but fail in a full run.
+    """
+    conn = await test_engine.connect()
+    trans = await conn.begin()
+    session = AsyncSession(
+        bind=conn,
+        expire_on_commit=False,
+        join_transaction_mode="create_savepoint",
+    )
+    try:
         yield session
-        await session.rollback()
+    finally:
+        await session.close()
+        await trans.rollback()
+        await conn.close()
 
 
 @pytest_asyncio.fixture
@@ -455,6 +499,141 @@ def farm_with_house(workspace) -> dict:
         "farm_id": str(workspace.farm_b.id),
         "house_id": str(workspace.farm_b.house_id),
         "unit_id": str(workspace.farm_b.unit_id),
+    }
+
+
+@pytest_asyncio.fixture
+async def farm_with_active_flock(integration_session, workspace) -> dict:
+    """
+    Farm B with an active flock already placed in its house.
+
+    ``farm_with_house`` hands back an *empty* house, which suits the creation
+    tests; the daily-log, weigh-in, feed-purchase and close-flock tests instead
+    need a flock that already exists. The flock is written on the per-test
+    connection, so it is visible to ``async_client`` and rolled back at teardown
+    — Farm B's house is left empty for the tests that place their own flock.
+
+    Placed 60 days back so historical events (weigh-ins, vaccinations) do not
+    trip the "before placement date" validation.
+    """
+    flock = Flock(
+        farm_id=workspace.farm_b.id,
+        house_id=workspace.farm_b.house_id,
+        species_key="poultry",
+        name="Active Flock",
+        initial_count=500,
+        placement_date=date.today() - timedelta(days=60),
+        status="active",
+    )
+    integration_session.add(flock)
+    await integration_session.flush()
+
+    house = await integration_session.get(ProductionHouse, workspace.farm_b.house_id)
+    house.current_flock_id = flock.id
+    await integration_session.commit()
+
+    return {
+        "farm_id": str(workspace.farm_b.id),
+        "house_id": str(workspace.farm_b.house_id),
+        "unit_id": str(workspace.farm_b.unit_id),
+        "flock_id": str(flock.id),
+    }
+
+
+@pytest_asyncio.fixture
+async def farm_with_logged_flock(
+    integration_session, workspace, farm_with_active_flock
+) -> dict:
+    """
+    The active flock from ``farm_with_active_flock`` plus seven days of daily
+    logs, for the metric (survival rate, FCR, feed totals) and log-correction
+    tests. Adds ``log_date`` — the most recent logged day — to the dict.
+    """
+    flock_id = uuid.UUID(farm_with_active_flock["flock_id"])
+    today = date.today()
+
+    for days_ago in range(7, 0, -1):
+        integration_session.add(
+            DailyLog(
+                farm_id=workspace.farm_b.id,
+                flock_id=flock_id,
+                log_date=today - timedelta(days=days_ago),
+                morning_count=500 - (7 - days_ago),
+                mortality_count=1,
+                feed_consumed_kg=Decimal("25.000"),
+                water_litres=Decimal("50.000"),
+            )
+        )
+    await integration_session.commit()
+
+    return {**farm_with_active_flock, "log_date": str(today - timedelta(days=1))}
+
+
+@pytest_asyncio.fixture
+async def farm_with_closed_flock(integration_session, workspace) -> dict:
+    """
+    Farm B with a closed flock, for the tests asserting that a closed flock
+    rejects further writes. The house is left unoccupied, as closing a flock
+    releases it.
+    """
+    flock = Flock(
+        farm_id=workspace.farm_b.id,
+        house_id=workspace.farm_b.house_id,
+        species_key="poultry",
+        name="Closed Flock",
+        initial_count=500,
+        placement_date=date.today() - timedelta(days=90),
+        status="sold",
+    )
+    integration_session.add(flock)
+    await integration_session.commit()
+
+    return {
+        "farm_id": str(workspace.farm_b.id),
+        "house_id": str(workspace.farm_b.house_id),
+        "flock_id": str(flock.id),
+    }
+
+
+@pytest_asyncio.fixture
+async def farm_at_flock_limit(integration_session, workspace) -> dict:
+    """
+    Farm B holding the free plan's maximum of 3 active flocks, plus one spare
+    empty house. Creating a flock in ``extra_house_id`` must be rejected with
+    402 PLAN_LIMIT rather than succeeding.
+    """
+    # Farm B's own house takes the first flock; two more houses for flocks 2-3.
+    houses = [workspace.farm_b.house_id]
+    for i in range(2, 4):
+        h = await _make_house(
+            integration_session, workspace.farm_b.id, workspace.farm_b.unit_id, f"House B{i}"
+        )
+        houses.append(h.id)
+
+    for i, house_id in enumerate(houses, start=1):
+        flock = Flock(
+            farm_id=workspace.farm_b.id,
+            house_id=house_id,
+            species_key="poultry",
+            name=f"Batch {i}",
+            initial_count=100,
+            placement_date=date.today() - timedelta(days=30),
+            status="active",
+        )
+        integration_session.add(flock)
+        await integration_session.flush()
+        house = await integration_session.get(ProductionHouse, house_id)
+        house.current_flock_id = flock.id
+
+    # The spare house the 4th flock would go into.
+    extra = await _make_house(
+        integration_session, workspace.farm_b.id, workspace.farm_b.unit_id, "House B4"
+    )
+    await integration_session.commit()
+
+    return {
+        "farm_id": str(workspace.farm_b.id),
+        "extra_house_id": str(extra.id),
     }
 
 

@@ -10,6 +10,13 @@
       "autoPort": true
     },
     {
+      "name": "greena-api",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--reload", "--port", "8000"],
+      "cwd": "backend",
+      "port": 8000
+    },
+    {
       "name": "brand-static",
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "5599", "--directory", "brand"],

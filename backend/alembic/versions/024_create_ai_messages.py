@@ -13,8 +13,10 @@ DB-04: farm_id on every operational table ✓  (denormalized from conversation f
 DB-01: soft deletes via deleted_at ✓
 AD-01: UUID PK ✓
 
-Note: ai_messages has NO metadata column — messages are immutable content records;
-      metadata extensibility lives on ai_conversations.
+Note: this migration originally omitted the metadata column on the grounds that
+      messages are immutable content records. That conflicted with AGRIOSBase,
+      which maps a metadata column on every model, so every AIMessage query
+      errored. Migration 049 adds the column.
 """
 
 import uuid

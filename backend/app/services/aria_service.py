@@ -119,6 +119,22 @@ PLAN_QUOTAS: dict[str, Optional[int]] = {
     "pro": None,  # Unlimited
 }
 
+
+def _plan_key(farm: Farm) -> str:
+    """
+    The farm's plan key ("free" | "starter" | "pro"), used to look up PLAN_QUOTAS.
+
+    The relationship is Farm.plan (not .subscription_plan) and the key lives on
+    SubscriptionPlan.name (not .plan_key) — getting either wrong silently
+    degrades every farm to the free-tier quota, so both are pinned here in one
+    place rather than repeated at each call site.
+
+    Callers reach this via require_farm_access, which eager-loads Farm.plan; the
+    None guard covers farms loaded through some other path.
+    """
+    plan = getattr(farm, "plan", None)
+    return plan.name if plan is not None else "free"
+
 # Gemini cost per token (approximate, USD)
 GEMINI_COST_PER_INPUT_TOKEN = 0.000000075    # $0.075 per 1M tokens
 GEMINI_COST_PER_OUTPUT_TOKEN = 0.0000003     # $0.30 per 1M tokens
@@ -295,20 +311,20 @@ async def compile_farm_context(
         .where(
             and_(
                 RevenueRecord.farm_id == str(farm_id),
-                RevenueRecord.sale_date >= expense_cutoff,
+                RevenueRecord.revenue_date >= expense_cutoff,
                 RevenueRecord.deleted_at.is_(None),
             )
         )
-        .order_by(RevenueRecord.sale_date.desc())
+        .order_by(RevenueRecord.revenue_date.desc())
         .limit(20)
     )
     revenues = revenue_result.scalars().all()
     context["recent_revenue"] = [
         {
-            "date": str(r.sale_date),
+            "date": str(r.revenue_date),
             "type": r.revenue_type,
             "amount_kes": float(r.amount),
-            "buyer": getattr(r, "buyer", None),
+            "buyer": r.buyer_name,
         }
         for r in revenues
     ]
@@ -415,9 +431,7 @@ async def check_quota(
     Returns (has_quota, queries_remaining).
     queries_remaining is None for unlimited plans.
     """
-    plan_name = "free"
-    if farm.subscription_plan:
-        plan_name = getattr(farm.subscription_plan, "plan_key", "free")
+    plan_name = _plan_key(farm)
 
     monthly_limit = PLAN_QUOTAS.get(plan_name, 5)
     if monthly_limit is None:
@@ -1092,9 +1106,7 @@ async def get_usage_status(
     farm: Farm,
     user_id: uuid.UUID,
 ) -> AIUsageResponse:
-    plan_name = "free"
-    if farm.subscription_plan:
-        plan_name = getattr(farm.subscription_plan, "plan_key", "free")
+    plan_name = _plan_key(farm)
 
     monthly_limit = PLAN_QUOTAS.get(plan_name, 5)
     used = await get_monthly_query_count(db, farm.id)

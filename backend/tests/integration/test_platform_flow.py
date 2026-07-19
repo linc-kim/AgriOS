@@ -97,31 +97,35 @@ class TestNotificationList:
 
 class TestNotificationLifecycle:
     async def test_notification_appears_after_creation(
-        self, async_client, test_farm, auth_headers_owner, db_session
+        self, async_client, test_farm, auth_headers_owner, integration_session, workspace
     ):
-        """Internally created notification is visible via GET list."""
+        """Internally created notification is visible via GET list.
+
+        Addressed to the owner who then reads the list — it was previously
+        addressed to a random UUID, so the notification could never appear and
+        the test only asserted that the request returned 200.
+        """
         from app.schemas.platform import NotificationCreate
         from app.services import notification_service
 
-        owner_id = uuid.uuid4()  # In real tests, this is the fixture user's id
         payload = NotificationCreate(
             farm_id=test_farm.id,
-            user_id=owner_id,
+            user_id=workspace.users["owner"].id,
             notification_type="daily_log_reminder",
             title="Daily log reminder",
             body="You haven't logged today.",
         )
-        await notification_service.create_notification(db_session, payload)
+        await notification_service.create_notification(integration_session, payload)
+        await integration_session.commit()
 
         r = await async_client.get(
             _notifs_url(test_farm.id),
             headers=auth_headers_owner,
         )
         assert r.status_code == 200
-        # The authenticated user may differ from owner_id in fixtures
-        # but the endpoint returns notifications for the authenticated user
-        # At minimum, the call succeeds
-        assert "notifications" in r.json()["data"]
+        data = r.json()["data"]
+        assert "Daily log reminder" in [n["title"] for n in data["notifications"]]
+        assert data["unread_count"] >= 1
 
     async def test_mark_notification_read(
         self, async_client, test_farm, auth_headers_owner

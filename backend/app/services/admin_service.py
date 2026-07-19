@@ -163,8 +163,8 @@ async def list_users(
 
     if search:
         stmt = stmt.where(
-            User.phone_number.ilike(f"%{search}%")
-            | User.name.ilike(f"%{search}%")
+            User.phone.ilike(f"%{search}%")
+            | User.full_name.ilike(f"%{search}%")
         )
 
     if is_active is not None:
@@ -174,8 +174,8 @@ async def list_users(
     count_stmt = select(func.count(User.id)).where(User.deleted_at.is_(None))
     if search:
         count_stmt = count_stmt.where(
-            User.phone_number.ilike(f"%{search}%")
-            | User.name.ilike(f"%{search}%")
+            User.phone.ilike(f"%{search}%")
+            | User.full_name.ilike(f"%{search}%")
         )
     if is_active is not None:
         count_stmt = count_stmt.where(User.is_active == is_active)

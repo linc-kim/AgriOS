@@ -99,7 +99,7 @@ async def _load_farm_data(
     rev_r = await db.execute(
         select(RevenueRecord)
         .where(and_(RevenueRecord.farm_id == fid, RevenueRecord.deleted_at.is_(None)))
-        .order_by(RevenueRecord.sale_date.asc())
+        .order_by(RevenueRecord.revenue_date.asc())
     )
     revenues = rev_r.scalars().all()
 
@@ -371,9 +371,9 @@ async def export_pdf(db: AsyncSession, farm_id: uuid.UUID) -> bytes:
         rev_rows = [["Date", "Type", "Buyer", "Amount (KES)"]]
         for r in revenues:
             rev_rows.append([
-                str(r.sale_date),
+                str(r.revenue_date),
                 r.revenue_type,
-                getattr(r, "buyer", "—") or "—",
+                r.buyer_name or "—",
                 f"{float(r.amount):,.2f}",
             ])
         t = Table(rev_rows, colWidths=[W * 0.2, W * 0.25, W * 0.3, W * 0.25])
@@ -555,14 +555,14 @@ async def export_excel(db: AsyncSession, farm_id: uuid.UUID) -> bytes:
     for i, r in enumerate(data["revenues"], 1):
         flock = flock_map.get(str(r.flock_id)) if getattr(r, "flock_id", None) else None
         write_row(ws, [
-            str(r.sale_date),
+            str(r.revenue_date),
             r.revenue_type,
             float(r.amount),
-            getattr(r, "quantity", "") or "",
-            getattr(r, "unit_price", "") or "",
-            getattr(r, "buyer", "") or "",
+            r.quantity or "",
+            r.unit_price or "",
+            r.buyer_name or "",
             flock.name if flock else "",
-            getattr(r, "notes", "") or "",
+            r.notes or "",
         ], i)
     freeze_and_filter(ws)
 
