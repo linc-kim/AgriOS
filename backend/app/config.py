@@ -32,6 +32,15 @@ class Settings(BaseSettings):
     # ── Database ─────────────────────────────────────────────────────────
     DATABASE_URL: str
 
+    # Connection pool, per worker process. The effective ceiling on the database
+    # is (DB_POOL_SIZE + DB_MAX_OVERFLOW) × workers, plus one connection for the
+    # scheduler advisory lock — size these against the provider's connection
+    # cap, not the app's appetite. Supabase's free tier allows 60 in total, so
+    # the defaults keep two workers well inside it (2 × 15 + 1 = 31).
+    DB_POOL_SIZE: int = 5
+    DB_MAX_OVERFLOW: int = 10
+    DB_POOL_RECYCLE_SECONDS: int = 1800
+
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def fix_database_url(cls, v: str) -> str:

@@ -306,10 +306,86 @@ async def job_backup_retention() -> None:
         logger.error("SCHEDULER: backup_retention failed: %s", exc)
 
 
+# A fixed, arbitrary key identifying "the Greena scheduler" to Postgres.
+# Any process holding this advisory lock owns the cron jobs.
+SCHEDULER_LOCK_KEY = 4207731  # "greena-scheduler"
+
+# Connection holding the advisory lock, kept open for the process lifetime.
+# Releasing it (or the process dying) frees the lock for another instance.
+_lock_conn = None
+
+
+async def acquire_scheduler_lock() -> bool:
+    """
+    Try to become the single process that runs scheduled jobs.
+
+    The server runs multiple uvicorn workers, and each worker executes the
+    FastAPI lifespan — so without this every cron job fires once per worker.
+    That means duplicate SMS to farmers (billed per message by Africa's
+    Talking), duplicate ARIA insights, and duplicate reminders.
+
+    A Postgres advisory lock is used rather than a worker-index check because it
+    is also correct across horizontally scaled instances: whichever process wins
+    the lock owns the schedule, and if it dies the lock is released with its
+    connection so another instance takes over on its next start.
+
+    Returns True if this process should run the scheduler.
+    """
+    global _lock_conn
+
+    from sqlalchemy import text
+
+    from app.database import engine
+
+    try:
+        _lock_conn = await engine.connect()
+        result = await _lock_conn.execute(
+            text("SELECT pg_try_advisory_lock(:key)"), {"key": SCHEDULER_LOCK_KEY}
+        )
+        acquired = bool(result.scalar())
+        if not acquired:
+            await _lock_conn.close()
+            _lock_conn = None
+        return acquired
+    except Exception as exc:
+        # Never let lock acquisition stop the app from serving HTTP. Declining
+        # the scheduler is the safe failure: missing a reminder beats sending
+        # every farmer a duplicate, and another worker will hold the lock.
+        logger.error("Could not acquire scheduler lock: %s", exc)
+        if _lock_conn is not None:
+            try:
+                await _lock_conn.close()
+            except Exception:
+                pass
+            _lock_conn = None
+        return False
+
+
+async def release_scheduler_lock() -> None:
+    """Release the advisory lock at shutdown so another process can take over."""
+    global _lock_conn
+
+    if _lock_conn is None:
+        return
+    try:
+        from sqlalchemy import text
+
+        await _lock_conn.execute(
+            text("SELECT pg_advisory_unlock(:key)"), {"key": SCHEDULER_LOCK_KEY}
+        )
+        await _lock_conn.close()
+        logger.info("Scheduler lock released")
+    except Exception as exc:
+        logger.warning("Could not cleanly release scheduler lock: %s", exc)
+    finally:
+        _lock_conn = None
+
+
 def start_scheduler() -> AsyncIOScheduler:
     """
     Create, configure, and start the APScheduler instance.
-    Call this from FastAPI lifespan startup.
+    Call this from FastAPI lifespan startup, only after acquire_scheduler_lock()
+    has returned True.
     All times in Africa/Nairobi (EAT = UTC+3).
     """
     scheduler = AsyncIOScheduler(timezone="Africa/Nairobi")

@@ -19,10 +19,15 @@ from app.config import settings
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.is_development,       # Log SQL in development only
-    pool_size=10,
-    max_overflow=20,
+    # Sized from settings so the pool can be tuned to the provider's connection
+    # cap without a code change. See DB_POOL_SIZE in config.py for the maths.
+    pool_size=settings.DB_POOL_SIZE,
+    max_overflow=settings.DB_MAX_OVERFLOW,
     pool_pre_ping=True,                 # Verify connection health before use
-    pool_recycle=3600,                  # Recycle connections every hour
+    # Shorter than the default hour: managed Postgres (Supabase/PgBouncer) drops
+    # idle connections server-side, and recycling first avoids handing a dead
+    # connection to a request.
+    pool_recycle=settings.DB_POOL_RECYCLE_SECONDS,
 )
 
 # ── Session Factory ───────────────────────────────────────────────────────────

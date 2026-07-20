@@ -63,7 +63,12 @@ async def lifespan(app: FastAPI):
     a later deployment or rollback verifiable.
     """
     from app.services.diagnostics_service import run_startup_validation
-    from app.services.scheduler import start_scheduler, stop_scheduler
+    from app.services.scheduler import (
+        acquire_scheduler_lock,
+        release_scheduler_lock,
+        start_scheduler,
+        stop_scheduler,
+    )
 
     await run_startup_validation()
 
@@ -84,13 +89,23 @@ async def lifespan(app: FastAPI):
         # never let it stop the app from coming up.
         logger.warning("Could not record release: %s", exc)
 
-    scheduler = start_scheduler()
-    logger.info("Greena background scheduler started")
+    # The server runs multiple uvicorn workers and each executes this lifespan,
+    # so the scheduler is gated on a Postgres advisory lock — exactly one
+    # process across all workers (and all instances) runs the cron jobs.
+    # Without it every reminder SMS is sent once per worker.
+    scheduler = None
+    if await acquire_scheduler_lock():
+        scheduler = start_scheduler()
+        logger.info("Greena background scheduler started (holds scheduler lock)")
+    else:
+        logger.info("Scheduler lock held elsewhere — this worker serves HTTP only")
 
     yield  # App runs here
 
-    stop_scheduler(scheduler)
-    logger.info("Greena background scheduler stopped")
+    if scheduler is not None:
+        stop_scheduler(scheduler)
+        await release_scheduler_lock()
+        logger.info("Greena background scheduler stopped")
 
 
 # ── Application ───────────────────────────────────────────────────────────────

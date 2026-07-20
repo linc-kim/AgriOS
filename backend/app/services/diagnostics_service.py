@@ -71,16 +71,24 @@ async def check_schema(db: AsyncSession) -> tuple[bool, str]:
         return False, f"Could not inspect schema: {exc}"
 
 
-def check_environment() -> tuple[bool, str]:
+def environment_problems() -> tuple[list[str], list[str]]:
     """
-    Validate configuration for the target environment.
+    Inspect configuration for the target environment.
 
-    Development is permissive by design — the app ships with external
-    verification gated off so it runs with no SMTP/SMS credentials. Production
-    is not: a weak secret or a wildcard CORS origin is a genuine vulnerability,
-    so those are failures rather than warnings.
+    Returns (problems, warnings).
+
+      problems — genuine vulnerabilities. A weak or shared signing secret, or a
+                 CORS policy that lets any origin call the API with credentials,
+                 means this instance must not serve traffic.
+      warnings — degraded but serviceable. Missing error tracking is worth
+                 shouting about; it is not a reason to refuse to start, and
+                 treating it as one means a rotated DSN can take the fleet down.
+
+    Development is permissive by design: the app ships with external
+    verification gated off so it runs with no SMTP/SMS credentials.
     """
     problems: list[str] = []
+    warnings: list[str] = []
 
     if settings.is_production:
         if len(settings.SECRET_KEY) < 32:
@@ -100,14 +108,25 @@ def check_environment() -> tuple[bool, str]:
         for origin in settings.allowed_origins:
             if origin.startswith("http://") and "localhost" not in origin and "127.0.0.1" not in origin:
                 problems.append(f"ALLOWED_ORIGINS contains a plaintext origin: {origin}")
+
         if not settings.SENTRY_DSN:
-            problems.append("SENTRY_DSN is unset — errors will not be tracked")
+            warnings.append("SENTRY_DSN is unset — errors will not be tracked")
+
+    return problems, warnings
+
+
+def check_environment() -> tuple[bool, str]:
+    """Configuration check for diagnostics. Warnings do not fail the check."""
+    problems, warnings = environment_problems()
 
     if problems:
         return False, "; ".join(problems)
 
     scope = "production" if settings.is_production else settings.ENVIRONMENT
-    return True, f"Configuration valid for {scope}."
+    detail = f"Configuration valid for {scope}."
+    if warnings:
+        detail += " Warnings: " + "; ".join(warnings)
+    return True, detail
 
 
 def check_disk() -> tuple[bool, str]:
@@ -244,16 +263,21 @@ async def run_startup_validation() -> None:
     requests with a placeholder signing key. In development the same problems
     are logged and startup continues, so local work is never blocked.
     """
-    env_ok, env_detail = check_environment()
+    problems, warnings = environment_problems()
     disk_ok, disk_detail = check_disk()
 
-    if not env_ok:
-        message = f"Environment validation failed: {env_detail}"
+    # Warnings are logged loudly but never block startup — an instance with no
+    # error tracking still serves users correctly.
+    for warning in warnings:
+        logger.warning("Configuration warning: %s", warning)
+
+    if problems:
+        message = "Environment validation failed: " + "; ".join(problems)
         if settings.is_production:
             raise StartupValidationError(message)
         logger.warning("%s (continuing — not production)", message)
     else:
-        logger.info("Environment validation passed: %s", env_detail)
+        logger.info("Environment validation passed for %s.", settings.ENVIRONMENT)
 
     if not disk_ok:
         logger.warning("Disk check: %s", disk_detail)
