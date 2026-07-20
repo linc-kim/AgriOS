@@ -7,7 +7,7 @@ Sprint 9: PATCH /auth/me extended with sms_notifications_enabled.
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Cookie, Depends, Request, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 
 from app.config import settings
 from app.dependencies import CurrentUser, DBSession
@@ -43,20 +43,51 @@ REFRESH_COOKIE_NAME = "greena_refresh_token"
 
 def _set_refresh_cookie(response: Response, token: str, expiry: datetime) -> None:
     """
-    Sets the refresh token as a secure httpOnly cookie.
-    httpOnly: not accessible to JavaScript (XSS protection)
-    secure: HTTPS only in production
-    samesite: strict (CSRF protection)
+    Set the refresh token as an httpOnly cookie.
+
+    httpOnly: unreadable from JavaScript, so XSS cannot exfiltrate it.
+    secure:   HTTPS only. Forced on when SameSite=None, which browsers reject
+              without it.
+    samesite: from REFRESH_COOKIE_SAMESITE — "strict" when the frontend and API
+              share a domain, "none" when they do not. See config.py.
+    path:     scoped to /api/v1/auth, so it is not attached to ordinary API
+              traffic; only the auth endpoints ever receive it.
     """
+    samesite = settings.REFRESH_COOKIE_SAMESITE
     response.set_cookie(
         key=REFRESH_COOKIE_NAME,
         value=token,
         httponly=True,
-        secure=settings.is_production,
-        samesite="strict",
+        secure=settings.is_production or samesite == "none",
+        samesite=samesite,
         expires=expiry,
         path="/api/v1/auth",
     )
+
+
+def _assert_trusted_origin(request: Request) -> None:
+    """
+    Reject cookie-bearing requests from origins we do not serve.
+
+    With SameSite=None the browser attaches the refresh cookie to cross-site
+    requests, which is the point — but it also means any site can trigger the
+    refresh endpoint. CORS still stops an attacker *reading* the response, and
+    every mutating endpoint requires a Bearer token rather than this cookie, so
+    the practical impact is small; this closes the gap anyway, since checking a
+    header we already have costs nothing.
+
+    A missing Origin is allowed: non-browser callers (curl, mobile, uptime
+    checks) do not send one, and they are not subject to CSRF.
+    """
+    origin = request.headers.get("origin")
+    if origin and origin not in settings.allowed_origins:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "UNTRUSTED_ORIGIN",
+                "message": "This origin is not permitted to use this endpoint.",
+            },
+        )
 
 
 def _clear_refresh_cookie(response: Response) -> None:
@@ -266,10 +297,14 @@ async def verify_pin(
     ),
 )
 async def refresh_token(
+    request: Request,
     db: DBSession,
     response: Response,
     greena_refresh_token: str | None = Cookie(default=None, alias=REFRESH_COOKIE_NAME),
 ) -> SuccessResponse[RefreshOut]:
+    # The cookie is sent cross-site under SameSite=None, so verify the caller.
+    _assert_trusted_origin(request)
+
     if not greena_refresh_token:
         from app.exceptions import UnauthenticatedException
         raise UnauthenticatedException("No refresh token found.")
@@ -297,11 +332,13 @@ async def refresh_token(
     summary="Revoke current session",
 )
 async def logout(
+    request: Request,
     db: DBSession,
     current_user: CurrentUser,
     response: Response,
     greena_refresh_token: str | None = Cookie(default=None, alias=REFRESH_COOKIE_NAME),
 ) -> SuccessResponse[dict]:
+    _assert_trusted_origin(request)
     await auth_service.logout(db, greena_refresh_token)
     _clear_refresh_cookie(response)
     return SuccessResponse(data={"message": "Logged out successfully"})

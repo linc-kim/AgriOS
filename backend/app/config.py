@@ -80,6 +80,24 @@ class Settings(BaseSettings):
         # Already correct (postgresql+asyncpg://) or custom scheme — pass through
         return v
 
+    # ── Cookies ──────────────────────────────────────────────────────────
+    # SameSite policy for the refresh cookie.
+    #
+    #   strict — the cookie is sent only on same-site requests. Correct and
+    #            safest when the frontend and API share a registrable domain
+    #            (app.greena.app + api.greena.app).
+    #   none   — required when they do NOT. *.vercel.app and *.up.railway.app
+    #            are each on the Public Suffix List, so a Vercel frontend
+    #            calling a Railway API is cross-site and a strict cookie is
+    #            never sent: refresh fails and every user is logged out when
+    #            their access token expires.
+    #
+    # "none" forces Secure (browsers reject SameSite=None without it) and gives
+    # up the browser's built-in CSRF protection for this cookie, so the refresh
+    # endpoint additionally checks the Origin header against ALLOWED_ORIGINS.
+    # Set back to "strict" once both sides sit on one domain.
+    REFRESH_COOKIE_SAMESITE: Literal["strict", "lax", "none"] = "strict"
+
     # ── Authentication ───────────────────────────────────────────────────
     JWT_SECRET: str
     JWT_EXPIRE_MINUTES: int = 15
