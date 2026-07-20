@@ -17,6 +17,7 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     generate_otp_code,
+    generate_url_token,
     get_otp_expiry,
     hash_password,
     hash_secret,
@@ -34,7 +35,7 @@ from app.exceptions import (
     RateLimitedException,
     UnauthenticatedException,
 )
-from app.models.auth import OTPRequest, Role, Session, User, UserRole
+from app.models.auth import EmailToken, OTPRequest, Role, Session, User, UserRole
 from app.services.audit_service import log_action
 from app.services.sms_service import send_sms
 
@@ -461,6 +462,20 @@ class AuthService:
             ip_address=ip,
             user_agent=user_agent,
         )
+
+        # Welcome, plus a verification link when verification is required.
+        # Both are best-effort: email_service never raises, so an unreachable
+        # mail server cannot fail an account creation that already succeeded.
+        from app.services import email_service
+
+        if settings.REQUIRE_EMAIL_VERIFICATION:
+            raw = await self.issue_email_token(db, user, "verify_email", ip=ip)
+            await db.flush()
+            await email_service.send_verification_email(
+                user.email, user.full_name or "", raw
+            )
+        await email_service.send_welcome_email(user.email, user.full_name or "")
+
         return user, access, raw_refresh, expiry
 
     async def login_email(
@@ -524,6 +539,187 @@ class AuthService:
             user_agent=user_agent,
         )
         return user, access, raw_refresh, expiry
+
+    # ── Email tokens ──────────────────────────────────────────────────────
+    #
+    # The raw token is emailed; only its SHA-256 is stored, so a database leak
+    # does not yield usable links. Tokens are single-use and expiring.
+
+    async def issue_email_token(
+        self,
+        db: AsyncSession,
+        user: User,
+        token_type: str,
+        *,
+        ip: str | None = None,
+        new_email: str | None = None,
+    ) -> str:
+        """
+        Mint a single-use token and return the RAW value (emailed, never stored).
+
+        Any outstanding token of the same type is consumed first: requesting a
+        new password-reset link must invalidate the previous one, or an old
+        email remains a live key to the account.
+        """
+        now = datetime.now(timezone.utc)
+
+        outstanding = await db.execute(
+            select(EmailToken).where(
+                EmailToken.user_id == user.id,
+                EmailToken.token_type == token_type,
+                EmailToken.consumed_at.is_(None),
+                EmailToken.deleted_at.is_(None),
+            )
+        )
+        for token in outstanding.scalars().all():
+            token.consumed_at = now
+
+        hours = (
+            settings.PASSWORD_RESET_TOKEN_HOURS
+            if token_type == "password_reset"
+            else settings.EMAIL_VERIFY_TOKEN_HOURS
+        )
+        raw = generate_url_token()
+        db.add(
+            EmailToken(
+                user_id=user.id,
+                token_type=token_type,
+                token_lookup=sha256_hex(raw),
+                new_email=new_email,
+                expires_at=now + timedelta(hours=hours),
+                requested_ip=ip,
+            )
+        )
+        await db.flush()
+        return raw
+
+    async def _consume_email_token(
+        self, db: AsyncSession, raw_token: str, token_type: str
+    ) -> User:
+        """Redeem a token, or raise. Marks it consumed so it cannot be reused."""
+        result = await db.execute(
+            select(EmailToken)
+            .where(
+                EmailToken.token_lookup == sha256_hex(raw_token),
+                EmailToken.token_type == token_type,
+                EmailToken.deleted_at.is_(None),
+            )
+            .options(selectinload(EmailToken.user))
+        )
+        token = result.scalar_one_or_none()
+
+        # One message for every failure mode — an unknown token, an expired one
+        # and a spent one are indistinguishable to the caller, so a guesser
+        # learns nothing from the response.
+        if token is None or not token.is_valid:
+            raise UnauthenticatedException("This link is invalid or has expired.")
+
+        user = token.user
+        if user is None or user.deleted_at is not None or not user.is_active:
+            raise UnauthenticatedException("This link is invalid or has expired.")
+
+        token.consumed_at = datetime.now(timezone.utc)
+        return user
+
+    async def send_verification_email(
+        self, db: AsyncSession, user: User, *, ip: str | None = None
+    ) -> bool:
+        """Issue a verification token and email it. No-op if already verified."""
+        from app.services import email_service
+
+        if user.email_verified or not user.email:
+            return False
+
+        raw = await self.issue_email_token(db, user, "verify_email", ip=ip)
+        return await email_service.send_verification_email(
+            user.email, user.full_name or "", raw
+        )
+
+    async def verify_email(
+        self, db: AsyncSession, raw_token: str, *, ip: str | None = None
+    ) -> User:
+        """Confirm an address from an emailed link."""
+        user = await self._consume_email_token(db, raw_token, "verify_email")
+
+        if not user.email_verified:
+            user.email_verified = True
+            user.email_verified_at = datetime.now(timezone.utc)
+
+        await log_action(
+            db,
+            action="auth.email_verified",
+            resource_type="user",
+            user_id=user.id,
+            ip_address=ip,
+        )
+        await db.commit()
+        return user
+
+    async def request_password_reset(
+        self, db: AsyncSession, email: str, *, ip: str | None = None
+    ) -> None:
+        """
+        Email a reset link, if the address belongs to an account.
+
+        Always returns without indicating whether the address exists — the
+        endpoint's response must not turn password reset into an oracle for
+        which emails are registered.
+        """
+        from app.services import email_service
+
+        normalised = email.strip().lower()
+        result = await db.execute(
+            select(User).where(
+                func.lower(User.email) == normalised, User.deleted_at.is_(None)
+            )
+        )
+        user = result.scalar_one_or_none()
+
+        if user is None or not user.is_active:
+            logger.info("Password reset requested for unknown address")
+            return
+
+        raw = await self.issue_email_token(db, user, "password_reset", ip=ip)
+        await log_action(
+            db,
+            action="auth.password_reset_requested",
+            resource_type="user",
+            user_id=user.id,
+            ip_address=ip,
+        )
+        await db.commit()
+        await email_service.send_password_reset_email(
+            user.email, user.full_name or "", raw
+        )
+
+    async def reset_password(
+        self, db: AsyncSession, raw_token: str, new_password: str, *, ip: str | None = None
+    ) -> User:
+        """
+        Set a new password from a reset link, then revoke every session.
+
+        Revocation is the point: a reset is what someone does when they believe
+        the account is compromised, so any session an attacker still holds must
+        die with it.
+        """
+        validate_password_strength(new_password)
+        user = await self._consume_email_token(db, raw_token, "password_reset")
+
+        user.password_hash = hash_password(new_password)
+        user.password_changed_at = datetime.now(timezone.utc)
+
+        revoked = await self.logout_all(db, user.id)
+
+        await log_action(
+            db,
+            action="auth.password_reset",
+            resource_type="user",
+            user_id=user.id,
+            ip_address=ip,
+            new_value={"sessions_revoked": revoked},
+        )
+        await db.commit()
+        return user
 
 
 auth_service = AuthService()

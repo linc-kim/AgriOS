@@ -25,7 +25,7 @@ export function initialiseSentry(): void {
   Sentry.init({
     dsn: DSN,
     environment: ENVIRONMENT ?? "production",
-    release: `agrios-frontend@1.0.0`,
+    release: `greena-frontend@1.0.0`,
 
     // Performance: capture 20% of transactions in production
     tracesSampleRate: 0.2,

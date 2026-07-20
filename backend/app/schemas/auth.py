@@ -141,6 +141,41 @@ class EmailSignupIn(AGRIOSSchema):
         return v or None
 
 
+class EmailVerifyIn(AGRIOSSchema):
+    """Request body for POST /auth/verify-email."""
+
+    token: str
+
+
+class ResendVerificationIn(AGRIOSSchema):
+    """Request body for POST /auth/resend-verification."""
+
+    email: EmailStr
+
+    @field_validator("email")
+    @classmethod
+    def normalise_email(cls, v: str) -> str:
+        return v.strip().lower()
+
+
+class ForgotPasswordIn(AGRIOSSchema):
+    """Request body for POST /auth/forgot-password."""
+
+    email: EmailStr
+
+    @field_validator("email")
+    @classmethod
+    def normalise_email(cls, v: str) -> str:
+        return v.strip().lower()
+
+
+class ResetPasswordIn(AGRIOSSchema):
+    """Request body for POST /auth/reset-password."""
+
+    token: str
+    new_password: str
+
+
 class EmailLoginIn(AGRIOSSchema):
     """Request body for POST /auth/login (email + password)."""
 

@@ -112,9 +112,28 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
 
-    # ── Email provider (Zoho first; abstracted, dormant in dev mode) ──────
-    EMAIL_PROVIDER: Literal["zoho", "resend", "ses", "sendgrid", "mailgun", "smtp", "console"] = "console"
+    # ── Email provider ────────────────────────────────────────────────────
+    # "console" logs the message instead of sending — the development default,
+    # so signup and password reset work with no credentials configured.
+    # "smtp" sends over SMTP using the SMTP_* settings below (Gmail included).
+    EMAIL_PROVIDER: Literal[
+        "zoho", "resend", "ses", "sendgrid", "mailgun", "smtp", "console"
+    ] = "console"
     EMAIL_FROM: str = "Greena <no-reply@greena.app>"
+
+    # Generic SMTP. Defaults target Gmail, which requires an App Password —
+    # a Google account password will not authenticate, and 2FA must be on to
+    # create one. SMTP_USER is the full address the App Password belongs to.
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    # STARTTLS on 587 (Gmail's recommendation). Set False only for port 465,
+    # which is implicit TLS instead.
+    SMTP_STARTTLS: bool = True
+    SMTP_TIMEOUT_SECONDS: int = 20
+
+    # Legacy Zoho fields, retained so an existing configuration keeps working.
     ZOHO_SMTP_HOST: str = "smtp.zoho.com"
     ZOHO_SMTP_PORT: int = 587
     ZOHO_SMTP_USER: str = ""

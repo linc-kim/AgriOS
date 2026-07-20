@@ -1,6 +1,6 @@
 /**
  * Greena — Admin Layout
- * Desktop-first layout for the Admin Dashboard (admin.agrios.app / /admin/*).
+ * Desktop-first layout for the Admin Dashboard (admin.greena.app / /admin/*).
  * Left sidebar navigation + main content area.
  * Access: super_admin only.
  */

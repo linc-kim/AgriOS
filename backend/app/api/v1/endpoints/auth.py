@@ -14,12 +14,16 @@ from app.dependencies import CurrentUser, DBSession
 from app.schemas.auth import (
     EmailLoginIn,
     EmailSignupIn,
+    EmailVerifyIn,
+    ForgotPasswordIn,
     OTPRequestIn,
     OTPRequestOut,
     OTPVerifyIn,
     PINSetIn,
     PINVerifyIn,
     RefreshOut,
+    ResendVerificationIn,
+    ResetPasswordIn,
     TokenOut,
     UserOut,
     UserUpdateIn,
@@ -29,7 +33,12 @@ from app.services.auth_service import auth_service
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-REFRESH_COOKIE_NAME = "agrios_refresh_token"
+# Renamed from "agrios_refresh_token" during the Greena branding pass. The
+# cookie name is user-visible, and changing it makes every previously issued
+# cookie unreadable — every session dies. Done before launch, while the user
+# table is empty, because it is free now and costs a forced logout of the entire
+# user base at any later date.
+REFRESH_COOKIE_NAME = "greena_refresh_token"
 
 
 def _set_refresh_cookie(response: Response, token: str, expiry: datetime) -> None:
@@ -259,14 +268,14 @@ async def verify_pin(
 async def refresh_token(
     db: DBSession,
     response: Response,
-    agrios_refresh_token: str | None = Cookie(default=None, alias=REFRESH_COOKIE_NAME),
+    greena_refresh_token: str | None = Cookie(default=None, alias=REFRESH_COOKIE_NAME),
 ) -> SuccessResponse[RefreshOut]:
-    if not agrios_refresh_token:
+    if not greena_refresh_token:
         from app.exceptions import UnauthenticatedException
         raise UnauthenticatedException("No refresh token found.")
 
     new_access, new_raw_refresh, new_expiry = await auth_service.refresh_token(
-        db, agrios_refresh_token
+        db, greena_refresh_token
     )
 
     _set_refresh_cookie(response, new_raw_refresh, new_expiry)
@@ -291,9 +300,9 @@ async def logout(
     db: DBSession,
     current_user: CurrentUser,
     response: Response,
-    agrios_refresh_token: str | None = Cookie(default=None, alias=REFRESH_COOKIE_NAME),
+    greena_refresh_token: str | None = Cookie(default=None, alias=REFRESH_COOKIE_NAME),
 ) -> SuccessResponse[dict]:
-    await auth_service.logout(db, agrios_refresh_token)
+    await auth_service.logout(db, greena_refresh_token)
     _clear_refresh_cookie(response)
     return SuccessResponse(data={"message": "Logged out successfully"})
 
@@ -351,3 +360,105 @@ async def update_me(
         current_user.metadata_ = meta
     await db.flush()
     return SuccessResponse(data=UserOut.model_validate(current_user))
+
+
+# ── Email verification ────────────────────────────────────────────────────────
+
+@router.post(
+    "/verify-email",
+    response_model=SuccessResponse[dict],
+    status_code=status.HTTP_200_OK,
+    summary="Confirm an email address from an emailed link",
+)
+async def verify_email(
+    body: EmailVerifyIn,
+    request: Request,
+    db: DBSession,
+) -> SuccessResponse[dict]:
+    """Redeem a verification token. Single-use; expires per EMAIL_VERIFY_TOKEN_HOURS."""
+    user = await auth_service.verify_email(db, body.token, ip=_client_ip(request))
+    return SuccessResponse(data={"email_verified": True, "email": user.email})
+
+
+@router.post(
+    "/resend-verification",
+    response_model=SuccessResponse[dict],
+    status_code=status.HTTP_200_OK,
+    summary="Send a fresh verification link",
+)
+async def resend_verification(
+    body: ResendVerificationIn,
+    request: Request,
+    db: DBSession,
+) -> SuccessResponse[dict]:
+    """
+    Always reports success.
+
+    Confirming whether an address is registered would make this endpoint an
+    account-enumeration oracle, so the response is identical either way.
+    """
+    from sqlalchemy import func, select
+
+    from app.models.auth import User
+
+    result = await db.execute(
+        select(User).where(
+            func.lower(User.email) == body.email, User.deleted_at.is_(None)
+        )
+    )
+    user = result.scalar_one_or_none()
+    if user is not None and not user.email_verified:
+        await auth_service.send_verification_email(db, user, ip=_client_ip(request))
+        await db.commit()
+
+    return SuccessResponse(
+        data={"sent": True, "detail": "If that address has an unverified account, a link is on its way."}
+    )
+
+
+# ── Password reset ────────────────────────────────────────────────────────────
+
+@router.post(
+    "/forgot-password",
+    response_model=SuccessResponse[dict],
+    status_code=status.HTTP_200_OK,
+    summary="Request a password reset link",
+)
+async def forgot_password(
+    body: ForgotPasswordIn,
+    request: Request,
+    db: DBSession,
+) -> SuccessResponse[dict]:
+    """Always reports success — see resend_verification for why."""
+    await auth_service.request_password_reset(db, body.email, ip=_client_ip(request))
+    return SuccessResponse(
+        data={"sent": True, "detail": "If that address has an account, a reset link is on its way."}
+    )
+
+
+@router.post(
+    "/reset-password",
+    response_model=SuccessResponse[dict],
+    status_code=status.HTTP_200_OK,
+    summary="Set a new password from a reset link",
+)
+async def reset_password(
+    body: ResetPasswordIn,
+    request: Request,
+    response: Response,
+    db: DBSession,
+) -> SuccessResponse[dict]:
+    """
+    Consume the token and set the password.
+
+    Every existing session is revoked — a reset is what someone does when they
+    think the account is compromised, so an attacker's session must not survive
+    it. The caller's refresh cookie is cleared for the same reason.
+    """
+    user = await auth_service.reset_password(
+        db, body.token, body.new_password, ip=_client_ip(request)
+    )
+    _clear_refresh_cookie(response)
+    return SuccessResponse(
+        data={"password_reset": True, "email": user.email, "sessions_revoked": True}
+    )

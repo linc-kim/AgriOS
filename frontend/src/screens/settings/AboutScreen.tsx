@@ -50,13 +50,13 @@ export default function AboutScreen() {
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
               {t("settings.about.support_header")}
             </p>
-            <p className="text-sm text-gray-900">support@agrios.app</p>
+            <p className="text-sm text-gray-900">support@greena.app</p>
           </div>
           <div className="py-3.5">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
               {t("settings.about.website_header")}
             </p>
-            <p className="text-sm text-gray-900">agrios.app</p>
+            <p className="text-sm text-gray-900">greena.app</p>
           </div>
         </div>
 
