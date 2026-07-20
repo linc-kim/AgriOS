@@ -21,6 +21,7 @@ Usage (in main.py lifespan):
     stop_scheduler(scheduler)
 """
 
+import asyncio
 import logging
 from datetime import date, timedelta
 
@@ -359,6 +360,29 @@ async def acquire_scheduler_lock() -> bool:
                 pass
             _lock_conn = None
         return False
+
+
+async def run_scheduler_when_leader(poll_seconds: int = 60):
+    """
+    Keep trying for the lock, and run the scheduler once this process wins it.
+
+    Acquiring once at startup is not enough. During a rolling deploy the
+    outgoing container still holds the lock while the incoming one boots, so
+    every new worker loses the race — and once the old container exits the lock
+    is free with nobody left to take it. The scheduler would then stay dead
+    until the next restart, silently.
+
+    Retrying turns that into a handover: the new leader picks the lock up on its
+    next poll, usually within a minute of the old one exiting.
+
+    Returns the running scheduler (for shutdown), or None if cancelled first.
+    """
+    while True:
+        if await acquire_scheduler_lock():
+            scheduler = start_scheduler()
+            logger.info("Scheduler started — this worker holds the scheduler lock")
+            return scheduler
+        await asyncio.sleep(poll_seconds)
 
 
 async def release_scheduler_lock() -> None:

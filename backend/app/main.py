@@ -6,6 +6,7 @@ Sprint 7: APScheduler lifespan added for background jobs.
 Sprint 10: SecurityHeadersMiddleware added for production hardening.
 """
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -64,9 +65,8 @@ async def lifespan(app: FastAPI):
     """
     from app.services.diagnostics_service import run_startup_validation
     from app.services.scheduler import (
-        acquire_scheduler_lock,
         release_scheduler_lock,
-        start_scheduler,
+        run_scheduler_when_leader,
         stop_scheduler,
     )
 
@@ -93,14 +93,22 @@ async def lifespan(app: FastAPI):
     # so the scheduler is gated on a Postgres advisory lock — exactly one
     # process across all workers (and all instances) runs the cron jobs.
     # Without it every reminder SMS is sent once per worker.
-    scheduler = None
-    if await acquire_scheduler_lock():
-        scheduler = start_scheduler()
-        logger.info("Greena background scheduler started (holds scheduler lock)")
-    else:
-        logger.info("Scheduler lock held elsewhere — this worker serves HTTP only")
+    #
+    # Run as a background task rather than awaited here: during a rolling deploy
+    # the outgoing container still holds the lock while this one boots, so the
+    # first attempt usually loses. The supervisor keeps polling and picks the
+    # lock up when the old leader exits — awaiting it inline would instead block
+    # startup until this worker won, and the health check would time out.
+    leader_task = asyncio.create_task(run_scheduler_when_leader())
 
     yield  # App runs here
+
+    leader_task.cancel()
+    scheduler = None
+    try:
+        scheduler = await leader_task
+    except (asyncio.CancelledError, Exception):
+        pass
 
     if scheduler is not None:
         stop_scheduler(scheduler)
