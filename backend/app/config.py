@@ -41,6 +41,22 @@ class Settings(BaseSettings):
     DB_MAX_OVERFLOW: int = 10
     DB_POOL_RECYCLE_SECONDS: int = 1800
 
+    # TLS for the database connection.
+    #
+    # Managed Postgres is reached over the public internet, and providers
+    # commonly *accept* plaintext rather than requiring TLS — Supabase's pooler
+    # does. Without this the password and every row in transit are unencrypted,
+    # so TLS is forced on for any non-local host.
+    #
+    # Supabase presents a self-signed chain, so certificate verification needs
+    # their CA bundle: Project Settings → Database → SSL Configuration →
+    # download, then point DATABASE_SSL_CA at the file to upgrade from
+    # "encrypted" to "encrypted and authenticated". Without it the connection is
+    # still encrypted against passive eavesdropping, but not authenticated
+    # against an active man-in-the-middle.
+    DATABASE_SSL: bool = True
+    DATABASE_SSL_CA: str = ""
+
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def fix_database_url(cls, v: str) -> str:

@@ -58,6 +58,43 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 _default_test_url = settings.DATABASE_URL.rsplit("/agrios", 1)[0] + "/agrios_test"
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", _default_test_url)
 
+
+def _assert_disposable(url: str) -> None:
+    """
+    Refuse to run against anything that is not obviously a test database.
+
+    setup_test_database drops and recreates the public schema. The default URL
+    is derived by rewriting "/agrios" to "/agrios_test", which silently yields
+    the *original* database when the name does not match — a Supabase URL ends
+    in "/postgres", so the rewrite collapses and the suite would point at the
+    live database it was handed. That failure mode ends with the production
+    schema dropped, so it is checked rather than trusted.
+    """
+    from sqlalchemy.engine.url import make_url
+
+    name = (make_url(url).database or "").lower()
+
+    # A database name containing "/" means the rewrite above matched nothing and
+    # simply appended — the URL is malformed and points at the original host and
+    # database, not a test one.
+    if "/" in name:
+        raise RuntimeError(
+            f"Refusing to run tests: derived test database {name!r} is malformed. "
+            "The default is built by rewriting '/agrios' in DATABASE_URL, which "
+            "matched nothing here. Set TEST_DATABASE_URL explicitly."
+        )
+
+    if not (name.endswith("_test") or name.startswith("test")):
+        raise RuntimeError(
+            f"Refusing to run tests against database {name!r}: the suite drops "
+            "and recreates the public schema, so it only runs against a database "
+            "whose name marks it as disposable (…_test). Set TEST_DATABASE_URL "
+            "to a dedicated test database."
+        )
+
+
+_assert_disposable(TEST_DATABASE_URL)
+
 # NullPool: every AsyncSession opens a fresh connection bound to the currently
 # running event loop. Without it, the session-scoped engine reuses one pooled
 # asyncpg connection across pytest-asyncio's per-test loops, which raises
