@@ -17,5 +17,5 @@ export async function completeAuthAndRoute(accessToken: string): Promise<string>
   store.setAuth(accessToken, user);
 
   const organizations = await organizationsAPI.list();
-  return organizations.length === 0 ? "/onboarding" : "/";
+  return organizations.length === 0 ? "/onboarding" : "/dashboard";
 }

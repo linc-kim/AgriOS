@@ -42,7 +42,7 @@ export default function OTPScreen() {
       if (data.is_new_user || !data.has_pin) {
         navigate("/onboarding/name");
       } else {
-        navigate("/");
+        navigate("/dashboard");
       }
     },
     onError: (err: any) => {

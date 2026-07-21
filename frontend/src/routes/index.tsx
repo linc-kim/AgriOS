@@ -19,6 +19,18 @@ import { authAPI } from "@/api/auth";
 import { Spinner } from "@/components/ui/Spinner";
 import { MODULES } from "@/shell/registry";
 
+// Public marketing site (Module 12). Lazy so the app bundle is not paid for by
+// a visitor who only reads the homepage, and vice versa.
+const MarketingLayout = lazy(() => import("@/layouts/MarketingLayout"));
+const HomeScreen = lazy(() => import("@/screens/public/HomeScreen"));
+const FeaturesScreen = lazy(() => import("@/screens/public/FeaturesScreen"));
+const SolutionsScreen = lazy(() => import("@/screens/public/SolutionsScreen"));
+const AriaScreen = lazy(() => import("@/screens/public/AriaScreen"));
+const PricingScreen = lazy(() => import("@/screens/public/PricingScreen"));
+const LearningScreen = lazy(() => import("@/screens/public/LearningScreen"));
+const AboutScreen = lazy(() => import("@/screens/public/AboutScreen"));
+const ContactScreen = lazy(() => import("@/screens/public/ContactScreen"));
+
 // Auth
 const EmailLoginScreen = lazy(() => import("@/screens/auth/EmailLoginScreen"));
 const SignUpScreen = lazy(() => import("@/screens/auth/SignUpScreen"));
@@ -94,6 +106,23 @@ const moduleRoutes = MODULES.filter(
 }));
 
 const router = createBrowserRouter([
+  // Public marketing site. "/" is the homepage for everyone — the app's
+  // dashboard moved to /dashboard so a visitor is not met with a login wall.
+  {
+    element: <MarketingLayout />,
+    children: [
+      { path: "/", element: <HomeScreen /> },
+      { path: "/features", element: <FeaturesScreen /> },
+      { path: "/solutions", element: <SolutionsScreen /> },
+      // /aria-ai, not /aria — /ai is the in-app assistant module.
+      { path: "/aria-ai", element: <AriaScreen /> },
+      { path: "/pricing", element: <PricingScreen /> },
+      { path: "/learning", element: <LearningScreen /> },
+      { path: "/about", element: <AboutScreen /> },
+      { path: "/contact", element: <ContactScreen /> },
+    ],
+  },
+
   // Public auth
   {
     element: <AuthLayout />,
@@ -123,7 +152,7 @@ const router = createBrowserRouter([
       {
         element: <AppShell />,
         children: [
-          { path: "/", element: <DashboardScreen /> },
+          { path: "/dashboard", element: <DashboardScreen /> },
           { path: "/livestock", element: <LivestockScreen /> },
           { path: "/livestock/:flockId", element: <FlockDetailScreen /> },
           { path: "/feed", element: <FeedScreen /> },

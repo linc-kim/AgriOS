@@ -39,7 +39,7 @@ export interface ModuleDef {
 }
 
 export const MODULES: ModuleDef[] = [
-  { id: "dashboard", label: "Dashboard", path: "/", icon: LayoutDashboard, section: "main", ready: true, description: "Your farm at a glance." },
+  { id: "dashboard", label: "Dashboard", path: "/dashboard", icon: LayoutDashboard, section: "main", ready: true, description: "Your farm at a glance." },
   { id: "livestock", label: "Livestock", path: "/livestock", icon: Bird, section: "main", ready: true, description: "Track flocks, mortality, weights and vaccinations." },
   { id: "crops", label: "Crops", path: "/crops", icon: Sprout, section: "main", description: "Plan plantings, monitor growth and harvests." },
   { id: "feed", label: "Feed", path: "/feed", icon: Wheat, section: "main", ready: true, description: "Feed stock, purchases, consumption and cost." },

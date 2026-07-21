@@ -41,7 +41,7 @@ export default function FarmSetupScreen() {
     mutationFn: (input: FarmCreateInput) => createFarm(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.farms() });
-      navigate("/", { replace: true });
+      navigate("/dashboard", { replace: true });
     },
   });
 

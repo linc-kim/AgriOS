@@ -106,7 +106,7 @@ export default function OnboardingScreen() {
       });
       localStorage.removeItem(STORAGE_KEY);
     },
-    onSuccess: () => navigate("/", { replace: true }),
+    onSuccess: () => navigate("/dashboard", { replace: true }),
     onError: () => setError("We couldn't finish setup. Please try again."),
   });
 

@@ -23,7 +23,7 @@ export default function PINLoginScreen() {
       useAuthStore.getState().setAccessToken(data.access_token);
       const user = await authAPI.getMe();
       setAuth(data.access_token, user);
-      navigate("/");
+      navigate("/dashboard");
     },
     onError: () => {
       setError("Incorrect PIN. Try again.");

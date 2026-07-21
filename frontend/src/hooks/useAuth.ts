@@ -42,7 +42,7 @@ export function useAuth() {
       if (data.is_new_user || !data.has_pin) {
         navigate("/onboarding/name");
       } else {
-        navigate("/");
+        navigate("/dashboard");
       }
     },
   });
@@ -62,7 +62,7 @@ export function useAuth() {
       useAuthStore.getState().setAccessToken(data.access_token);
       const user = await authAPI.getMe();
       setAuth(data.access_token, user);
-      navigate("/");
+      navigate("/dashboard");
     },
   });
 
