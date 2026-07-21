@@ -7,9 +7,11 @@
  */
 import { useState } from "react";
 import {
-  ArrowRight, Sparkles, MessageSquare, Camera, Stethoscope, GraduationCap,
+  ArrowRight, MessageSquare, Camera, Stethoscope, GraduationCap,
   TrendingUp, ClipboardList, Languages, Shield, Check,
 } from "lucide-react";
+
+import { AriaMark } from "@/components/brand/AriaMark";
 
 import { LineWaves, GlowField } from "@/components/marketing/LineWaves";
 import {
@@ -58,7 +60,7 @@ export default function AriaScreen() {
           <div className="mx-auto max-w-3xl text-center">
             <Reveal>
               <Pill>
-                <Sparkles className="h-3.5 w-3.5" />
+                <AriaMark size={15} title="ARIA" />
                 Included on every plan
               </Pill>
             </Reveal>

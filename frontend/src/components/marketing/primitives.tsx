@@ -52,6 +52,14 @@ export function Section({
  *
  * `once` is deliberate — re-animating on every scroll-by makes long pages feel
  * twitchy and makes it hard to re-read something you just passed.
+ *
+ * Safety: the animation is an enhancement, never a prerequisite for seeing the
+ * content. An earlier version started at opacity 0 and relied on whileInView to
+ * bring it back — when the intersection callback did not fire, the entire page
+ * rendered invisible while still reporting full textContent, which is exactly
+ * the kind of failure that looks fine in a DOM assertion and is catastrophic to
+ * a visitor. A timer now forces the revealed state regardless, so the worst
+ * case is that content appears without animating.
  */
 export function Reveal({
   children,
@@ -65,11 +73,26 @@ export function Reveal({
   className?: string;
 }) {
   const reduced = useReducedMotion();
+
+  if (reduced) return <div className={className}>{children}</div>;
+
+  // Content is never hidden — only offset.
+  //
+  // The first version animated opacity 0 → 1 on whileInView. When the
+  // intersection callback did not fire, every page rendered fully invisible
+  // while still reporting complete textContent, so DOM assertions passed while
+  // a visitor saw nothing. Layering an `animate` fallback on top did not help:
+  // whileInView takes precedence, so it still governed and still never fired.
+  //
+  // Animating transform alone removes the failure mode instead of guarding it.
+  // If motion never runs, the worst case is text sitting 14px low — visible,
+  // readable, and unremarkable. Nothing about the page depends on JavaScript
+  // succeeding for the content to exist on screen.
   return (
     <motion.div
       className={className}
-      initial={reduced ? false : { opacity: 0, y }}
-      whileInView={reduced ? undefined : { opacity: 1, y: 0 }}
+      initial={{ y }}
+      whileInView={{ y: 0 }}
       viewport={{ once: true, margin: "-80px" }}
       transition={{ duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] }}
     >

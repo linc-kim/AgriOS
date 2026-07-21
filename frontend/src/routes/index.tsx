@@ -30,6 +30,7 @@ const PricingScreen = lazy(() => import("@/screens/public/PricingScreen"));
 const LearningScreen = lazy(() => import("@/screens/public/LearningScreen"));
 const AboutScreen = lazy(() => import("@/screens/public/AboutScreen"));
 const ContactScreen = lazy(() => import("@/screens/public/ContactScreen"));
+const BrandAriaScreen = lazy(() => import("@/screens/public/BrandAriaScreen"));
 
 // Auth
 const EmailLoginScreen = lazy(() => import("@/screens/auth/EmailLoginScreen"));
@@ -120,6 +121,9 @@ const router = createBrowserRouter([
       { path: "/learning", element: <LearningScreen /> },
       { path: "/about", element: <AboutScreen /> },
       { path: "/contact", element: <ContactScreen /> },
+      // Living brand documentation — rendered from the same component the
+      // product uses, so the spec cannot drift from the real mark.
+      { path: "/brand/aria", element: <BrandAriaScreen /> },
     ],
   },
 

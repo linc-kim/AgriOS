@@ -6,7 +6,8 @@
  */
 import { useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Sparkles, Send, TrendingUp, Activity, ShieldAlert, Bot, User as UserIcon } from "lucide-react";
+import { Sparkles, Send, TrendingUp, Activity, ShieldAlert, User as UserIcon } from "lucide-react";
+import { AriaMark } from "@/components/brand/AriaMark";
 
 import { getAIDashboard, askAI } from "@/api/aiPlatform";
 import { useWorkspace } from "@/shell/useWorkspace";
@@ -66,7 +67,7 @@ export default function AIScreen() {
   return (
     <div className="space-y-6">
       <header className="flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-600/15 dark:text-brand-300"><Sparkles className="h-5 w-5" /></span>
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 dark:bg-brand-600/15"><AriaMark size={22} title="ARIA" /></span>
         <div>
           <h1 className="text-2xl font-semibold tracking-[-0.02em] text-gray-900 dark:text-white">ARIA</h1>
           <p className="text-[15px] text-gray-500 dark:text-gray-400">Predictions, forecasts and an assistant grounded in your farm data.</p>
@@ -183,7 +184,7 @@ function AssistantTab({ farmId }: { farmId: string }) {
         {messages.map((m, i) => (
           <div key={i} className={`flex gap-3 ${m.role === "user" ? "flex-row-reverse" : ""}`}>
             <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${m.role === "user" ? "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300" : "bg-brand-50 text-brand-600 dark:bg-brand-600/15 dark:text-brand-300"}`}>
-              {m.role === "user" ? <UserIcon className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+              {m.role === "user" ? <UserIcon className="h-4 w-4" /> : <AriaMark size={18} title="ARIA" />}
             </span>
             <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${m.role === "user" ? "bg-brand-500 text-white" : "bg-gray-50 text-gray-800 dark:bg-white/[0.04] dark:text-gray-200"}`}>
               <p className="whitespace-pre-wrap leading-relaxed">{m.text}</p>
@@ -197,7 +198,7 @@ function AssistantTab({ farmId }: { farmId: string }) {
           </div>
         ))}
         {ask.isPending && (
-          <div className="flex gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-600/15 dark:text-brand-300"><Bot className="h-4 w-4" /></span>
+          <div className="flex gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 dark:bg-brand-600/15"><AriaMark size={18} state="thinking" animated title="ARIA is thinking" /></span>
             <div className="rounded-2xl bg-gray-50 px-4 py-2.5 text-sm text-gray-400 dark:bg-white/[0.04]">ARIA is thinking…</div></div>
         )}
         <div ref={endRef} />

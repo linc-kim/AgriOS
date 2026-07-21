@@ -9,8 +9,10 @@
  */
 import {
   ArrowRight, Bird, Wheat, HeartPulse, Wallet, Package, Zap, FileText,
-  Sparkles, Bell, BarChart3, Check,
+  Bell, BarChart3, Check,
 } from "lucide-react";
+
+import { AriaMark } from "@/components/brand/AriaMark";
 
 import { LineWaves, GlowField } from "@/components/marketing/LineWaves";
 import {
@@ -52,7 +54,7 @@ export default function HomeScreen() {
           <div className="mx-auto max-w-3xl text-center">
             <Reveal>
               <Pill>
-                <Sparkles className="h-3.5 w-3.5" />
+                <AriaMark size={15} title="ARIA" />
                 Now with ARIA — your farm's AI assistant
               </Pill>
             </Reveal>
