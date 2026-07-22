@@ -36,11 +36,13 @@ from app.schemas.ai import (
     AIRecommendationResponse,
     AIUsageResponse,
     ARIAMessageCreate,
+    ARIARecordRequest,
+    ARIARecordResponse,
     ARIAResponse,
     RecommendationAction,
 )
 from app.schemas.base import SuccessResponse
-from app.services import aria_service
+from app.services import aria_record_service, aria_service
 
 router = APIRouter(prefix="/farms/{farm_id}", tags=["ARIA"])
 
@@ -278,3 +280,54 @@ async def get_usage(
     farm, _ = access
     result = await aria_service.get_usage_status(db, farm, current_user.id)
     return SuccessResponse(data=result)
+
+
+# ── Conversational recording (Module 13) ──────────────────────────────────────
+
+@router.post(
+    "/aria/record",
+    response_model=SuccessResponse[ARIARecordResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Record farm data by talking to ARIA",
+)
+async def record_by_conversation(
+    farm_id: uuid.UUID,
+    body: ARIARecordRequest,
+    db: AsyncSession = Depends(get_db),
+    access=Depends(require_farm_access({"farm_owner", "farm_manager", "farm_worker", "enterprise_owner"})),
+    current_user: User = Depends(require_permission(Permission.OPS_LOG_SUBMIT)),
+):
+    """
+    Take one turn of a recording conversation.
+
+    Fully deterministic — no AI provider is consulted, so this works with no
+    Gemini or Claude key configured and counts against no quota. If `handled`
+    comes back False the utterance was not a record; send it to `/aria/chat`.
+
+    Gated on OPS_LOG_SUBMIT rather than AI_QUERY, because that is what this
+    actually is — submitting an operational log, in words instead of a form. It
+    also means farm workers can use it, which matters: recording mortality and
+    egg counts is their job, and routing them through a manager to log a dead
+    bird is how farms end up with no data at all.
+    """
+    farm, _ = access
+    result = await aria_record_service.handle_turn(
+        db=db,
+        farm=farm,
+        current_user=current_user,
+        text=body.text,
+        state_raw=body.state,
+    )
+    return SuccessResponse(
+        data=ARIARecordResponse(
+            handled=result.handled,
+            reply=result.reply,
+            stage=result.stage,
+            options=result.options,
+            state=result.state,
+            saved=result.saved,
+            summary=result.summary,
+            module=result.module,
+            resource_id=result.resource_id,
+        )
+    )

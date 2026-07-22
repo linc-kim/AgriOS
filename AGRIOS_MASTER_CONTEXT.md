@@ -214,3 +214,47 @@ Read this document first, always. Then, depending on what you are about to do:
 - Understanding what comes next and in what order → `ROADMAP.md`
 
 No document in this set should be read as a replacement for this one. If a future revision of any other document appears to contradict the philosophy recorded here, treat that as a bug in the documentation, not as license to deviate.
+
+---
+
+## 9.1 Override log
+
+### 2026-07-22 — AR-01 / PD-07 / PD-08: ARIA may write, under a narrowed boundary
+
+**Decision:** ARIA gains the ability to record farm data from conversation
+(Module 13, Parts 1–2). This overrides PD-07/PD-08 ("ARIA in V1 is read-only
+Q&A") and narrows AR-01.
+
+**What AR-01 said:** ARIA never gets direct database access; `compile_farm_context()`
+hands the model a bounded JSON package and no code path lets it query Postgres.
+It is both a security boundary and the mechanism that makes "never invents data"
+enforceable rather than aspirational.
+
+**What actually changed:** the *deterministic pipeline* gained write capability,
+not the model. `aria_nlu` (regex and vocabulary tables) parses an utterance,
+`aria_dialogue` fills missing slots by asking and takes an explicit farmer
+confirmation, and `aria_actions` maps the confirmed payload onto the existing
+domain schemas and calls the same services the forms call. Gemini and Claude
+are absent from that chain — they cannot reach `aria_actions`, cannot cause a
+write, and cannot influence one. `test_recording_never_calls_an_ai_provider`
+asserts this by making any provider call raise during a full record-and-save.
+
+**Why the security property survives:** AR-01 existed so a model could not be
+prompted into touching Postgres. That is still true. What changed is that a
+farmer can say "three birds died" instead of tapping through four screens.
+
+**Why "never invents data" survives:** the parser returns missing slots as
+missing. There is no code path that defaults a flock, a count or an amount to
+make a sentence parseable, and unit tests pin those refusals explicitly. The
+one inferred value — the date, which defaults to today — is always surfaced as
+a stated assumption before the farmer confirms.
+
+**Not overridden:** §4.4. Disease *diagnosis* remains out of scope, and ARIA
+remains forbidden from veterinary medical advice. Module 13's Part 4 mention of
+"disease differential diagnosis" was deliberately excluded; the reasoning in
+§4.4 (a wrong diagnosis makes a farmer cull a healthy flock or fail to treat a
+sick one) has not changed.
+
+**Also unchanged:** AR-02 (token budget), AR-03 (fallback), AR-04 (150-word cap)
+and AR-05 (fixed system prompt) all still govern the Q&A path, which is
+untouched by this work.

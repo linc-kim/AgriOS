@@ -232,3 +232,41 @@ class AIUsageLogEntry(AGRIOSSchema):
     success: bool
     call_type: str
     created_at: datetime
+
+
+# ── Conversational recording (Module 13) ──────────────────────────────────────
+
+class ARIARecordRequest(AGRIOSSchema):
+    """
+    One turn of a recording conversation.
+
+    `state` is whatever the previous turn returned. Sending it back is what
+    continues a multi-turn record; omitting it starts a new one.
+    """
+
+    text: str = Field(..., min_length=1, max_length=2000)
+    state: Optional[dict] = Field(
+        default=None,
+        description="Dialogue state from the previous turn. Omit to start fresh.",
+    )
+
+
+class ARIARecordResponse(AGRIOSSchema):
+    """
+    ARIA's reply, plus everything the client needs for the next turn.
+
+    `handled=False` means this was not a recording utterance — the client should
+    send it to /aria/chat instead. Keeping the two paths separate is deliberate:
+    a question about feed stock must never be answered by a slot-filler.
+    """
+
+    handled: bool
+    reply: str = ""
+    #: collecting | probing | confirming | ready | cancelled | abandoned
+    stage: str = ""
+    options: list[str] = Field(default_factory=list)
+    state: Optional[dict] = None
+    saved: bool = False
+    summary: Optional[str] = None
+    module: Optional[str] = None
+    resource_id: Optional[str] = None
