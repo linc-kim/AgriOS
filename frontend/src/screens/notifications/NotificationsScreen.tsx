@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { notificationsAPI } from "@/api/notifications";
 import { queryKeys } from "@/lib/queryClient";
 import { Spinner } from "@/components/ui/Spinner";
+import { AriaBadge } from "@/components/aria";
 import type { Notification } from "@/types";
 
 // ── Notification type → icon map ──────────────────────────────────────────────
@@ -34,6 +35,14 @@ const TYPE_ICONS: Record<string, string> = {
 function notifIcon(type: string): string {
   return TYPE_ICONS[type] ?? "🔔";
 }
+
+/**
+ * Which notifications ARIA produced by inference, rather than the scheduler
+ * firing a reminder someone configured. A farmer deciding how much weight to
+ * give an alert needs to know the difference — a vaccination reminder is a
+ * fact about the calendar, a disease alert is ARIA's reading of the records.
+ */
+const ARIA_GENERATED = new Set(["disease_alert", "weekly_summary"]);
 
 function timeAgo(isoDate: string): string {
   const diff = Date.now() - new Date(isoDate).getTime();
@@ -98,6 +107,10 @@ function NotificationCard({
               <p className="text-sm text-gray-500 mt-1 leading-relaxed">
                 {notification.body}
               </p>
+
+              {ARIA_GENERATED.has(notification.notification_type) && (
+                <AriaBadge size="sm" className="mt-2" />
+              )}
 
               {/* Action link */}
               {notification.action_route && (

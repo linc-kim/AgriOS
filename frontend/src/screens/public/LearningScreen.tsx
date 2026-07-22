@@ -6,7 +6,8 @@
  * available material. A visitor should leave knowing what will be here and
  * what to do in the meantime.
  */
-import { ArrowRight, BookOpen, PlayCircle, FileText, GraduationCap, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, PlayCircle, FileText, GraduationCap } from "lucide-react";
+import { AriaIcon } from "@/components/aria";
 
 import { GlowField } from "@/components/marketing/LineWaves";
 import {
@@ -33,7 +34,7 @@ const TRACKS = [
     items: ["Feed conversion, explained properly", "Costing a batch from day one", "When to sell: weight against feed cost"],
   },
   {
-    icon: Sparkles,
+    icon: AriaIcon,
     name: "Working with ARIA",
     copy: "Getting more out of the assistant as your records grow.",
     items: ["Logging a day in one sentence", "Questions worth asking every week", "Reading ARIA's warnings"],

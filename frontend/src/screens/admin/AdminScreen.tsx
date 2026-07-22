@@ -11,8 +11,10 @@ import {
 } from "recharts";
 import {
   ShieldCheck, Building2, Users, Sprout, ScrollText, BarChart3, ToggleLeft, Settings2,
-  HeartPulse, Cpu, Search, Download, Play, Sparkles, Send, Bot,
+  HeartPulse, Cpu, Search, Download, Play, Send, User as UserIcon,
 } from "lucide-react";
+import { AriaAvatar, AriaIcon, AriaThinking } from "@/components/aria";
+import type { ModuleIcon } from "@/shell/registry";
 
 import * as api from "@/api/adminPlatform";
 import { queryKeys } from "@/lib/queryClient";
@@ -59,7 +61,7 @@ function Card({ title, action, children }: { title: string; action?: React.React
   );
 }
 
-const TABS: { id: Tab; label: string; icon: typeof Users }[] = [
+const TABS: { id: Tab; label: string; icon: ModuleIcon }[] = [
   { id: "dashboard", label: "Dashboard", icon: ShieldCheck },
   { id: "organizations", label: "Organizations", icon: Building2 },
   { id: "users", label: "Users", icon: Users },
@@ -70,7 +72,7 @@ const TABS: { id: Tab; label: string; icon: typeof Users }[] = [
   { id: "system", label: "System", icon: Settings2 },
   { id: "health", label: "Health", icon: HeartPulse },
   { id: "jobs", label: "Jobs", icon: Cpu },
-  { id: "assistant", label: "Assistant", icon: Sparkles },
+  { id: "assistant", label: "Assistant", icon: AriaIcon },
 ];
 
 export default function AdminScreen() {
@@ -461,14 +463,20 @@ function AssistantTab() {
       <div className="flex-1 space-y-4 overflow-y-auto p-5">
         {messages.map((m, i) => (
           <div key={i} className={`flex gap-3 ${m.role === "user" ? "flex-row-reverse" : ""}`}>
-            <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${m.role === "user" ? "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300" : "bg-brand-50 text-brand-600 dark:bg-brand-600/15 dark:text-brand-300"}`}>{m.role === "user" ? "🧑" : <Bot className="h-4 w-4" />}</span>
+            <span className="mt-auto">
+              {m.role === "user" ? (
+                <span className="flex h-[30px] w-[30px] items-center justify-center rounded-full bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400" aria-hidden><UserIcon className="h-3.5 w-3.5" /></span>
+              ) : (
+                <AriaAvatar size={30} />
+              )}
+            </span>
             <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${m.role === "user" ? "bg-brand-500 text-white" : "bg-gray-50 text-gray-800 dark:bg-white/[0.04] dark:text-gray-200"}`}>
               <p className="whitespace-pre-wrap leading-relaxed">{m.text}</p>
               {m.sources && m.sources.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{m.sources.map((s) => <span key={s} className="rounded-md bg-white/60 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-white/10 dark:text-gray-400">{s}</span>)}</div>}
             </div>
           </div>
         ))}
-        {ask.isPending && <p className="text-sm text-gray-400">Thinking…</p>}
+        {ask.isPending && <AriaThinking />}
       </div>
       {messages.length <= 1 && <div className="flex flex-wrap gap-2 px-5 pb-2">{suggestions.map((s) => <button key={s} onClick={() => { setInputV(s); setTimeout(submit, 0); }} className="rounded-full border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:border-brand-300 hover:text-brand-600 dark:border-white/10 dark:text-gray-300">{s}</button>)}</div>}
       <div className="flex items-center gap-2 border-t border-gray-200 p-3 dark:border-white/10">

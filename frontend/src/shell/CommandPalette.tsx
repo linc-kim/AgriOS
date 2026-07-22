@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { LucideIcon } from "lucide-react";
 import { Search, Moon, Sun, LogOut } from "lucide-react";
 
-import { MODULES } from "@/shell/registry";
+import { MODULES, type ModuleIcon } from "@/shell/registry";
 import { useShellStore } from "@/stores/shellStore";
 import { useAuthStore } from "@/stores/authStore";
 import { isSuperAdmin } from "@/lib/roles";
@@ -14,7 +13,7 @@ interface Command {
   id: string;
   label: string;
   hint?: string;
-  icon: LucideIcon;
+  icon: ModuleIcon;
   run: () => void;
 }
 

@@ -134,10 +134,27 @@ export function AriaMark({
   const gid = `aria-g-${useId().replace(/:/g, "")}`;
 
   const bladeFill = tone === "colour" ? `url(#${gid})` : "currentColor";
-  const veinStroke = tone === "colour" ? "#ffffff" : tone === "inverse" ? "#ffffff" : "#ffffff";
-  // On mono the veins must read against a solid silhouette, so they cut through
-  // as negative space rather than sitting on top as a lighter tint.
-  const veinOpacity = tone === "colour" ? 0.9 : 0.85;
+
+  /**
+   * On `colour` the blade is a green→navy gradient, so white venation drawn on
+   * top is correct and legible.
+   *
+   * On `mono`/`inverse` the blade is a single flat `currentColor`, and white
+   * veins were being drawn on top of it regardless of theme — the ternary that
+   * chose the colour returned "#ffffff" for all three branches, so it never
+   * varied. On a light surface that happened to look right (white veins on a
+   * grey leaf against a white page read as cut-through). In dark mode it
+   * inverted: near-black sidebar, grey leaf, pure-white veins glowing brighter
+   * than the mark itself.
+   *
+   * The intent was always negative space, so express it as negative space: mask
+   * the venation out of the blade and let whatever is behind show through. That
+   * is theme-independent by construction — there is no colour to get wrong.
+   */
+  const masked = tone !== "colour";
+  const mid = `aria-m-${gid}`;
+  const veinStroke = "#ffffff";
+  const veinOpacity = 0.9;
 
   const Blade = live ? motion.path : "path";
   const Node = live ? motion.circle : "circle";
@@ -158,54 +175,98 @@ export function AriaMark({
     >
       {title && <title>{title}</title>}
 
-      {tone === "colour" && (
-        <defs>
-          {/* Green at the growing tip, navy at the root: the palette's own
-              story, not decoration. Kept to two stops so it survives flattening
-              to a favicon. */}
+      <defs>
+        {tone === "colour" && (
+          /* Green at the growing tip, navy at the root: the palette's own
+             story, not decoration. Kept to two stops so it survives flattening
+             to a favicon. */
           <linearGradient id={gid} x1="12" y1="2.5" x2="12" y2="21.5" gradientUnits="userSpaceOnUse">
             <stop offset="0%" stopColor="#0b7d2c" />
             <stop offset="55%" stopColor="#076524" />
             <stop offset="100%" stopColor="#063491" />
           </linearGradient>
-        </defs>
-      )}
+        )}
+
+        {masked && (
+          /* White keeps the blade, black knocks the venation out of it. The
+             mask's own opacities are the animation surface: a node fading to
+             black is a hole opening, which reads the same as the coloured
+             version's node brightening. */
+          <mask id={mid} maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
+            <path d={BLADE} fill="#ffffff" />
+            <path d={MIDRIB} stroke="#000000" strokeWidth={1.4} strokeLinecap="round" />
+            {detail === "full" && (
+              <>
+                <g stroke="#000000" strokeWidth={1.1} strokeLinecap="round">
+                  {VEINS.map((d) => (
+                    <path key={d} d={d} />
+                  ))}
+                </g>
+                {NODES.map(([cx, cy], i) => {
+                  const anim = live ? NODE_MOTION[state](i) : {};
+                  return (
+                    <Node
+                      key={`${cx}-${cy}`}
+                      cx={cx}
+                      cy={cy}
+                      r={1.5}
+                      fill="#000000"
+                      style={{ transformOrigin: `${cx}px ${cy}px` }}
+                      {...(anim as object)}
+                    />
+                  );
+                })}
+              </>
+            )}
+          </mask>
+        )}
+      </defs>
 
       <g style={{ transformOrigin: "12px 12px" }}>
-        <Blade d={BLADE} fill={bladeFill} {...(bladeAnim as object)} />
-
-        {/* Midrib — present at every size; it is what stops the silhouette
-            reading as a generic teardrop. */}
-        <path
-          d={MIDRIB}
-          stroke={veinStroke}
-          strokeOpacity={veinOpacity}
-          strokeWidth={1.4}
-          strokeLinecap="round"
+        <Blade
+          d={BLADE}
+          fill={bladeFill}
+          {...(masked ? { mask: `url(#${mid})` } : {})}
+          {...(bladeAnim as object)}
         />
 
-        {detail === "full" && (
+        {/* On colour the venation is drawn over the gradient. On mono it is
+            already carved out by the mask above, so drawing it again here would
+            re-introduce the white-on-dark problem. */}
+        {!masked && (
           <>
-            <g stroke={veinStroke} strokeOpacity={veinOpacity * 0.75} strokeWidth={1.1} strokeLinecap="round">
-              {VEINS.map((d) => (
-                <path key={d} d={d} />
-              ))}
-            </g>
+            <path
+              d={MIDRIB}
+              stroke={veinStroke}
+              strokeOpacity={veinOpacity}
+              strokeWidth={1.4}
+              strokeLinecap="round"
+            />
 
-            {NODES.map(([cx, cy], i) => {
-              const anim = live ? NODE_MOTION[state](i) : {};
-              return (
-                <Node
-                  key={`${cx}-${cy}`}
-                  cx={cx}
-                  cy={cy}
-                  r={1.5}
-                  fill={veinStroke}
-                  style={{ transformOrigin: `${cx}px ${cy}px` }}
-                  {...(anim as object)}
-                />
-              );
-            })}
+            {detail === "full" && (
+              <>
+                <g stroke={veinStroke} strokeOpacity={veinOpacity * 0.75} strokeWidth={1.1} strokeLinecap="round">
+                  {VEINS.map((d) => (
+                    <path key={d} d={d} />
+                  ))}
+                </g>
+
+                {NODES.map(([cx, cy], i) => {
+                  const anim = live ? NODE_MOTION[state](i) : {};
+                  return (
+                    <Node
+                      key={`${cx}-${cy}`}
+                      cx={cx}
+                      cy={cy}
+                      r={1.5}
+                      fill={veinStroke}
+                      style={{ transformOrigin: `${cx}px ${cy}px` }}
+                      {...(anim as object)}
+                    />
+                  );
+                })}
+              </>
+            )}
           </>
         )}
       </g>

@@ -11,6 +11,7 @@ import { AriaMark, AriaAvatar, AriaLockup, type AriaState } from "@/components/b
 import {
   Container, Section, Reveal, Eyebrow, Heading, Lead, Card,
 } from "@/components/marketing/primitives";
+import { BrandAriaSystemSection } from "./BrandAriaSystemSection";
 
 const STATES: { key: AriaState; when: string }[] = [
   { key: "idle", when: "Present but not asking for attention. The default." },
@@ -287,13 +288,16 @@ export default function BrandAriaScreen() {
         </Container>
       </Section>
 
+      <BrandAriaSystemSection />
+
       <Section className="border-t border-gray-100 dark:border-white/5">
         <Container>
           <Reveal>
             <div className="flex flex-wrap items-center justify-between gap-6">
               <AriaLockup size={32} />
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Source: <code className="font-mono">src/components/brand/AriaMark.tsx</code>
+                Source: <code className="font-mono">src/components/brand/AriaMark.tsx</code> ·{" "}
+                <code className="font-mono">src/components/aria</code>
               </p>
             </div>
           </Reveal>

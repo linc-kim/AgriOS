@@ -4,6 +4,7 @@ import { Outlet } from "react-router-dom";
 import { Sidebar } from "@/shell/Sidebar";
 import { Topbar } from "@/shell/Topbar";
 import { CommandPalette } from "@/shell/CommandPalette";
+import { AriaFloatingButton } from "@/components/aria";
 import { useShellStore, applyTheme } from "@/stores/shellStore";
 
 export default function AppShell() {
@@ -47,6 +48,9 @@ export default function AppShell() {
       </div>
 
       <CommandPalette />
+
+      {/* Reachable from every workspace screen — hides itself on /ai. */}
+      <AriaFloatingButton />
     </div>
   );
 }

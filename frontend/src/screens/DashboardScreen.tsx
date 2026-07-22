@@ -5,10 +5,11 @@ import {
   MapPin,
   Bird,
   Wallet,
-  Sparkles,
   ArrowRight,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { AriaIcon } from "@/components/aria";
+import type { ModuleIcon } from "@/shell/registry";
 
 import { useWorkspace } from "@/shell/useWorkspace";
 import { useAuthStore } from "@/stores/authStore";
@@ -47,7 +48,7 @@ function ActionCard({
   desc,
 }: {
   to: string;
-  icon: LucideIcon;
+  icon: ModuleIcon;
   title: string;
   desc: string;
 }) {
@@ -125,7 +126,7 @@ export default function DashboardScreen() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <ActionCard to="/livestock" icon={Bird} title="Add livestock" desc="Start tracking a flock" />
           <ActionCard to="/finance" icon={Wallet} title="Record finances" desc="Log an expense or sale" />
-          <ActionCard to="/ai" icon={Sparkles} title="Ask Greena" desc="Get farm guidance" />
+          <ActionCard to="/ai" icon={AriaIcon} title="Ask ARIA" desc="Get farm guidance" />
         </div>
       </section>
 

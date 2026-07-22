@@ -4,6 +4,7 @@
  * breadcrumbs, and the command palette all derive from this list. New modules
  * register here — the shell never needs redesigning.
  */
+import type { ComponentType } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
@@ -14,7 +15,6 @@ import {
   Wallet,
   BarChart3,
   FileText,
-  Sparkles,
   Store,
   Zap,
   Settings,
@@ -22,14 +22,22 @@ import {
   ShieldCheck,
   Rocket,
 } from "lucide-react";
+import { AriaIcon } from "@/components/aria";
 
 export type ModuleSection = "main" | "insights" | "platform" | "system";
+
+/**
+ * Nav icons are lucide glyphs with one exception: ARIA brings its own mark.
+ * Widened to any component taking `className`, which is the only contract the
+ * shell relies on — every render site is `<Icon className="h-4 w-4" />`.
+ */
+export type ModuleIcon = LucideIcon | ComponentType<{ className?: string }>;
 
 export interface ModuleDef {
   id: string;
   label: string;
   path: string;
-  icon: LucideIcon;
+  icon: ModuleIcon;
   section: ModuleSection;
   /** A one-line purpose, shown in the module's empty state + command palette. */
   description: string;
@@ -47,7 +55,9 @@ export const MODULES: ModuleDef[] = [
   { id: "finance", label: "Finance", path: "/finance", icon: Wallet, section: "insights", ready: true, description: "Expenses, revenue and profitability." },
   { id: "analytics", label: "Analytics", path: "/analytics", icon: BarChart3, section: "insights", description: "Trends and performance across your operation." },
   { id: "reports", label: "Reports", path: "/reports", icon: FileText, section: "insights", ready: true, description: "Reports, dashboards, comparisons and exports." },
-  { id: "ai", label: "AI Assistant", path: "/ai", icon: Sparkles, section: "insights", ready: true, description: "Predictions, forecasts and an assistant grounded in your farm." },
+  // Named for the assistant, not the technology. "AI Assistant" described the
+  // category; ARIA is who the farmer actually asks.
+  { id: "ai", label: "ARIA", path: "/ai", icon: AriaIcon, section: "insights", ready: true, description: "Predictions, forecasts and an assistant grounded in your farm." },
   { id: "marketplace", label: "Marketplace", path: "/marketplace", icon: Store, section: "platform", description: "Market prices and trusted suppliers." },
   { id: "automation", label: "Automation", path: "/automation", icon: Zap, section: "platform", ready: true, description: "Triggers, rules, reminders and your activity center." },
   { id: "production", label: "Production", path: "/production", icon: Rocket, section: "platform", ready: true, description: "System status, diagnostics, backups, imports, exports and release readiness." },

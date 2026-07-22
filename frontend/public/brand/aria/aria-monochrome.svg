@@ -1,7 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="512" height="512" role="img" aria-label="ARIA">
-<path d="M12 2.5 C 3.2 8.2, 2.4 15.0, 12 21.5 C 21.6 15.0, 20.8 8.2, 12 2.5 Z" fill="currentColor"/>
-<path d="M12 20.2 L 12 5.0" stroke="#ffffff" stroke-opacity="0.9" stroke-width="1.4" stroke-linecap="round"/>
-<g stroke="#ffffff" stroke-opacity="0.68" stroke-width="1.1" stroke-linecap="round">
+<!-- Single-ink. The venation is masked out of the blade rather than painted over
+     it: white veins are only correct on a white ground, and this variant exists
+     for print, stamps and dark surfaces. Masking makes it ground-independent. -->
+<defs>
+<mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
+<path d="M12 2.5 C 3.2 8.2, 2.4 15.0, 12 21.5 C 21.6 15.0, 20.8 8.2, 12 2.5 Z" fill="#ffffff"/>
+<path d="M12 20.2 L 12 5.0" stroke="#000000" stroke-width="1.4" stroke-linecap="round"/>
+<g stroke="#000000" stroke-width="1.1" stroke-linecap="round">
 <path d="M12 8.2 L 15.6 5.6"/>
 <path d="M12 8.2 L 8.4 5.6"/>
 <path d="M12 12.4 L 17.2 9.0"/>
@@ -9,7 +14,10 @@
 <path d="M12 16.4 L 16.0 13.2"/>
 <path d="M12 16.4 L 8.0 13.2"/>
 </g>
-<circle cx="12" cy="8.2" r="1.5" fill="#ffffff"/>
-<circle cx="12" cy="12.4" r="1.5" fill="#ffffff"/>
-<circle cx="12" cy="16.4" r="1.5" fill="#ffffff"/>
+<circle cx="12" cy="8.2" r="1.5" fill="#000000"/>
+<circle cx="12" cy="12.4" r="1.5" fill="#000000"/>
+<circle cx="12" cy="16.4" r="1.5" fill="#000000"/>
+</mask>
+</defs>
+<path d="M12 2.5 C 3.2 8.2, 2.4 15.0, 12 21.5 C 21.6 15.0, 20.8 8.2, 12 2.5 Z" fill="currentColor" mask="url(#m)"/>
 </svg>

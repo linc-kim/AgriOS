@@ -7,9 +7,11 @@
  * cost you" does.
  */
 import {
-  Bird, Wheat, HeartPulse, Wallet, Package, Zap, FileText, Sparkles, Bell,
+  Bird, Wheat, HeartPulse, Wallet, Package, Zap, FileText, Bell,
   BarChart3, ArrowRight, Check,
 } from "lucide-react";
+import { AriaIcon } from "@/components/aria";
+import type { ModuleIcon } from "@/shell/registry";
 
 import { GlowField } from "@/components/marketing/LineWaves";
 import {
@@ -18,7 +20,7 @@ import {
 } from "@/components/marketing/primitives";
 
 interface Feature {
-  icon: typeof Bird;
+  icon: ModuleIcon;
   name: string;
   problem: string;
   what: string;
@@ -168,7 +170,7 @@ const FEATURES: Feature[] = [
     ),
   },
   {
-    icon: Sparkles,
+    icon: AriaIcon,
     name: "ARIA AI",
     problem: "The data is there, but reading it takes time you do not have.",
     what:
