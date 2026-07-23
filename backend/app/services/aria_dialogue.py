@@ -265,8 +265,11 @@ def interpret_yes_no(text: str) -> bool | None:
         return True
     if t in _NO:
         return False
-    # Leading word covers "yes save it", "no that's wrong".
-    first = t.split()[0] if t.split() else ""
+    # Leading word covers "yes save it", "no that's wrong" — and the card's own
+    # option labels, "Yes, save it" / "No, cancel", where the first token is
+    # "yes," with a comma. Strip surrounding punctuation before matching, or the
+    # confirm button the UI renders fails to register as a yes.
+    first = t.split()[0].strip(",.;:!?") if t.split() else ""
     if first in _YES:
         return True
     if first in _NO:

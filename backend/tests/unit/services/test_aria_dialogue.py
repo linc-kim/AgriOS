@@ -44,6 +44,15 @@ class TestYesNo:
     def test_ambiguous_is_none(self):
         assert interpret_yes_no("flock 2") is None
 
+    def test_confirmation_card_option_labels(self):
+        """
+        The workspace renders "Yes, save it" / "No, cancel" as the confirm
+        buttons and sends the label verbatim. The comma after the first word
+        must not defeat detection, or tapping the save button does nothing.
+        """
+        assert interpret_yes_no("Yes, save it") is True
+        assert interpret_yes_no("No, cancel") is False
+
     def test_skip_detection(self):
         assert is_skip("skip")
         assert is_skip("not sure")
