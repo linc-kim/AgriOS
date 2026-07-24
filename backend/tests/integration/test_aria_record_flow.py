@@ -140,6 +140,35 @@ class TestRecordingConversation:
         assert turn["saved"] is False
 
 
+class TestReminderCreation:
+    async def test_reminder_flows_through_and_saves(
+        self, async_client, workspace, auth_headers_owner
+    ):
+        """
+        "Remind me to vaccinate on Tuesday" runs the same parse-confirm-write
+        pipeline as a farm record, but lands in the Reminder module.
+        """
+        farm_id = workspace.farm.id
+        turn = await _post(
+            async_client, farm_id, auth_headers_owner, "remind me to buy feed tomorrow"
+        )
+        assert turn["handled"] is True
+        assert turn["stage"] == "confirming"
+
+        confirmed = await _post(async_client, farm_id, auth_headers_owner, "yes", turn["state"])
+        assert confirmed["saved"] is True
+        assert confirmed["module"] == "reminders"
+
+        # It really appears in the reminders list.
+        r = await async_client.get(
+            f"/api/v1/farms/{farm_id}/automation/reminders", headers=auth_headers_owner
+        )
+        assert r.status_code == 200, r.text
+        rows = r.json()["data"]
+        rows = rows.get("items", rows) if isinstance(rows, dict) else rows
+        assert any("buy feed" in (row.get("title") or "").lower() for row in rows)
+
+
 class TestOfflineGuarantee:
     async def test_recording_never_calls_an_ai_provider(
         self, async_client, workspace, auth_headers_owner, monkeypatch

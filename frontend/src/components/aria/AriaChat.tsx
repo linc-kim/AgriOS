@@ -13,7 +13,7 @@
  * `onAttach`. Wiring either one up is a prop, not a redesign.
  */
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { ArrowUp, Mic, Paperclip, User as UserIcon } from "lucide-react";
 import { AriaAvatar } from "./AriaIdentity";
 import { AriaSources } from "./AriaSignals";
@@ -361,7 +361,23 @@ export function AriaTranscript({
       }}
       className={cn("flex-1 overflow-y-auto", className)}
     >
-      <AnimatePresence initial={false}>{children}</AnimatePresence>
+      {/*
+       * Deliberately not wrapped in AnimatePresence.
+       *
+       * AnimatePresence exists to hold a component in the tree while it plays
+       * an `exit` animation. Nothing rendered in this transcript defines one —
+       * every entry is a plain initial/animate on the component itself — so it
+       * was contributing no behaviour while imposing its strict requirement
+       * that every direct child carry a unique key. The transcript's children
+       * are a mix of a keyed message list and several conditional siblings
+       * (welcome, briefing, confirmation card, thinking indicator), and that
+       * combination made React report duplicate keys on every render.
+       *
+       * Removing it fixes the warning at the cause rather than papering over it
+       * with synthetic keys, and changes nothing visible: entry animations
+       * still run, exits were never animated.
+       */}
+      {children}
     </div>
   );
 }

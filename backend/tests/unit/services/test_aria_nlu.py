@@ -237,6 +237,35 @@ class TestIntentClassification:
         assert result.intent is Intent.UNKNOWN
         assert not result.is_actionable
 
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "signs of coccidiosis",
+            "symptoms of newcastle",
+            "difference between mareks and gumboro",
+            "explain gumboro",
+            "tell me about coccidiosis",
+            "how to vaccinate for newcastle",
+            "treatment for coccidiosis",
+            "preventing newcastle",
+        ],
+    )
+    def test_knowledge_phrasings_are_never_records(self, text):
+        """
+        Several diseases are also vaccine names. "Signs of coccidiosis" has no
+        question word and no question mark, so without an explicit guard it was
+        classified as a vaccination and logged a dose the farmer never gave.
+        Asking about a topic must always route to the knowledge base.
+        """
+        result = parse(text, today=TODAY)
+        assert result.intent is Intent.UNKNOWN
+        assert not result.is_actionable
+
+    def test_real_vaccination_still_records(self):
+        """The guard must not stop genuine reports from being recorded."""
+        assert parse("we vaccinated newcastle today", today=TODAY).intent is Intent.RECORD_VACCINATION
+        assert parse("gave them gumboro yesterday", today=TODAY).intent is Intent.RECORD_VACCINATION
+
     def test_sale_wins_over_eggs(self):
         assert parse("sold 480 eggs", today=TODAY).intent is Intent.RECORD_SALE
 
@@ -331,6 +360,40 @@ class TestParseWeight:
         r = parse("we weighed the birds today", today=TODAY)
         assert r.intent is Intent.RECORD_WEIGHT
         assert "average_weight_kg" not in r.slots
+
+
+class TestReminders:
+    def test_classifies_reminder(self):
+        assert parse("remind me to vaccinate on tuesday", today=TODAY).intent is Intent.CREATE_REMINDER
+
+    def test_reminder_beats_vaccination(self):
+        """"remind me to vaccinate" names a vaccine but is a task, not a record."""
+        r = parse("remind me to vaccinate the layers next tuesday", today=TODAY)
+        assert r.intent is Intent.CREATE_REMINDER
+
+    def test_extracts_title_and_due_date(self):
+        # TODAY is Wednesday 2026-07-22, so "tomorrow" is the 23rd.
+        r = parse("remind me to buy feed tomorrow", today=TODAY)
+        assert r.slots["title"] == "buy feed"
+        assert r.slots["due_date"] == date(2026, 7, 23)
+
+    def test_next_weekday(self):
+        # TODAY is Wednesday 2026-07-22; next Tuesday is the 28th.
+        r = parse("remind me to vaccinate next tuesday", today=TODAY)
+        assert r.slots["due_date"] == date(2026, 7, 28)
+
+    def test_recurring_reminder(self):
+        r = parse("remind me every morning to record eggs", today=TODAY)
+        assert r.slots["recurrence"] == "daily"
+        assert r.slots["title"] == "record eggs"
+        # A recurring reminder with no explicit date starts tomorrow.
+        assert r.slots["due_date"] == date(2026, 7, 23)
+
+    def test_reminder_without_time_leaves_due_absent(self):
+        """No stated time must NOT default to today — the dialogue asks 'when?'."""
+        r = parse("remind me to clean the brooder", today=TODAY)
+        assert r.slots.get("title") == "clean the brooder"
+        assert "due_date" not in r.slots
 
 
 class TestNoInvention:

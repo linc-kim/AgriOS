@@ -59,6 +59,10 @@ class Intent(str, Enum):
     RECORD_WEIGHT = "record_weight"
     RECORD_SALE = "record_sale"
     RECORD_EXPENSE = "record_expense"
+    #: A task the farmer wants to be reminded of — "remind me to vaccinate
+    #: Tuesday". Not farm data, but the same parse-confirm-write pipeline, and it
+    #: writes to the existing Reminder module rather than a flock record.
+    CREATE_REMINDER = "create_reminder"
     UNKNOWN = "unknown"
 
 
@@ -368,6 +372,102 @@ def extract_date(text: str, *, today: date | None = None) -> tuple[date | None, 
     return today, "I recorded this as today — tell me if it was another day."
 
 
+# ── Reminders ────────────────────────────────────────────────────────────────
+
+
+def extract_future_date(text: str, *, today: date | None = None) -> date | None:
+    """
+    A *future* due date for a reminder. Unlike `extract_date`, this never
+    defaults — a reminder with no stated time should ask "when?", not silently
+    land on today. "tomorrow", "next tuesday", "in 3 days", "on the 5th".
+    """
+    today = today or date.today()
+
+    if re.search(r"\btomorrow\b|\bkesho\b", text):
+        return today + timedelta(days=1)
+
+    m = re.search(r"\bin\s+(\d+)\s+days?\b", text)
+    if m:
+        return today + timedelta(days=int(m.group(1)))
+
+    m = re.search(r"\bin\s+a\s+week\b|\bnext\s+week\b", text)
+    if m:
+        return today + timedelta(days=7)
+
+    # "on tuesday", "next tuesday", or a bare "tuesday" as an answer to "when?".
+    m = re.search(r"\b(?:on\s+|next\s+)?(" + "|".join(_WEEKDAYS) + r")\b", text)
+    if m:
+        target = _WEEKDAYS[m.group(1)]
+        delta = (target - today.weekday()) % 7
+        # "monday" when today is monday means next monday, not today.
+        return today + timedelta(days=delta or 7)
+
+    # Explicit ISO / d/m still allowed, but only if it's not in the past.
+    when, _ = extract_date(text, today=today)
+    if when and when > today:
+        return when
+    return None
+
+
+def extract_recurrence(text: str) -> str | None:
+    """Map "every morning/day/week/month" to the Reminder recurrence values."""
+    if re.search(r"\bevery day\b|\bevery morning\b|\bdaily\b|\beach morning\b|\beach day\b", text):
+        return "daily"
+    if re.search(r"\bevery week\b|\bweekly\b", text):
+        return "weekly"
+    if re.search(r"\bevery month\b|\bmonthly\b", text):
+        return "monthly"
+    return None
+
+
+def extract_reminder_title(text: str) -> str | None:
+    """
+    The task itself — the words after "remind me to". Time phrases are stripped
+    so the title reads as a task, not a sentence.
+    """
+    # "remind me to X", but also "remind me every morning to X" — the schedule
+    # phrase can sit between "remind me" and "to".
+    m = re.search(r"remind me\s+(?:every \w+\s+|each \w+\s+|daily\s+|weekly\s+|tomorrow\s+)?to\s+(.+)", text)
+    if not m:
+        m = re.search(r"(?:reminder|don'?t let me forget)\s+to\s+(.+)", text)
+    if not m:
+        return None
+    title = m.group(1)
+    # Trim trailing time expressions.
+    title = re.sub(
+        r"\s+(?:tomorrow|today|kesho|next week|in a week|every (?:day|morning|week|month)|"
+        r"daily|weekly|monthly|each (?:day|morning)|in \d+ days?|"
+        r"(?:on|next)\s+(?:" + "|".join(_WEEKDAYS) + r")|"
+        r"on \d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?|\d{4}-\d{2}-\d{2}).*$",
+        "",
+        title,
+    ).strip(" .,")
+    return title or None
+
+
+def _parse_reminder(
+    norm: str,
+    raw: str,
+    slots: dict[str, Any],
+    assumptions: list[str],
+    *,
+    today: date | None,
+) -> None:
+    title = extract_reminder_title(norm)
+    if title:
+        slots["title"] = title
+    due = extract_future_date(norm, today=today)
+    if due:
+        slots["due_date"] = due
+    recurrence = extract_recurrence(norm)
+    if recurrence:
+        slots["recurrence"] = recurrence
+        # A recurring reminder with no explicit first date starts tomorrow.
+        if not due:
+            slots["due_date"] = (today or date.today()) + timedelta(days=1)
+            assumptions.append("I'll start this reminder tomorrow — say a day if you'd prefer another.")
+
+
 # ── Flock reference ──────────────────────────────────────────────────────────
 
 
@@ -418,6 +518,17 @@ def _has(text: str, terms: tuple[str, ...]) -> bool:
     return any(t in text for t in terms)
 
 
+#: Phrasings that mean "tell me about" rather than "I did". These have no
+#: leading question word and no question mark, so the interrogative guard misses
+#: them — but treating them as records is actively harmful when the topic is
+#: also a vaccine name.
+_KNOWLEDGE_PHRASING = re.compile(
+    r"\b(?:signs?|symptoms?|causes?|treatment|treating|prevent(?:ion|ing)?|"
+    r"difference between|explain|tell me about|teach me|meaning of|"
+    r"how to|how do i|what to do about)\b"
+)
+
+
 def classify_intent(text: str) -> tuple[Intent, float]:
     """
     Pick the intent and say how sure we are.
@@ -427,10 +538,25 @@ def classify_intent(text: str) -> tuple[Intent, float]:
     "bought 12 bags of feed" contains a feed term but is a purchase. Scoring
     alone would make those coin flips, so precedence does the work instead.
     """
+    # A reminder request comes before the vaccine check: "remind me to
+    # vaccinate on Tuesday" names a vaccine but is a task to schedule, not a
+    # vaccination to record. It also comes before the question guard because
+    # "remind me to..." is imperative, not interrogative.
+    if re.search(r"\bremind me\b|\breminder\b|\bdon'?t let me forget\b|\bset a reminder\b", text):
+        return Intent.CREATE_REMINDER, 0.93
+
     # A question is not a record. Checked first so "how many birds died?" is
     # never treated as a mortality entry.
     if re.match(r"^\s*(what|why|how|when|which|who|where|is|are|do|does|can|should)\b", text) \
             or text.rstrip().endswith("?"):
+        return Intent.UNKNOWN, 0.0
+
+    # Asking *about* a topic is not reporting an action, even without a leading
+    # question word or a question mark. "Signs of coccidiosis" and "explain
+    # Newcastle" name a disease that is also a vaccine alias, so without this
+    # guard they fell through to the alias rule below and logged a vaccination
+    # the farmer never gave. Knowledge phrasings route to the knowledge base.
+    if _KNOWLEDGE_PHRASING.search(text):
         return Intent.UNKNOWN, 0.0
 
     if _has(text, _VACCINE_TERMS):
@@ -497,6 +623,15 @@ def parse(text: str, *, today: date | None = None) -> ParsedUtterance:
 
     slots: dict[str, Any] = {}
     assumptions: list[str] = []
+
+    # Reminders are scheduled, not recorded: a missing time should ask "when?",
+    # never quietly default to today the way a same-day farm record does. So the
+    # generic date/flock extraction is skipped for them and handled in-branch.
+    if intent is Intent.CREATE_REMINDER:
+        _parse_reminder(norm, raw, slots, assumptions, today=today)
+        result.slots = slots
+        result.assumptions = assumptions
+        return result
 
     when, assumption = extract_date(norm, today=today)
     if when:

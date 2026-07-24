@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { cn } from "@/lib/cn";
 import { Menu } from "lucide-react";
 
 import { recordTurn, type AriaDialogueState, type AriaRecordStage } from "@/api/ariaRecord";
@@ -37,7 +38,10 @@ import {
 import { AriaConfirmationCard } from "@/components/aria/AriaConfirmationCard";
 import { AriaRecordedCard } from "@/components/aria/AriaRecordedCard";
 import { AriaSnapshotPanel } from "@/components/aria/AriaSnapshotPanel";
+import { AriaIntelligencePanel } from "@/components/aria/AriaIntelligencePanel";
+import { AriaKnowledgeCard, AriaDecisionCard } from "@/components/aria/AriaAnswerCards";
 import { AriaWorkspaceSidebar } from "@/components/aria/AriaWorkspaceSidebar";
+import { askDeterministic, type AriaDecisionAnswer, type AriaKnowledgeAnswer } from "@/api/ariaIntelligence";
 import {
   AriaQuickActions,
   AriaSuggestedPrompts,
@@ -68,6 +72,9 @@ interface PendingTurn {
 interface TurnMessage extends AriaMessage {
   /** Set when this message is a saved-record card. */
   recorded?: { module: string; summary: string };
+  /** Deterministic knowledge/decision answers, rendered as rich cards. */
+  knowledge?: AriaKnowledgeAnswer;
+  decision?: AriaDecisionAnswer;
 }
 
 export default function AriaWorkspace() {
@@ -85,8 +92,12 @@ export default function AriaWorkspace() {
   const [pending, setPending] = useState<PendingTurn | null>(null);
   const [input, setInput] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [rightView, setRightView] = useState<"snapshot" | "briefing">("snapshot");
   const seq = useRef(0);
-  const nextId = () => `m${++seq.current}`;
+  // Monotonic counter plus a per-mount salt, so an id can never collide with a
+  // stored one from a previous session even before a conversation is loaded.
+  const salt = useRef(Math.random().toString(36).slice(2, 6));
+  const nextId = () => `m${salt.current}-${++seq.current}`;
 
   const refresh = () => farmId && setConversations(conversationStore.list(farmId));
   useEffect(() => {
@@ -134,6 +145,8 @@ export default function AriaWorkspace() {
       text: m.text,
       sources: m.sources,
       saved: m.recorded,
+      knowledge: m.knowledge,
+      decision: m.decision,
       ts: Date.now(),
     }));
     let convo = activeId ? conversationStore.get(farmId, activeId) : undefined;
@@ -153,6 +166,13 @@ export default function AriaWorkspace() {
     setActiveId(id);
     setPending(null);
     setInput("");
+    // Continue the id sequence past the loaded messages. The salt already
+    // prevents cross-session collisions; this keeps the counter monotonic for
+    // this mount. Parse the numeric suffix after the last dash.
+    seq.current = convo.messages.reduce((max, m) => {
+      const n = Number(m.id.slice(m.id.lastIndexOf("-") + 1));
+      return Number.isFinite(n) && n > max ? n : max;
+    }, 0);
     setMessages(
       convo.messages.map((m) => ({
         id: m.id,
@@ -160,6 +180,8 @@ export default function AriaWorkspace() {
         text: m.text,
         sources: m.sources,
         recorded: m.saved,
+        knowledge: m.knowledge as AriaKnowledgeAnswer | undefined,
+        decision: m.decision as AriaDecisionAnswer | undefined,
       })),
     );
     setSidebarOpen(false);
@@ -170,6 +192,7 @@ export default function AriaWorkspace() {
     setMessages([]);
     setPending(null);
     setInput("");
+    seq.current = 0;
     setSidebarOpen(false);
   };
 
@@ -179,18 +202,12 @@ export default function AriaWorkspace() {
     mutationFn: (vars: { text: string; state: AriaDialogueState | null }) =>
       recordTurn(farmId as string, { text: vars.text, state: vars.state }),
     onSuccess: (res, vars) => {
-      // Not a record → answer deterministically from the snapshot. No LLM.
+      // Not a record → a question. Answer deterministically: first the backend
+      // knowledge base and decision engine, then the local snapshot. No LLM at
+      // any step.
       if (!res.handled) {
-        const answer = answerFromSnapshot(vars.text, snapshot);
-        setMessages((prev) => {
-          const next: TurnMessage[] = [
-            ...prev,
-            { id: nextId(), role: "aria", text: answer.text, sources: answer.sources },
-          ];
-          persist(next);
-          return next;
-        });
         setPending(null);
+        void answerQuestion(vars.text);
         return;
       }
 
@@ -257,6 +274,48 @@ export default function AriaWorkspace() {
     qc.invalidateQueries({ queryKey: [...queryKeys.flocks(farmId), "production-dashboard"] });
     qc.invalidateQueries({ queryKey: queryKeys.healthSchedule(farmId) });
     qc.invalidateQueries({ queryKey: queryKeys.financeDashboard(farmId) });
+  };
+
+  // Answering (as opposed to recording) has its own pending flag so the
+  // thinking indicator shows while the deterministic answer is fetched.
+  const [answering, setAnswering] = useState(false);
+
+  /**
+   * Answer a question with no LLM: the backend knowledge base and decision
+   * engine first, then the local snapshot. If the backend returns type "none"
+   * and the snapshot can't help either, that falls through to an honest
+   * "here's where that lives" — never a fabricated answer.
+   */
+  const answerQuestion = async (question: string) => {
+    if (!farmId) return;
+    setAnswering(true);
+    try {
+      const det = await askDeterministic(farmId, question);
+      if (det.type === "knowledge" && det.knowledge) {
+        appendAria({ text: det.knowledge.title, knowledge: det.knowledge });
+        return;
+      }
+      if (det.type === "decision" && det.decision) {
+        appendAria({ text: det.decision.headline, decision: det.decision });
+        return;
+      }
+      // Neither — fall back to a snapshot-grounded answer.
+      const local = answerFromSnapshot(question, snapshot);
+      appendAria({ text: local.text, sources: local.sources });
+    } catch {
+      const local = answerFromSnapshot(question, snapshot);
+      appendAria({ text: local.text, sources: local.sources });
+    } finally {
+      setAnswering(false);
+    }
+  };
+
+  const appendAria = (msg: Omit<TurnMessage, "id" | "role">) => {
+    setMessages((prev) => {
+      const next: TurnMessage[] = [...prev, { id: nextId(), role: "aria", ...msg }];
+      persist(next);
+      return next;
+    });
   };
 
   /** Send a farmer message — either a fresh utterance or an answer to a card. */
@@ -395,16 +454,29 @@ export default function AriaWorkspace() {
           dependency={messages.length + (pending ? 0.5 : 0) + (turn.isPending ? 0.25 : 0)}
           className="space-y-4 p-4"
         >
-          {fresh && <Welcome />}
+          {fresh && <Welcome key="welcome" />}
+          {/* The right-rail briefing is desktop-only; on a phone the farmer
+              still needs their morning brief, so it opens inline on the fresh
+              screen where the right rail can't reach. */}
+          {fresh && (
+            <div key="mobile-briefing" className="xl:hidden">
+              <AriaIntelligencePanel farmId={farmId} />
+            </div>
+          )}
           {messages.map((m, i) =>
             m.recorded ? (
               <AriaRecordedCard key={m.id} module={m.recorded.module} summary={m.recorded.summary} index={i} />
+            ) : m.knowledge ? (
+              <AriaKnowledgeCard key={m.id} answer={m.knowledge} />
+            ) : m.decision ? (
+              <AriaDecisionCard key={m.id} answer={m.decision} />
             ) : (
               <AriaMessageBubble key={m.id} message={m} index={i} onFollowUp={(q) => send(q)} />
             ),
           )}
           {pending && !turn.isPending && (
             <AriaConfirmationCard
+              key="pending-card"
               stage={pending.stage}
               prompt={pending.prompt}
               options={pending.options}
@@ -414,7 +486,9 @@ export default function AriaWorkspace() {
               disabled={turn.isPending}
             />
           )}
-          {turn.isPending && <AriaThinking label="ARIA is working" />}
+          {(turn.isPending || answering) && (
+            <AriaThinking key="thinking" label={answering ? "ARIA is thinking" : "ARIA is working"} />
+          )}
         </AriaTranscript>
 
         {/* Quick actions on a fresh conversation only. */}
@@ -445,9 +519,37 @@ export default function AriaWorkspace() {
         </div>
       </div>
 
-      {/* ── Right: snapshot ──────────────────────────────────────────── */}
-      <div className="hidden w-80 shrink-0 overflow-y-auto border-l border-gray-200 p-4 xl:block dark:border-white/10">
-        <AriaSnapshotPanel farmId={farmId} />
+      {/* ── Right: snapshot / briefing ───────────────────────────────── */}
+      <div className="hidden w-80 shrink-0 flex-col border-l border-gray-200 xl:flex dark:border-white/10">
+        <div
+          className="flex gap-1 border-b border-gray-200 p-2 dark:border-white/10"
+          role="tablist"
+          aria-label="Right panel view"
+        >
+          {(["snapshot", "briefing"] as const).map((v) => (
+            <button
+              key={v}
+              role="tab"
+              aria-selected={rightView === v}
+              onClick={() => setRightView(v)}
+              className={cn(
+                "flex-1 rounded-lg px-3 py-1.5 text-sm font-medium capitalize transition-colors",
+                rightView === v
+                  ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-200"
+                  : "text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/[0.06]",
+              )}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          {rightView === "snapshot" ? (
+            <AriaSnapshotPanel farmId={farmId} />
+          ) : (
+            <AriaIntelligencePanel farmId={farmId} />
+          )}
+        </div>
       </div>
     </div>
   );

@@ -22,6 +22,13 @@ export interface StoredMessage {
   sources?: string[];
   /** Present when this message recorded something. */
   saved?: { module: string; summary: string };
+  /**
+   * Structured deterministic answers, stored so the rich card re-renders on
+   * reload rather than collapsing to plain text. Payloads are plain data —
+   * knowledge/decision shapes from the intelligence API.
+   */
+  knowledge?: unknown;
+  decision?: unknown;
   ts: number;
 }
 

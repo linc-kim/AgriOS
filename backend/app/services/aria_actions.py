@@ -36,9 +36,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.farm import Farm
 from app.models.flock import DailyLog, Flock
 from app.models.auth import User
+from app.schemas.automation import ReminderCreate
 from app.schemas.flock import DailyLogSubmit, ProductionRecordSubmit, WeighinSubmit
 from app.schemas.health import VaccinationRecordCreate
-from app.services import audit_service, flock_service, health_service
+from app.services import audit_service, automation_service, flock_service, health_service
 from app.services.aria_nlu import Intent
 
 
@@ -193,11 +194,12 @@ async def execute(
 def _typed(slots: dict[str, Any]) -> dict[str, Any]:
     """Restore JSON-ed slots to the types the domain schemas expect."""
     out = dict(slots)
-    if isinstance(out.get("date"), str):
-        try:
-            out["date"] = date.fromisoformat(out["date"])
-        except ValueError:
-            out.pop("date", None)
+    for date_key in ("date", "due_date"):
+        if isinstance(out.get(date_key), str):
+            try:
+                out[date_key] = date.fromisoformat(out[date_key])
+            except ValueError:
+                out.pop(date_key, None)
     for key in ("quantity_kg", "amount", "unit_price", "average_weight_kg"):
         if key in out and not isinstance(out[key], Decimal):
             try:
@@ -387,12 +389,45 @@ async def _write_feed_consumption(db, farm, user, slots) -> ActionResult:
     )
 
 
+async def _write_reminder(db, farm, user, slots) -> ActionResult:
+    """
+    A reminder goes to the existing Reminder module — not a flock record. Same
+    parse-confirm-write pipeline, different destination. The due date is stored
+    at 06:00 local so a "remind me Tuesday" fires before the morning farm walk.
+    """
+    from datetime import datetime, time
+
+    title = str(slots["title"]).strip()[:200]
+    due = slots.get("due_date")
+    if not isinstance(due, date):
+        raise ValueError("due_date missing — the dialogue must collect a time first")
+    due_at = datetime.combine(due, time(hour=6, minute=0))
+    recurrence = slots.get("recurrence") or "none"
+
+    reminder = await automation_service.create_reminder(
+        db,
+        farm,
+        ReminderCreate(title=title, due_at=due_at, recurrence=recurrence, priority="normal"),
+        user,
+    )
+    recur_txt = f" ({recurrence})" if recurrence != "none" else ""
+    return ActionResult(
+        ok=True,
+        summary=f"Reminder set: {title} on {due.isoformat()}{recur_txt}.",
+        module="reminders",
+        resource_type="reminder",
+        resource_id=getattr(reminder, "id", None),
+        changes={"title": title, "due_at": due_at.isoformat(), "recurrence": recurrence},
+    )
+
+
 _HANDLERS = {
     Intent.RECORD_MORTALITY: _write_mortality,
     Intent.RECORD_EGGS: _write_eggs,
     Intent.RECORD_WEIGHT: _write_weight,
     Intent.RECORD_VACCINATION: _write_vaccination,
     Intent.RECORD_FEED_CONSUMPTION: _write_feed_consumption,
+    Intent.CREATE_REMINDER: _write_reminder,
 }
 
 

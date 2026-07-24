@@ -270,3 +270,108 @@ class ARIARecordResponse(AGRIOSSchema):
     summary: Optional[str] = None
     module: Optional[str] = None
     resource_id: Optional[str] = None
+
+
+# ── Farm intelligence (Module 13 Part 4) ──────────────────────────────────────
+
+class AIInsightCard(AGRIOSSchema):
+    """An operational finding with the full explanation ARIA must always give."""
+    key: str
+    title: str
+    problem: str
+    reason: str
+    action: str
+    benefit: str
+    confidence: str
+    sources: list[str]
+    priority: str
+
+
+class AIChecklistItem(AGRIOSSchema):
+    key: str
+    label: str
+    done: bool
+    reason: str
+    priority: str
+
+
+class AITrendCard(AGRIOSSchema):
+    metric: str
+    direction: str
+    change_pct: Optional[float] = None
+    explanation: str
+    grounded: bool
+    sources: list[str]
+
+
+class AIHealthFactor(AGRIOSSchema):
+    key: str
+    label: str
+    score: int
+    max_score: int
+    status: str          # ok | warn | fail
+    explanation: str
+
+
+class AIHealthScore(AGRIOSSchema):
+    score: int
+    max_score: int
+    grade: str
+    factors: list[AIHealthFactor]
+
+
+class AIBriefing(AGRIOSSchema):
+    farm_name: str
+    as_of: str
+    greeting: str
+    lines: list[str]
+    priorities: list[str]
+    health_score: int
+    notes: list[str]
+
+
+class AIIntelligenceResponse(AGRIOSSchema):
+    """The whole operations-manager view, in one call, for the workspace panel."""
+    briefing: AIBriefing
+    health: AIHealthScore
+    insights: list[AIInsightCard]
+    checklist: list[AIChecklistItem]
+    trends: list[AITrendCard]
+
+
+class AIKnowledgeAnswer(AGRIOSSchema):
+    key: str
+    title: str
+    category: str
+    explanation: str
+    best_practices: list[str]
+    warnings: list[str]
+    source: str
+    vet_now: bool
+    confidence: str
+
+
+class AIDecisionAnswer(AGRIOSSchema):
+    question: str
+    lean: str            # consider | caution | hold | need_info
+    headline: str
+    pros: list[str]
+    cons: list[str]
+    assumptions: list[str]
+    risks: list[str]
+    missing: list[str]
+    sources: list[str]
+
+
+class AIAnswerRequest(AGRIOSSchema):
+    question: str = Field(..., min_length=1, max_length=2000)
+
+
+class AIAnswerResponse(AGRIOSSchema):
+    """
+    A deterministic answer to a question — knowledge, a decision, or neither.
+    No Gemini, no Claude. `type` tells the client which payload is populated.
+    """
+    type: str            # knowledge | decision | none
+    knowledge: Optional[AIKnowledgeAnswer] = None
+    decision: Optional[AIDecisionAnswer] = None

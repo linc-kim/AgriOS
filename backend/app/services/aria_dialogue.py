@@ -137,6 +137,16 @@ INTENT_SPECS: dict[Intent, IntentSpec] = {
         label="expense",
         required=[SlotSpec("amount", "How much did you spend?", kind="money")],
     ),
+    Intent.CREATE_REMINDER: IntentSpec(
+        intent=Intent.CREATE_REMINDER,
+        label="reminder",
+        # A reminder needs a task and a time. No flock — it goes to the Reminder
+        # module, not a flock record.
+        required=[
+            SlotSpec("title", "What should I remind you to do?"),
+            SlotSpec("due_date", "When should I remind you?", kind="future_date"),
+        ],
+    ),
 }
 
 
@@ -228,7 +238,7 @@ def _jsonable(slots: dict[str, Any]) -> dict[str, Any]:
 #: Slots whose JSON form must be restored to a real type. Kept explicit rather
 #: than inferred — guessing that any digit-ish string is a Decimal would mangle
 #: free text like a vaccine batch number.
-_DATE_SLOTS = {"date"}
+_DATE_SLOTS = {"date", "due_date"}
 _DECIMAL_SLOTS = {"quantity_kg", "amount", "unit_price", "average_weight_kg", "bag_weight_kg"}
 
 
@@ -324,6 +334,9 @@ def _coerce(kind: str, text: str, *, today: date | None = None) -> Any:
     if kind == "date":
         when, _ = aria_nlu.extract_date(norm, today=today)
         return when
+    if kind == "future_date":
+        # A reminder's "when?" — never defaults to today.
+        return aria_nlu.extract_future_date(norm, today=today)
     if kind == "flock":
         ref = aria_nlu.extract_flock_reference(norm)
         if ref:
@@ -534,14 +547,22 @@ def describe(state: DialogueState) -> str:
         )
     if state.intent is Intent.RECORD_SALE:
         return f"{s.get('count')} sold for KES {s.get('amount')}{when_txt}"
+    if state.intent is Intent.CREATE_REMINDER:
+        due = s.get("due_date")
+        due_txt = f" on {due.isoformat()}" if isinstance(due, date) else ""
+        recur = s.get("recurrence")
+        recur_txt = f" ({recur})" if recur and recur != "none" else ""
+        return f"remind you to {s.get('title')}{due_txt}{recur_txt}"
     return f"expense of KES {s.get('amount')}{when_txt}"
 
 
 def _confirmation(state: DialogueState) -> str:
-    lines = [f"Ready to record: {describe(state)}."]
+    # Reminders are set, not recorded — the verb matters to a farmer reading it.
+    verb = "set" if state.intent is Intent.CREATE_REMINDER else "record"
+    lines = [f"Ready to {verb}: {describe(state)}."]
     if state.assumptions:
         lines.append(" ".join(state.assumptions))
-    lines.append("Shall I save it?")
+    lines.append(f"Shall I {'set it' if state.intent is Intent.CREATE_REMINDER else 'save it'}?")
     return " ".join(lines)
 
 

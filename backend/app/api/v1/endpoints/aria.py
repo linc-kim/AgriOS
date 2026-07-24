@@ -38,11 +38,24 @@ from app.schemas.ai import (
     ARIAMessageCreate,
     ARIARecordRequest,
     ARIARecordResponse,
+    AIIntelligenceResponse,
+    AIBriefing,
+    AIAnswerRequest,
+    AIAnswerResponse,
+    AIKnowledgeAnswer,
+    AIDecisionAnswer,
     ARIAResponse,
     RecommendationAction,
 )
 from app.schemas.base import SuccessResponse
-from app.services import aria_record_service, aria_service
+from app.services import (
+    aria_decisions,
+    aria_intelligence_data,
+    aria_knowledge,
+    aria_record_service,
+    aria_service,
+)
+from app.services import aria_intelligence as _intel
 
 router = APIRouter(prefix="/farms/{farm_id}", tags=["ARIA"])
 
@@ -331,3 +344,131 @@ async def record_by_conversation(
             resource_id=result.resource_id,
         )
     )
+
+
+
+# ── Farm intelligence (Module 13 Part 4) ──────────────────────────────────────
+#
+# All deterministic. These read what the farm recorded and reason over it — no
+# Gemini, no Claude, no quota. They are the operations-manager brain.
+
+
+def _serialise_intelligence(report: dict) -> AIIntelligenceResponse:
+    b = report["briefing"]
+    h = report["health"]
+    return AIIntelligenceResponse(
+        briefing=AIBriefing(
+            farm_name=b.farm_name, as_of=b.as_of.isoformat(), greeting=b.greeting,
+            lines=b.lines, priorities=b.priorities, health_score=b.health_score, notes=b.notes,
+        ),
+        health={
+            "score": h.score, "max_score": h.max_score, "grade": h.grade,
+            "factors": [
+                {"key": f.key, "label": f.label, "score": f.score, "max_score": f.max_score,
+                 "status": f.status.value, "explanation": f.explanation}
+                for f in h.factors
+            ],
+        },
+        insights=[
+            {"key": i.key, "title": i.title, "problem": i.problem, "reason": i.reason,
+             "action": i.action, "benefit": i.benefit, "confidence": i.confidence,
+             "sources": i.sources, "priority": i.priority.value}
+            for i in report["insights"]
+        ],
+        checklist=[
+            {"key": c.key, "label": c.label, "done": c.done, "reason": c.reason,
+             "priority": c.priority.value}
+            for c in report["checklist"]
+        ],
+        trends=[
+            {"metric": t.metric, "direction": t.direction, "change_pct": t.change_pct,
+             "explanation": t.explanation, "grounded": t.grounded, "sources": t.sources}
+            for t in report["trends"]
+        ],
+    )
+
+
+@router.get(
+    "/aria/intelligence",
+    response_model=SuccessResponse[AIIntelligenceResponse],
+    summary="ARIA's full operations view: briefing, checklist, insights, trends, health",
+)
+async def farm_intelligence(
+    farm_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    access=Depends(require_farm_access({"farm_owner", "farm_manager", "farm_worker", "vet_consultant", "viewer", "enterprise_owner"})),
+    current_user: User = Depends(require_permission(Permission.AI_INSIGHT_VIEW)),
+):
+    """
+    Everything the operations manager sees, in one deterministic call. Composed
+    from the farm's own records via the domain services — never fabricated, and
+    honest about anything unavailable.
+    """
+    farm, _ = access
+    report = await aria_intelligence_data.full_report(db, farm, current_user)
+    return SuccessResponse(data=_serialise_intelligence(report))
+
+
+@router.get(
+    "/aria/briefing",
+    response_model=SuccessResponse[AIBriefing],
+    summary="ARIA's daily briefing",
+)
+async def daily_briefing(
+    farm_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    access=Depends(require_farm_access({"farm_owner", "farm_manager", "farm_worker", "vet_consultant", "viewer", "enterprise_owner"})),
+    current_user: User = Depends(require_permission(Permission.AI_INSIGHT_VIEW)),
+):
+    farm, _ = access
+    b = await aria_intelligence_data.daily_briefing(db, farm, current_user)
+    return SuccessResponse(data=AIBriefing(
+        farm_name=b.farm_name, as_of=b.as_of.isoformat(), greeting=b.greeting,
+        lines=b.lines, priorities=b.priorities, health_score=b.health_score, notes=b.notes,
+    ))
+
+
+@router.post(
+    "/aria/answer",
+    response_model=SuccessResponse[AIAnswerResponse],
+    summary="Answer a question deterministically — knowledge base or decision support",
+)
+async def deterministic_answer(
+    farm_id: uuid.UUID,
+    body: AIAnswerRequest,
+    db: AsyncSession = Depends(get_db),
+    access=Depends(require_farm_access({"farm_owner", "farm_manager", "farm_worker", "vet_consultant", "viewer", "enterprise_owner"})),
+    current_user: User = Depends(require_permission(Permission.AI_INSIGHT_VIEW)),
+):
+    """
+    Deterministic Q&A: the local poultry knowledge base for husbandry questions,
+    and decision support for judgement questions. No Gemini, no Claude. Returns
+    type "none" when neither applies, so the client can fall back to its own
+    snapshot answers — the honest edge, never a fabricated one.
+
+    Educational only: disease entries carry a see-a-vet boundary and never
+    diagnose the farmer's specific birds (§4.4).
+    """
+    farm, _ = access
+    q = body.question
+
+    # Decision questions first — they're more specific than knowledge lookups.
+    facts = await aria_intelligence_data.gather_facts(db, farm, current_user)
+    decision = aria_decisions.decide(q, facts)
+    if decision is not None:
+        return SuccessResponse(data=AIAnswerResponse(
+            type="decision",
+            decision=AIDecisionAnswer(
+                question=decision.question, lean=decision.lean, headline=decision.headline,
+                pros=decision.pros, cons=decision.cons, assumptions=decision.assumptions,
+                risks=decision.risks, missing=decision.missing, sources=decision.sources,
+            ),
+        ))
+
+    knowledge = aria_knowledge.answer(q)
+    if knowledge is not None:
+        return SuccessResponse(data=AIAnswerResponse(
+            type="knowledge", knowledge=AIKnowledgeAnswer(**knowledge),
+        ))
+
+    return SuccessResponse(data=AIAnswerResponse(type="none"))
