@@ -145,3 +145,43 @@ async def delete_notification(
             detail={"code": "NOTIFICATION_NOT_FOUND", "message": "Notification not found."},
         )
     return SuccessResponse(data={"deleted": True})
+
+
+@router.patch(
+    "/notifications/{notification_id}/archive",
+    response_model=SuccessResponse[NotificationResponse],
+    summary="Archive or restore a notification",
+)
+async def archive_notification(
+    farm_id: uuid.UUID,
+    notification_id: uuid.UUID,
+    archived: bool = True,
+    db: AsyncSession = Depends(get_db),
+    access=Depends(
+        require_farm_access({
+            "farm_owner", "farm_manager", "enterprise_owner",
+            "vet_consultant", "farm_worker", "viewer",
+        })
+    ),
+    current_user: User = Depends(require_permission(Permission.NOTIFICATION_VIEW)),
+):
+    """
+    File a notification away without deleting it.
+
+    ARIA's supervisor raises alerts that remain true for days; archiving clears
+    the active list while keeping the record, which deletion would destroy.
+    Pass `archived=false` to restore.
+    """
+    result = await notification_service.archive_notification(
+        db=db,
+        notification_id=notification_id,
+        user_id=current_user.id,
+        farm_id=farm_id,
+        archived=archived,
+    )
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "NOTIFICATION_NOT_FOUND", "message": "Notification not found."},
+        )
+    return SuccessResponse(data=result)

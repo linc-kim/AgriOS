@@ -442,6 +442,13 @@ export default function AriaWorkspace() {
             <Menu className="h-5 w-5" />
           </button>
           <AriaAvatar size={34} state={turn.isPending ? "thinking" : "idle"} animated />
+          <button
+            type="button"
+            onClick={() => navigate("/ai/supervisor")}
+            className="order-last shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-500/10"
+          >
+            Supervisor
+          </button>
           <div className="min-w-0 flex-1">
             <h1 className="text-sm font-semibold text-gray-900 dark:text-white">ARIA</h1>
             <p className="truncate text-[11px] text-gray-400 dark:text-gray-500">

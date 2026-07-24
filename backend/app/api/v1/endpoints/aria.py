@@ -44,6 +44,14 @@ from app.schemas.ai import (
     AIAnswerResponse,
     AIKnowledgeAnswer,
     AIDecisionAnswer,
+    AIAlert,
+    AIMonitor,
+    AIPriorityItem,
+    AIReport,
+    AIReportSection,
+    AISupervisorBriefing,
+    AISupervisorSnapshot,
+    AITimelineEvent,
     ARIAResponse,
     RecommendationAction,
 )
@@ -56,6 +64,7 @@ from app.services import (
     aria_service,
 )
 from app.services import aria_intelligence as _intel
+from app.services import aria_supervisor, aria_supervisor_data
 
 router = APIRouter(prefix="/farms/{farm_id}", tags=["ARIA"])
 
@@ -472,3 +481,154 @@ async def deterministic_answer(
         ))
 
     return SuccessResponse(data=AIAnswerResponse(type="none"))
+
+
+
+# ── Supervisor (Module 13 Part 5) ─────────────────────────────────────────────
+#
+# ARIA watching the farm rather than waiting to be asked. Every endpoint here is
+# deterministic: monitors, alerts, ranking and reports are pure functions of
+# recorded data. No AI provider is reachable from any of them.
+
+_READ_ROLES = {"farm_owner", "farm_manager", "farm_worker", "vet_consultant", "viewer", "enterprise_owner"}
+
+
+def _section(s) -> AIReportSection:
+    return AIReportSection(label=s.label, value=s.value, available=s.available)
+
+
+def _briefing(b) -> AISupervisorBriefing:
+    return AISupervisorBriefing(
+        farm_name=b.farm_name, as_of=b.as_of.isoformat(), greeting=b.greeting,
+        overall=b.overall.value, health_score=b.health_score,
+        sections=[_section(s) for s in b.sections],
+        priorities=b.priorities, suggested_actions=b.suggested_actions, notes=b.notes,
+    )
+
+
+def _alert(a) -> AIAlert:
+    return AIAlert(
+        key=a.key, severity=a.severity.value, title=a.title, reason=a.reason,
+        evidence=a.evidence, action=a.action, monitor=a.monitor,
+        raised_at=a.raised_at.isoformat(),
+    )
+
+
+@router.get(
+    "/aria/supervisor",
+    response_model=SuccessResponse[AISupervisorSnapshot],
+    summary="ARIA's full supervisor view: briefing, monitors, alerts, priorities",
+)
+async def supervisor_snapshot(
+    farm_id: uuid.UUID,
+    sync: bool = Query(False, description="Also persist alerts as notifications and create auto-reminders."),
+    db: AsyncSession = Depends(get_db),
+    access=Depends(require_farm_access(_READ_ROLES)),
+    current_user: User = Depends(require_permission(Permission.AI_INSIGHT_VIEW)),
+):
+    """
+    One deterministic supervision pass.
+
+    Read-only by default so refreshing a dashboard never has side effects; pass
+    `sync=true` to also write notifications and auto-reminders, which is
+    idempotent — running it twice creates nothing the second time.
+    """
+    farm, _ = access
+    r = await aria_supervisor_data.supervise(db, farm, current_user, sync=sync)
+    return SuccessResponse(data=AISupervisorSnapshot(
+        briefing=_briefing(r["briefing"]),
+        overall=aria_supervisor.overall_state(r["monitors"]).value,
+        health_score=r["health"].score,
+        monitors=[
+            AIMonitor(key=m.key, label=m.label, state=m.state.value, why=m.why,
+                      evidence=m.evidence, unmeasured=m.unmeasured)
+            for m in r["monitors"]
+        ],
+        alerts=[_alert(a) for a in r["alerts"]],
+        priorities=[
+            AIPriorityItem(key=p.key, rank=p.rank, label=p.label, why=p.why,
+                           source=p.source, severity=p.severity.value)
+            for p in r["priorities"]
+        ],
+    ))
+
+
+@router.get(
+    "/aria/alerts",
+    response_model=SuccessResponse[list[AIAlert]],
+    summary="Current farm alerts",
+)
+async def farm_alerts(
+    farm_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    access=Depends(require_farm_access(_READ_ROLES)),
+    current_user: User = Depends(require_permission(Permission.AI_INSIGHT_VIEW)),
+):
+    """Alerts for thresholds that are actually crossed — never general advice."""
+    farm, _ = access
+    r = await aria_supervisor_data.supervise(db, farm, current_user)
+    return SuccessResponse(data=[_alert(a) for a in r["alerts"]])
+
+
+@router.get(
+    "/aria/priorities",
+    response_model=SuccessResponse[list[AIPriorityItem]],
+    summary="What needs attention, ranked",
+)
+async def farm_priorities(
+    farm_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    access=Depends(require_farm_access(_READ_ROLES)),
+    current_user: User = Depends(require_permission(Permission.AI_INSIGHT_VIEW)),
+):
+    farm, _ = access
+    r = await aria_supervisor_data.supervise(db, farm, current_user)
+    return SuccessResponse(data=[
+        AIPriorityItem(key=p.key, rank=p.rank, label=p.label, why=p.why,
+                       source=p.source, severity=p.severity.value)
+        for p in r["priorities"]
+    ])
+
+
+@router.get(
+    "/aria/timeline",
+    response_model=SuccessResponse[list[AITimelineEvent]],
+    summary="Chronological farm activity",
+)
+async def farm_timeline(
+    farm_id: uuid.UUID,
+    days: int = Query(30, ge=1, le=365),
+    limit: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+    access=Depends(require_farm_access(_READ_ROLES)),
+    current_user: User = Depends(require_permission(Permission.AI_INSIGHT_VIEW)),
+):
+    """Built from recorded rows only — never a reconstruction."""
+    farm, _ = access
+    events = await aria_supervisor_data.gather_timeline(db, farm, days=days, limit=limit)
+    return SuccessResponse(data=[
+        AITimelineEvent(at=e.at.isoformat(), kind=e.kind, title=e.title, detail=e.detail)
+        for e in events
+    ])
+
+
+@router.get(
+    "/aria/reports",
+    response_model=SuccessResponse[AIReport],
+    summary="Deterministic operational report",
+)
+async def farm_report(
+    farm_id: uuid.UUID,
+    period: str = Query("7d", pattern="^(today|7d|30d)$"),
+    db: AsyncSession = Depends(get_db),
+    access=Depends(require_farm_access(_READ_ROLES)),
+    current_user: User = Depends(require_permission(Permission.AI_INSIGHT_VIEW)),
+):
+    """Any line ARIA cannot compute from records is returned as unavailable."""
+    farm, _ = access
+    facts = await aria_supervisor_data.gather_facts_for_report(db, farm, current_user)
+    report = aria_supervisor.build_report(facts, period)
+    return SuccessResponse(data=AIReport(
+        period=report.period, label=report.label,
+        sections=[_section(s) for s in report.sections], notes=report.notes,
+    ))

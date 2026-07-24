@@ -224,3 +224,39 @@ async def get_unread_count(
         )
     )
     return result.scalar_one()
+
+
+async def archive_notification(
+    db: AsyncSession,
+    notification_id: uuid.UUID,
+    user_id: uuid.UUID,
+    farm_id: uuid.UUID,
+    archived: bool = True,
+) -> Optional[NotificationResponse]:
+    """
+    Archive (or restore) a notification.
+
+    The model has carried `is_archived`/`archived_at` since Module 11 but had no
+    way to set them. ARIA's supervisor raises alerts that stay true for days, so
+    a farmer needs to file one away without deleting the record of it —
+    archiving keeps the history while clearing the active list.
+    """
+    result = await db.execute(
+        select(Notification).where(
+            and_(
+                Notification.id == notification_id,
+                _active_q(user_id, farm_id),
+            )
+        )
+    )
+    notif = result.scalar_one_or_none()
+    if not notif:
+        return None
+
+    if notif.is_archived != archived:
+        notif.is_archived = archived
+        notif.archived_at = datetime.utcnow() if archived else None
+        await db.commit()
+        await db.refresh(notif)
+
+    return NotificationResponse.model_validate(notif)

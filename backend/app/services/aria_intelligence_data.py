@@ -27,6 +27,7 @@ from app.models.auth import User
 from app.models.automation import Reminder
 from app.models.farm import Farm
 from app.models.flock import DailyLog, Flock, ProductionRecord, WeighinRecord
+from app.models.inventory import InventoryItem
 from app.services import (
     aria_intelligence as engine,
     automation_service,
@@ -60,6 +61,7 @@ async def gather_facts(db: AsyncSession, farm: Farm, user: User) -> FarmFacts:
         )
     ).scalars().all()
     facts.active_flocks = len(flocks)
+    facts.initial_birds = sum(int(fl.initial_count or 0) for fl in flocks)
     facts.flock_stages = [
         FlockStage(
             name=fl.name,
@@ -114,6 +116,41 @@ async def gather_facts(db: AsyncSession, farm: Farm, user: User) -> FarmFacts:
             db, DailyLog, DailyLog.log_date, flock_ids, today,
         )
 
+        # ── Water (Part 5) ────────────────────────────────────────────────
+        # water_litres is nullable on the daily log, so "no water recorded" and
+        # "recorded zero" are different facts. SUM over no rows yields None
+        # here rather than 0, and the monitor treats None as unmeasured.
+        facts.water_today_litres = await _nullable_sum(
+            db, DailyLog, DailyLog.water_litres, DailyLog.log_date, flock_ids, today, today,
+        )
+        facts.water_this_week_litres = await _nullable_sum(
+            db, DailyLog, DailyLog.water_litres, DailyLog.log_date, flock_ids,
+            today - timedelta(days=6), today,
+        )
+        facts.water_prev_week_litres = await _nullable_sum(
+            db, DailyLog, DailyLog.water_litres, DailyLog.log_date, flock_ids,
+            today - timedelta(days=13), today - timedelta(days=7),
+        )
+        facts.days_since_water_log = await _days_since(
+            db, DailyLog, DailyLog.log_date, flock_ids, today,
+            extra=DailyLog.water_litres.isnot(None),
+        )
+
+    # ── Inventory (Part 5) ────────────────────────────────────────────────
+    items = (
+        await db.execute(
+            select(InventoryItem).where(
+                InventoryItem.farm_id == str(farm.id),
+                InventoryItem.deleted_at.is_(None),
+            )
+        )
+    ).scalars().all()
+    facts.inventory_tracked = len(items)
+    # `is_low` / `is_out` are the model's own definitions — reuse them rather
+    # than re-deriving a threshold the inventory module already owns.
+    facts.inventory_out = [i.name for i in items if i.is_out]
+    facts.inventory_low = [i.name for i in items if i.is_low and not i.is_out]
+
     # ── Vaccination schedule ──────────────────────────────────────────────
     schedule = await _safe(health_service.get_upcoming_vaccinations(db, farm.id))
     if schedule is not None:
@@ -162,6 +199,22 @@ async def gather_facts(db: AsyncSession, farm: Farm, user: User) -> FarmFacts:
     facts.reminders_overdue = sum(
         1 for r in reminders if r.due_at and _aware(r.due_at) < now
     )
+    # Titles let auto-generation skip anything the farmer already has open;
+    # the upcoming list feeds the briefing and the priority ranking.
+    facts.reminder_titles = [r.title for r in reminders if r.title]
+    horizon = now + timedelta(days=7)
+    facts.upcoming_reminders = sorted(
+        (
+            {
+                "title": r.title,
+                "due_at": _aware(r.due_at).isoformat(),
+                "overdue": _aware(r.due_at) < now,
+            }
+            for r in reminders
+            if r.due_at and _aware(r.due_at) <= horizon
+        ),
+        key=lambda x: x["due_at"],
+    )
 
     return facts
 
@@ -184,6 +237,27 @@ async def _prev_week_sum(db, model, column, date_col, flock_ids, today) -> int:
     )
     value = result.scalar_one()
     return int(value) if value is not None else 0
+
+
+async def _nullable_sum(db, model, column, date_col, flock_ids, start, end) -> Decimal | None:
+    """
+    Sum a nullable measure over a window, preserving "never recorded" as None.
+
+    Deliberately does NOT coalesce to zero. For water, "no reading" and "drank
+    nothing" are opposite facts — one is a gap in the records, the other is an
+    emergency — and collapsing them would have the supervisor either cry wolf
+    or miss a real one.
+    """
+    result = await db.execute(
+        select(func.sum(column)).where(
+            model.flock_id.in_(flock_ids),
+            date_col >= start,
+            date_col <= end,
+            model.deleted_at.is_(None),
+        )
+    )
+    value = result.scalar_one()
+    return Decimal(str(value)) if value is not None else None
 
 
 async def _days_since(db, model, date_col, flock_ids, today, extra=None) -> int | None:

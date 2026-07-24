@@ -375,3 +375,77 @@ class AIAnswerResponse(AGRIOSSchema):
     type: str            # knowledge | decision | none
     knowledge: Optional[AIKnowledgeAnswer] = None
     decision: Optional[AIDecisionAnswer] = None
+
+
+# ── Supervisor (Module 13 Part 5) ─────────────────────────────────────────────
+
+class AIMonitor(AGRIOSSchema):
+    """One continuously-evaluated aspect of the farm, with its reasoning."""
+    key: str
+    label: str
+    state: str               # normal | watch | warning | critical
+    why: str
+    evidence: list[str]
+    unmeasured: bool
+
+
+class AIAlert(AGRIOSSchema):
+    key: str
+    severity: str
+    title: str
+    reason: str
+    evidence: list[str]
+    action: str
+    monitor: str
+    raised_at: str
+
+
+class AIPriorityItem(AGRIOSSchema):
+    key: str
+    rank: int
+    label: str
+    why: str
+    source: str              # alert | vaccination | reminder | routine
+    severity: str
+
+
+class AITimelineEvent(AGRIOSSchema):
+    at: str
+    kind: str
+    title: str
+    detail: str = ""
+
+
+class AIReportSection(AGRIOSSchema):
+    label: str
+    value: str
+    available: bool
+
+
+class AIReport(AGRIOSSchema):
+    period: str
+    label: str
+    sections: list[AIReportSection]
+    notes: list[str]
+
+
+class AISupervisorBriefing(AGRIOSSchema):
+    farm_name: str
+    as_of: str
+    greeting: str
+    overall: str
+    health_score: int
+    sections: list[AIReportSection]
+    priorities: list[str]
+    suggested_actions: list[str]
+    notes: list[str]
+
+
+class AISupervisorSnapshot(AGRIOSSchema):
+    """The whole supervisor view in one call, for the dashboard."""
+    briefing: AISupervisorBriefing
+    overall: str
+    health_score: int
+    monitors: list[AIMonitor]
+    alerts: list[AIAlert]
+    priorities: list[AIPriorityItem]

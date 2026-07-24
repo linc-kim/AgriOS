@@ -29,6 +29,12 @@ class NotificationResponse(BaseModel):
     read_at: Optional[datetime]
     source: Optional[str]
     created_at: datetime
+    # Archived state and severity have been on the model since Module 11 but
+    # were never exposed. ARIA's notification centre groups by severity and
+    # needs to show what has been filed away, so both are surfaced here.
+    is_archived: bool = False
+    archived_at: Optional[datetime] = None
+    priority: str = "normal"
 
     model_config = {"from_attributes": True}
 

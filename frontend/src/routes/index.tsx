@@ -57,6 +57,7 @@ const ReportsScreen = lazy(() => import("@/screens/reports/ReportsScreen"));
 const AutomationScreen = lazy(() => import("@/screens/automation/AutomationScreen"));
 const AIScreen = lazy(() => import("@/screens/ai/AIScreen"));
 const AriaWorkspace = lazy(() => import("@/screens/ai/AriaWorkspace"));
+const AriaSupervisorScreen = lazy(() => import("@/screens/ai/AriaSupervisorScreen"));
 const AdminScreen = lazy(() => import("@/screens/admin/AdminScreen"));
 const ProductionScreen = lazy(() => import("@/screens/production/ProductionScreen"));
 
@@ -168,6 +169,7 @@ const router = createBrowserRouter([
           // The workspace is ARIA's primary surface (Module 13). The analytical
           // dashboard/assistant tabs stay reachable at /ai/insights.
           { path: "/ai", element: <AriaWorkspace /> },
+          { path: "/ai/supervisor", element: <AriaSupervisorScreen /> },
           { path: "/ai/insights", element: <AIScreen /> },
           { path: "/admin", element: <AdminScreen /> },
           { path: "/production", element: <ProductionScreen /> },

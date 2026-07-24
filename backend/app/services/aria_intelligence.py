@@ -110,6 +110,30 @@ class FarmFacts:
     # Reminders
     reminders_overdue: int = 0
     reminders_open: int = 0
+    #: Titles of reminders already open, so auto-generation can avoid duplicates.
+    reminder_titles: list[str] = field(default_factory=list)
+    #: Reminders due in the next 7 days: {title, due_at, overdue}.
+    upcoming_reminders: list[dict] = field(default_factory=list)
+
+    # ── Water (Part 5) ────────────────────────────────────────────────────
+    # Water is the first thing to fail on a farm and the fastest to hurt a
+    # flock, which is why the supervisor watches it as its own monitor. None
+    # means never recorded — never treated as zero consumption.
+    water_today_litres: Decimal | None = None
+    water_this_week_litres: Decimal | None = None
+    water_prev_week_litres: Decimal | None = None
+    days_since_water_log: int | None = None
+
+    # ── Inventory (Part 5) ────────────────────────────────────────────────
+    inventory_tracked: int = 0
+    #: Item names at or below their reorder level, and fully exhausted ones.
+    inventory_low: list[str] = field(default_factory=list)
+    inventory_out: list[str] = field(default_factory=list)
+
+    # ── Population (Part 5) ───────────────────────────────────────────────
+    #: Birds placed across active flocks, so losses can be expressed as a share
+    #: of the flock rather than a bare count.
+    initial_birds: int = 0
 
 
 # ── Outputs ──────────────────────────────────────────────────────────────────
