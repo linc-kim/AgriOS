@@ -135,6 +135,34 @@ class FarmFacts:
     #: of the flock rather than a bare count.
     initial_birds: int = 0
 
+    # ── Planning inputs (Part 6) ──────────────────────────────────────────
+    #: Feed physically in stock, summed from inventory items in the "feed"
+    #: category whose unit is kilograms. None = feed isn't tracked in inventory,
+    #: which is different from having none.
+    feed_stock_kg: Decimal | None = None
+
+    #: Houses with their capacity and current occupancy, for the capacity
+    #: planner: {name, capacity, birds, flock_name, occupied}.
+    houses: list[dict] = field(default_factory=list)
+
+    #: Per active flock: {name, placement_date, days_elapsed, cycle_days,
+    #: days_remaining, expected_close_date, birds}.
+    cycles: list[dict] = field(default_factory=list)
+
+    #: How many distinct days each metric has been recorded over the last 30.
+    #: This is the sole input to forecast confidence — a projection from three
+    #: days of data must not claim the same certainty as one from thirty.
+    feed_history_days: int = 0
+    egg_history_days: int = 0
+    water_history_days: int = 0
+    mortality_history_days: int = 0
+
+    #: Recorded expense totals by category name over the last 30 days.
+    #: Only categories the farmer actually used appear — the budget never
+    #: invents a line for something never spent on.
+    expense_by_category: dict[str, Decimal] = field(default_factory=dict)
+    expense_window_days: int = 30
+
 
 # ── Outputs ──────────────────────────────────────────────────────────────────
 

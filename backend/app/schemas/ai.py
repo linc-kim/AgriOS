@@ -449,3 +449,138 @@ class AISupervisorSnapshot(AGRIOSSchema):
     monitors: list[AIMonitor]
     alerts: list[AIAlert]
     priorities: list[AIPriorityItem]
+
+
+# ── Planner (Module 13 Part 6) ────────────────────────────────────────────────
+
+class AIForecastItem(AGRIOSSchema):
+    """One projection, with the method and evidence behind it."""
+    key: str
+    label: str
+    value: str
+    unit: str = ""
+    available: bool
+    confidence: str          # high | medium | low | none
+    method: str = ""
+    assumptions: list[str]
+    evidence: list[str]
+
+
+class AIFeedForecast(AGRIOSSchema):
+    daily_rate_kg: Optional[str] = None
+    days_remaining: Optional[int] = None
+    depletion_date: Optional[str] = None
+    required_7d_kg: Optional[str] = None
+    required_30d_kg: Optional[str] = None
+    required_cycle_kg: Optional[str] = None
+    cycle_days_remaining: Optional[int] = None
+    confidence: str
+    method: str
+    assumptions: list[str]
+    evidence: list[str]
+    notes: list[str]
+
+
+class AIHouseCapacity(AGRIOSSchema):
+    name: str
+    capacity: int
+    birds: int
+    utilisation_pct: Optional[float] = None
+    state: str               # empty | under | healthy | crowded | over | unknown
+    note: str
+
+
+class AICapacityPlan(AGRIOSSchema):
+    total_capacity: int
+    total_birds: int
+    available_space: int
+    utilisation_pct: Optional[float] = None
+    houses: list[AIHouseCapacity]
+    recommendations: list[str]
+    notes: list[str]
+
+
+class AIBudgetLine(AGRIOSSchema):
+    category: str
+    amount: str
+    basis: str
+
+
+class AIBudget(AGRIOSSchema):
+    period: str
+    label: str
+    lines: list[AIBudgetLine]
+    total: str
+    method: str
+    assumptions: list[str]
+    notes: list[str]
+    available: bool
+
+
+class AICashFlow(AGRIOSSchema):
+    period_days: int
+    expected_expenses: Optional[str] = None
+    expected_income: Optional[str] = None
+    net: Optional[str] = None
+    upcoming: list[str]
+    outlook: str             # surplus | shortfall | unknown
+    assumptions: list[str]
+    notes: list[str]
+
+
+class AICalendarEntry(AGRIOSSchema):
+    on: str
+    kind: str
+    title: str
+    why: str
+
+
+class AIScenarioChange(AGRIOSSchema):
+    label: str
+    current: str
+    projected: str
+    difference: str
+
+
+class AIScenarioRequest(AGRIOSSchema):
+    """
+    A what-if. Never modifies farm data — the engine that answers it is a pure
+    function with no write path.
+    """
+    scenario: str = Field(..., max_length=40,
+                          description="add_birds | mortality_change | feed_price_change | production_change")
+    magnitude: Optional[float] = Field(None, description="Birds to add, or percentage change.")
+
+
+class AIScenarioResult(AGRIOSSchema):
+    scenario: str
+    description: str
+    changes: list[AIScenarioChange]
+    implications: list[str]
+    assumptions: list[str]
+    available: bool
+    note: str = ""
+
+
+class AIPlanningSnapshot(AGRIOSSchema):
+    """The whole planning view in one call, for the dashboard."""
+    feed: AIFeedForecast
+    production: list[AIForecastItem]
+    capacity: AICapacityPlan
+    budget: AIBudget
+    cashflow: AICashFlow
+    calendar: list[AICalendarEntry]
+
+
+class AIPlanningReport(AGRIOSSchema):
+    period: str
+    label: str
+    feed: AIFeedForecast
+    production: list[AIForecastItem]
+    capacity: AICapacityPlan
+    budget: AIBudget
+    cashflow: AICashFlow
+    calendar: list[AICalendarEntry]
+    risks: list[str]
+    priorities: list[str]
+    outstanding_reminders: list[str]

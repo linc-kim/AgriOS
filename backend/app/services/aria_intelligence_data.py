@@ -25,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.auth import User
 from app.models.automation import Reminder
-from app.models.farm import Farm
+from app.models.farm import Farm, ProductionHouse
 from app.models.flock import DailyLog, Flock, ProductionRecord, WeighinRecord
 from app.models.inventory import InventoryItem
 from app.services import (
@@ -62,6 +62,25 @@ async def gather_facts(db: AsyncSession, farm: Farm, user: User) -> FarmFacts:
     ).scalars().all()
     facts.active_flocks = len(flocks)
     facts.initial_birds = sum(int(fl.initial_count or 0) for fl in flocks)
+
+    # ── Production cycles (Part 6) ────────────────────────────────────────
+    for fl in flocks:
+        if not fl.placement_date:
+            continue
+        elapsed = (today - fl.placement_date).days
+        cycle_days = int(fl.expected_cycle_days or 0)
+        facts.cycles.append({
+            "name": fl.name,
+            "placement_date": fl.placement_date.isoformat(),
+            "days_elapsed": elapsed,
+            "cycle_days": cycle_days or None,
+            "days_remaining": max(0, cycle_days - elapsed) if cycle_days else None,
+            "expected_close_date": (
+                fl.expected_close_date.isoformat() if fl.expected_close_date else None
+            ),
+            "birds": int(fl.initial_count or 0),
+        })
+
     facts.flock_stages = [
         FlockStage(
             name=fl.name,
@@ -136,6 +155,26 @@ async def gather_facts(db: AsyncSession, farm: Farm, user: User) -> FarmFacts:
             extra=DailyLog.water_litres.isnot(None),
         )
 
+        # ── History depth (Part 6) ────────────────────────────────────────
+        # Distinct recorded days over the last 30 — the only input to forecast
+        # confidence. A projection built on three days must not present itself
+        # with the same certainty as one built on thirty.
+        window = today - timedelta(days=29)
+        facts.feed_history_days = await _distinct_days(
+            db, DailyLog, DailyLog.log_date, flock_ids, window, today,
+            extra=DailyLog.feed_consumed_kg > 0,
+        )
+        facts.mortality_history_days = await _distinct_days(
+            db, DailyLog, DailyLog.log_date, flock_ids, window, today,
+        )
+        facts.water_history_days = await _distinct_days(
+            db, DailyLog, DailyLog.log_date, flock_ids, window, today,
+            extra=DailyLog.water_litres.isnot(None),
+        )
+        facts.egg_history_days = await _distinct_days(
+            db, ProductionRecord, ProductionRecord.record_date, flock_ids, window, today,
+        )
+
     # ── Inventory (Part 5) ────────────────────────────────────────────────
     items = (
         await db.execute(
@@ -150,6 +189,59 @@ async def gather_facts(db: AsyncSession, farm: Farm, user: User) -> FarmFacts:
     # than re-deriving a threshold the inventory module already owns.
     facts.inventory_out = [i.name for i in items if i.is_out]
     facts.inventory_low = [i.name for i in items if i.is_low and not i.is_out]
+
+    # Feed physically in stock, for the Part 6 depletion forecast. Only items
+    # in the feed category measured in kg — summing bags and litres together
+    # would produce a confident, meaningless number.
+    feed_items = [
+        i for i in items
+        if (i.category or "").lower() == "feed"
+        and (i.unit or "").lower() in ("kg", "kgs", "kilogram", "kilograms")
+    ]
+    if feed_items:
+        facts.feed_stock_kg = Decimal(str(sum(Decimal(str(i.quantity or 0)) for i in feed_items)))
+
+    # ── Houses (Part 6 capacity planner) ──────────────────────────────────
+    # Occupancy is the *current* bird count for the resident flock, not the
+    # number placed — a house is only as crowded as the birds actually in it.
+    birds_by_flock = {c["name"]: c for c in facts.cycles}
+    houses = (
+        await db.execute(
+            select(ProductionHouse).where(
+                ProductionHouse.farm_id == str(farm.id),
+                ProductionHouse.deleted_at.is_(None),
+            )
+        )
+    ).scalars().all()
+    flock_names = {str(fl.id): fl.name for fl in flocks}
+    # Distribute the farm-wide current bird count across occupied houses in
+    # proportion to what was placed, since mortality is tracked per flock.
+    placed_total = sum(int(fl.initial_count or 0) for fl in flocks) or 1
+    for h in houses:
+        resident = flock_names.get(str(h.current_flock_id)) if h.current_flock_id else None
+        birds = 0
+        if resident:
+            placed = birds_by_flock.get(resident, {}).get("birds", 0)
+            birds = round(facts.total_birds * placed / placed_total) if placed else 0
+        facts.houses.append({
+            "name": h.name,
+            "capacity": int(h.capacity or 0),
+            "birds": birds,
+            "flock_name": resident,
+            "occupied": bool(h.current_flock_id),
+        })
+
+    # ── Expenses by category (Part 6 budget) ──────────────────────────────
+    from app.services import finance_service as _finance
+
+    breakdown = await _safe(
+        _finance.get_category_breakdown(
+            db, farm.id, date_from=today - timedelta(days=29), date_to=today
+        ),
+        default=[],
+    )
+    for row in breakdown or []:
+        facts.expense_by_category[row.category_name] = Decimal(str(row.total_kes))
 
     # ── Vaccination schedule ──────────────────────────────────────────────
     schedule = await _safe(health_service.get_upcoming_vaccinations(db, farm.id))
@@ -258,6 +350,22 @@ async def _nullable_sum(db, model, column, date_col, flock_ids, start, end) -> D
     )
     value = result.scalar_one()
     return Decimal(str(value)) if value is not None else None
+
+
+async def _distinct_days(db, model, date_col, flock_ids, start, end, extra=None) -> int:
+    """Count distinct days with a matching record — the measure of history depth."""
+    conditions = [
+        model.flock_id.in_(flock_ids),
+        date_col >= start,
+        date_col <= end,
+        model.deleted_at.is_(None),
+    ]
+    if extra is not None:
+        conditions.append(extra)
+    result = await db.execute(
+        select(func.count(func.distinct(date_col))).where(*conditions)
+    )
+    return int(result.scalar_one() or 0)
 
 
 async def _days_since(db, model, date_col, flock_ids, today, extra=None) -> int | None:

@@ -52,6 +52,19 @@ from app.schemas.ai import (
     AISupervisorBriefing,
     AISupervisorSnapshot,
     AITimelineEvent,
+    AIBudget,
+    AIBudgetLine,
+    AICalendarEntry,
+    AICapacityPlan,
+    AICashFlow,
+    AIFeedForecast,
+    AIForecastItem,
+    AIHouseCapacity,
+    AIPlanningReport,
+    AIPlanningSnapshot,
+    AIScenarioChange,
+    AIScenarioRequest,
+    AIScenarioResult,
     ARIAResponse,
     RecommendationAction,
 )
@@ -65,6 +78,7 @@ from app.services import (
 )
 from app.services import aria_intelligence as _intel
 from app.services import aria_supervisor, aria_supervisor_data
+from app.services import aria_planning, aria_planning_data
 
 router = APIRouter(prefix="/farms/{farm_id}", tags=["ARIA"])
 
@@ -631,4 +645,244 @@ async def farm_report(
     return SuccessResponse(data=AIReport(
         period=report.period, label=report.label,
         sections=[_section(s) for s in report.sections], notes=report.notes,
+    ))
+
+
+# -- Planner (Module 13 Part 6) ------------------------------------------------
+#
+# Forecasts, simulations, budgets and the operational calendar. Every engine
+# behind these is a pure function of recorded facts -- no AI provider is
+# reachable, and a simulation has no write path at all.
+
+
+def _s(v):
+    return None if v is None else str(v)
+
+
+def _feed(f) -> AIFeedForecast:
+    return AIFeedForecast(
+        daily_rate_kg=_s(f.daily_rate_kg), days_remaining=f.days_remaining,
+        depletion_date=f.depletion_date, required_7d_kg=_s(f.required_7d_kg),
+        required_30d_kg=_s(f.required_30d_kg), required_cycle_kg=_s(f.required_cycle_kg),
+        cycle_days_remaining=f.cycle_days_remaining, confidence=f.confidence.value,
+        method=f.method, assumptions=f.assumptions, evidence=f.evidence, notes=f.notes,
+    )
+
+
+def _forecasts(items) -> list[AIForecastItem]:
+    return [
+        AIForecastItem(
+            key=i.key, label=i.label, value=i.value, unit=i.unit, available=i.available,
+            confidence=i.confidence.value, method=i.method,
+            assumptions=i.assumptions, evidence=i.evidence,
+        )
+        for i in items
+    ]
+
+
+def _capacity(c) -> AICapacityPlan:
+    return AICapacityPlan(
+        total_capacity=c.total_capacity, total_birds=c.total_birds,
+        available_space=c.available_space, utilisation_pct=c.utilisation_pct,
+        houses=[
+            AIHouseCapacity(name=h.name, capacity=h.capacity, birds=h.birds,
+                            utilisation_pct=h.utilisation_pct, state=h.state, note=h.note)
+            for h in c.houses
+        ],
+        recommendations=c.recommendations, notes=c.notes,
+    )
+
+
+def _budget(b) -> AIBudget:
+    return AIBudget(
+        period=b.period, label=b.label,
+        lines=[AIBudgetLine(category=x.category, amount=str(x.amount), basis=x.basis)
+               for x in b.lines],
+        total=str(b.total), method=b.method, assumptions=b.assumptions,
+        notes=b.notes, available=b.available,
+    )
+
+
+def _cashflow(c) -> AICashFlow:
+    return AICashFlow(
+        period_days=c.period_days, expected_expenses=_s(c.expected_expenses),
+        expected_income=_s(c.expected_income), net=_s(c.net), upcoming=c.upcoming,
+        outlook=c.outlook, assumptions=c.assumptions, notes=c.notes,
+    )
+
+
+def _calendar(entries) -> list[AICalendarEntry]:
+    return [AICalendarEntry(on=e.on, kind=e.kind, title=e.title, why=e.why) for e in entries]
+
+
+@router.get(
+    "/aria/planning",
+    response_model=SuccessResponse[AIPlanningSnapshot],
+    summary="ARIA's full planning view: forecasts, capacity, budget, cash flow, calendar",
+)
+async def planning_snapshot(
+    farm_id: uuid.UUID,
+    horizon_days: int = Query(30, ge=1, le=365),
+    sync_calendar: bool = Query(False, description="Also create reminders from the calendar."),
+    db: AsyncSession = Depends(get_db),
+    access=Depends(require_farm_access(_READ_ROLES)),
+    current_user: User = Depends(require_permission(Permission.AI_INSIGHT_VIEW)),
+):
+    """
+    One deterministic planning pass.
+
+    Read-only by default so opening the dashboard never creates reminders; pass
+    sync_calendar=true to write the calendar into the reminder system, which is
+    idempotent.
+    """
+    farm, _ = access
+    r = await aria_planning_data.plan_everything(
+        db, farm, current_user, horizon_days=horizon_days, sync_calendar=sync_calendar,
+    )
+    return SuccessResponse(data=AIPlanningSnapshot(
+        feed=_feed(r["feed"]), production=_forecasts(r["production"]),
+        capacity=_capacity(r["capacity"]), budget=_budget(r["budget"]),
+        cashflow=_cashflow(r["cashflow"]), calendar=_calendar(r["calendar"]),
+    ))
+
+
+@router.get(
+    "/aria/forecast",
+    response_model=SuccessResponse[list[AIForecastItem]],
+    summary="Production forecasts for today, 7 days and 30 days",
+)
+async def production_forecast(
+    farm_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    access=Depends(require_farm_access(_READ_ROLES)),
+    current_user: User = Depends(require_permission(Permission.AI_INSIGHT_VIEW)),
+):
+    """Eggs, mortality, water and feed. Thin history returns unavailable, never a guess."""
+    farm, _ = access
+    facts = await aria_planning_data.gather(db, farm, current_user)
+    return SuccessResponse(data=_forecasts(aria_planning.forecast_production(facts)))
+
+
+@router.get(
+    "/aria/capacity",
+    response_model=SuccessResponse[AICapacityPlan],
+    summary="Housing capacity, occupancy and utilisation",
+)
+async def capacity_plan(
+    farm_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    access=Depends(require_farm_access(_READ_ROLES)),
+    current_user: User = Depends(require_permission(Permission.AI_INSIGHT_VIEW)),
+):
+    farm, _ = access
+    facts = await aria_planning_data.gather(db, farm, current_user)
+    return SuccessResponse(data=_capacity(aria_planning.plan_capacity(facts)))
+
+
+@router.get(
+    "/aria/budget",
+    response_model=SuccessResponse[AIBudget],
+    summary="Deterministic budget from recorded spend",
+)
+async def budget_plan(
+    farm_id: uuid.UUID,
+    period: str = Query("monthly", pattern="^(weekly|monthly|cycle)$"),
+    db: AsyncSession = Depends(get_db),
+    access=Depends(require_farm_access(_READ_ROLES)),
+    current_user: User = Depends(require_permission(Permission.AI_INSIGHT_VIEW)),
+):
+    """Only categories with recorded spend appear -- nothing is estimated."""
+    farm, _ = access
+    facts = await aria_planning_data.gather(db, farm, current_user)
+    return SuccessResponse(data=_budget(aria_planning.plan_budget(facts, period)))
+
+
+@router.get(
+    "/aria/cashflow",
+    response_model=SuccessResponse[AICashFlow],
+    summary="Cash flow projection",
+)
+async def cashflow_projection(
+    farm_id: uuid.UUID,
+    days: int = Query(30, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+    access=Depends(require_farm_access(_READ_ROLES)),
+    current_user: User = Depends(require_permission(Permission.AI_INSIGHT_VIEW)),
+):
+    farm, _ = access
+    facts = await aria_planning_data.gather(db, farm, current_user)
+    return SuccessResponse(data=_cashflow(aria_planning.project_cashflow(facts, days=days)))
+
+
+@router.get(
+    "/aria/calendar",
+    response_model=SuccessResponse[list[AICalendarEntry]],
+    summary="Operational calendar",
+)
+async def operational_calendar(
+    farm_id: uuid.UUID,
+    days: int = Query(30, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+    access=Depends(require_farm_access(_READ_ROLES)),
+    current_user: User = Depends(require_permission(Permission.AI_INSIGHT_VIEW)),
+):
+    """Every entry has a recorded basis -- nothing is invented to fill the calendar."""
+    farm, _ = access
+    facts = await aria_planning_data.gather(db, farm, current_user)
+    return SuccessResponse(data=_calendar(aria_planning.build_calendar(facts, days=days)))
+
+
+@router.post(
+    "/aria/simulations",
+    response_model=SuccessResponse[AIScenarioResult],
+    summary="Run a what-if simulation",
+)
+async def run_simulation(
+    farm_id: uuid.UUID,
+    body: AIScenarioRequest,
+    db: AsyncSession = Depends(get_db),
+    access=Depends(require_farm_access(_READ_ROLES)),
+    current_user: User = Depends(require_permission(Permission.AI_INSIGHT_VIEW)),
+):
+    """
+    A what-if against current recorded facts.
+
+    POST because it takes a body, not because it writes: the simulator is a pure
+    function and there is no code path from here to a database write. Farm data
+    is never modified by a simulation.
+    """
+    farm, _ = access
+    facts = await aria_planning_data.gather(db, farm, current_user)
+    r = aria_planning.simulate(facts, body.scenario, body.magnitude)
+    return SuccessResponse(data=AIScenarioResult(
+        scenario=r.scenario, description=r.description,
+        changes=[AIScenarioChange(label=c.label, current=c.current,
+                                  projected=c.projected, difference=c.difference)
+                 for c in r.changes],
+        implications=r.implications, assumptions=r.assumptions,
+        available=r.available, note=r.note,
+    ))
+
+
+@router.get(
+    "/aria/reports/planning",
+    response_model=SuccessResponse[AIPlanningReport],
+    summary="Export-ready planning report",
+)
+async def planning_report(
+    farm_id: uuid.UUID,
+    period: str = Query("30d", pattern="^(7d|30d|cycle)$"),
+    db: AsyncSession = Depends(get_db),
+    access=Depends(require_farm_access(_READ_ROLES)),
+    current_user: User = Depends(require_permission(Permission.AI_INSIGHT_VIEW)),
+):
+    farm, _ = access
+    facts = await aria_planning_data.gather(db, farm, current_user)
+    r = aria_planning.build_planning_report(facts, period)
+    return SuccessResponse(data=AIPlanningReport(
+        period=r.period, label=r.label, feed=_feed(r.feed),
+        production=_forecasts(r.production), capacity=_capacity(r.capacity),
+        budget=_budget(r.budget), cashflow=_cashflow(r.cashflow),
+        calendar=_calendar(r.calendar), risks=r.risks, priorities=r.priorities,
+        outstanding_reminders=r.outstanding_reminders,
     ))

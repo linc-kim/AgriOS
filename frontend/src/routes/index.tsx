@@ -58,6 +58,7 @@ const AutomationScreen = lazy(() => import("@/screens/automation/AutomationScree
 const AIScreen = lazy(() => import("@/screens/ai/AIScreen"));
 const AriaWorkspace = lazy(() => import("@/screens/ai/AriaWorkspace"));
 const AriaSupervisorScreen = lazy(() => import("@/screens/ai/AriaSupervisorScreen"));
+const AriaPlanningScreen = lazy(() => import("@/screens/ai/AriaPlanningScreen"));
 const AdminScreen = lazy(() => import("@/screens/admin/AdminScreen"));
 const ProductionScreen = lazy(() => import("@/screens/production/ProductionScreen"));
 
@@ -170,6 +171,7 @@ const router = createBrowserRouter([
           // dashboard/assistant tabs stay reachable at /ai/insights.
           { path: "/ai", element: <AriaWorkspace /> },
           { path: "/ai/supervisor", element: <AriaSupervisorScreen /> },
+          { path: "/ai/planning", element: <AriaPlanningScreen /> },
           { path: "/ai/insights", element: <AIScreen /> },
           { path: "/admin", element: <AdminScreen /> },
           { path: "/production", element: <ProductionScreen /> },
