@@ -84,6 +84,22 @@ export function RiskBadge({ level, className }: { level: string; className?: str
   );
 }
 
+const PRIORITY_STYLES: Record<string, string> = {
+  low: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+  normal: "bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300",
+  high: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+  critical: "bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300",
+};
+
+export function PriorityBadge({ priority, className }: { priority: string; className?: string }) {
+  return (
+    <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize",
+      PRIORITY_STYLES[priority] ?? PRIORITY_STYLES.normal, className)}>
+      {priority}
+    </span>
+  );
+}
+
 const EVENT_DOT: Record<string, string> = {
   created: "bg-brand-500",
   sold: "bg-sky-500",

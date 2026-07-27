@@ -138,6 +138,13 @@ VALUATION_METHOD_VALUES = (
     "appraised", "market", "insured", "purchase", "sale", "breeding_value",
 )
 
+# Workflows (Part 9)
+WORKFLOW_TYPE_VALUES = (
+    "intake", "quarantine", "treatment", "incubation", "sale", "purchase",
+    "transfer", "exhibition",
+)
+WORKFLOW_STATUS_VALUES = ("active", "completed", "cancelled")
+
 # Bird statuses that count as "no longer in the active collection" (Doc 02 §4).
 BIRD_TERMINAL_STATUSES = ("sold", "transferred", "deceased")
 
@@ -1002,4 +1009,47 @@ class AviValuation(AGRIOSBase):
     source: Mapped[str | None] = mapped_column(String(200), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+
+# ── Workflows (Part 9) ────────────────────────────────────────────────────────
+
+class AviWorkflow(AGRIOSBase):
+    """A staged operational process on a bird/entity (Doc 11 §8). Stage templates
+    and valid transitions are deterministic (in the pure automation engine); this
+    table records the current position and, via events, the permanent history."""
+
+    __tablename__ = "avi_workflow"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True)
+    bird_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("avi_bird.id", ondelete="CASCADE"), nullable=True, index=True)
+    workflow_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    current_stage: Mapped[str] = mapped_column(String(50), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    started_on: Mapped[date] = mapped_column(Date, nullable=False)
+    completed_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    responsible_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<AviWorkflow {self.workflow_type} stage={self.current_stage} status={self.status}>"
+
+
+class AviWorkflowEvent(AGRIOSBase):
+    """One immutable stage transition in a workflow's history (Doc 11 §8)."""
+
+    __tablename__ = "avi_workflow_event"
+
+    workflow_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("avi_workflow.id", ondelete="CASCADE"), nullable=False, index=True)
+    from_stage: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    to_stage: Mapped[str] = mapped_column(String(50), nullable=False)
+    occurred_on: Mapped[date] = mapped_column(Date, nullable=False)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    actor_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)

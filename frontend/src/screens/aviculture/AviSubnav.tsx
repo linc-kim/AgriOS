@@ -9,6 +9,7 @@ const LINKS = [
   { to: "/aviculture/breeding", label: "Breeding" },
   { to: "/aviculture/incubation", label: "Incubation" },
   { to: "/aviculture/health", label: "Health" },
+  { to: "/aviculture/automation", label: "Tasks" },
   { to: "/aviculture/dashboard", label: "Dashboard" },
 ];
 
