@@ -71,5 +71,9 @@ logs/
 .pytest_cache/
 coverage/
 
+# Local embedded Postgres (test/dev only — never commit the cluster or its password)
+.pgdata/
+.pgpw.txt
+
 .vercel
 .env*

@@ -59,6 +59,17 @@ const AIScreen = lazy(() => import("@/screens/ai/AIScreen"));
 const AriaWorkspace = lazy(() => import("@/screens/ai/AriaWorkspace"));
 const AriaSupervisorScreen = lazy(() => import("@/screens/ai/AriaSupervisorScreen"));
 const AriaPlanningScreen = lazy(() => import("@/screens/ai/AriaPlanningScreen"));
+const OperationsCenterScreen = lazy(() => import("@/screens/ai/OperationsCenterScreen"));
+const AriaAssistantScreen = lazy(() => import("@/screens/ai/AriaAssistantScreen"));
+const AriaSettingsScreen = lazy(() => import("@/screens/ai/AriaSettingsScreen"));
+const MissionControlScreen = lazy(() => import("@/screens/ai/MissionControlScreen"));
+const AvicultureCollectionScreen = lazy(() => import("@/screens/aviculture/AvicultureCollectionScreen"));
+const BirdProfileScreen = lazy(() => import("@/screens/aviculture/BirdProfileScreen"));
+const AviariesScreen = lazy(() => import("@/screens/aviculture/AviariesScreen"));
+const AviaryDetailScreen = lazy(() => import("@/screens/aviculture/AviaryDetailScreen"));
+const BreedingScreen = lazy(() => import("@/screens/aviculture/BreedingScreen"));
+const IncubationScreen = lazy(() => import("@/screens/aviculture/IncubationScreen"));
+const AvicultureHealthScreen = lazy(() => import("@/screens/aviculture/HealthScreen"));
 const AdminScreen = lazy(() => import("@/screens/admin/AdminScreen"));
 const ProductionScreen = lazy(() => import("@/screens/production/ProductionScreen"));
 
@@ -172,7 +183,18 @@ const router = createBrowserRouter([
           { path: "/ai", element: <AriaWorkspace /> },
           { path: "/ai/supervisor", element: <AriaSupervisorScreen /> },
           { path: "/ai/planning", element: <AriaPlanningScreen /> },
+          { path: "/ai/operations", element: <OperationsCenterScreen /> },
+          { path: "/ai/assistant", element: <AriaAssistantScreen /> },
+          { path: "/ai/settings", element: <AriaSettingsScreen /> },
+          { path: "/ai/mission", element: <MissionControlScreen /> },
           { path: "/ai/insights", element: <AIScreen /> },
+          { path: "/aviculture", element: <AvicultureCollectionScreen /> },
+          { path: "/aviculture/aviaries", element: <AviariesScreen /> },
+          { path: "/aviculture/aviaries/:aviaryId", element: <AviaryDetailScreen /> },
+          { path: "/aviculture/breeding", element: <BreedingScreen /> },
+          { path: "/aviculture/incubation", element: <IncubationScreen /> },
+          { path: "/aviculture/health", element: <AvicultureHealthScreen /> },
+          { path: "/aviculture/:birdId", element: <BirdProfileScreen /> },
           { path: "/admin", element: <AdminScreen /> },
           { path: "/production", element: <ProductionScreen /> },
           ...moduleRoutes,

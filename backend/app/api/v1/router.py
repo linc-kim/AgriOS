@@ -26,6 +26,14 @@ from app.api.v1.endpoints import admin_platform
 from app.api.v1.endpoints import exports
 from app.api.v1.endpoints import organizations
 from app.api.v1.endpoints import production
+from app.api.v1.endpoints import operations
+from app.api.v1.endpoints import ai_assistant
+from app.api.v1.endpoints import mission
+from app.api.v1.endpoints import aviculture
+from app.api.v1.endpoints import aviculture_aviary
+from app.api.v1.endpoints import aviculture_breeding
+from app.api.v1.endpoints import aviculture_incubation
+from app.api.v1.endpoints import aviculture_health
 
 api_router = APIRouter()
 
@@ -83,3 +91,19 @@ api_router.include_router(exports.router)
 
 # ── Module 11 (Production Readiness — backups, imports, diagnostics, release) ─
 api_router.include_router(production.router)
+
+# ── Module 13 Part 7 (ARIA Operations Director — organization-scale operations) ─
+api_router.include_router(operations.router)
+
+# ── Module 13 Part 8 (ARIA AI Farm Assistant — router, multimodal, settings) ──
+api_router.include_router(ai_assistant.router)
+
+# ── Module 14 (Mission Control — the strategic operating system) ──────────────
+api_router.include_router(mission.router)
+
+# ── Module 15 (Aviculture — ornamental & specialty birds) ─────────────────────
+api_router.include_router(aviculture.router)
+api_router.include_router(aviculture_aviary.router)
+api_router.include_router(aviculture_breeding.router)
+api_router.include_router(aviculture_incubation.router)
+api_router.include_router(aviculture_health.router)

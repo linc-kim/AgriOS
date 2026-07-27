@@ -92,12 +92,19 @@ _EGG_TERMS = ("egg", "eggs", "tray", "trays", "crate", "crates", "mayai", "treya
 _FEED_TERMS = (
     "feed", "mash", "pellets", "crumbs", "starter", "grower", "growers",
     "finisher", "layer", "layers mash", "chakula", "pumba",
+    # Sheng: "dishi" is food/feed.
+    "dishi",
 )
 _VACCINE_TERMS = ("vaccinat", "vaccine", "jab", "immunis", "immuniz", "chanjo")
 _WEIGH_TERMS = ("weigh", "weighed", "weight", "uzito", "kupima")
 _SALE_TERMS = ("sold", "sell", "sale", "kuuza", "niliuza")
 _PURCHASE_TERMS = ("bought", "buy", "purchase", "purchased", "nilinunua", "kununua")
-_CONSUMPTION_TERMS = ("fed", "feeding", "consumed", "used", "gave", "finished")
+_CONSUMPTION_TERMS = (
+    "fed", "feeding", "consumed", "used", "gave", "finished",
+    # Swahili / Sheng: "I gave / I fed them".
+    "nimepea", "nimewapa", "nimewapatia", "nimempa", "nimelisha",
+    "nililisha", "kulisha", "nimekula", "wamekula",
+)
 _COST_TERMS = ("cost", "costs", "paid", "price", "priced", "spent", "bei", "gharama")
 
 #: Vaccines a Kenyan poultry farmer actually names, with the canonical form the

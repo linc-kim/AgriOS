@@ -445,6 +445,34 @@ export default function AriaWorkspace() {
           <span className="order-last flex shrink-0 gap-1">
             <button
               type="button"
+              onClick={() => navigate("/ai/mission")}
+              className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-brand-700 transition-colors hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-500/10"
+            >
+              Mission
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/ai/assistant")}
+              className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-500/10"
+            >
+              Assistant
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/ai/operations")}
+              className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-500/10"
+            >
+              Operations
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/ai/settings")}
+              className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-500/10"
+            >
+              Settings
+            </button>
+            <button
+              type="button"
               onClick={() => navigate("/ai/supervisor")}
               className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-500/10"
             >

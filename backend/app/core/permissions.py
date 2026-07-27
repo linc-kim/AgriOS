@@ -103,6 +103,23 @@ class Permission(StrEnum):
     BACKUP_MANAGE = "backup:manage"            # Create, delete and restore backups
     DIAGNOSTICS_RUN = "diagnostics:run"        # Run diagnostic sweeps and deployment verification
 
+    # Aviculture — Ornamental & Specialty Birds (Module 15)
+    AVI_BIRD_CREATE = "avi:bird:create"        # Add birds to the collection
+    AVI_BIRD_UPDATE = "avi:bird:update"        # Edit bird identity / details
+    AVI_BIRD_ARCHIVE = "avi:bird:archive"      # Archive / restore birds
+    AVI_BIRD_TRANSACT = "avi:bird:transact"    # Ownership events: sale, purchase, transfer, death
+    AVI_BIRD_VIEW = "avi:bird:view"            # Read birds, timeline, media, documents
+    AVI_AVIARY_MANAGE = "avi:aviary:manage"    # Write aviaries / housing infrastructure
+    AVI_AVIARY_VIEW = "avi:aviary:view"        # Read aviaries
+    AVI_BREEDING_MANAGE = "avi:breeding:manage"  # Write pairs / breeding relationships
+    AVI_BREEDING_VIEW = "avi:breeding:view"      # Read pairs / pedigree
+    AVI_CATALOG_MANAGE = "avi:catalog:manage"  # Write custom species / breeds / mutations
+    AVI_CATALOG_VIEW = "avi:catalog:view"      # Read the species / breed / mutation catalog
+    AVI_HEALTH_LOG = "avi:health:log"          # Write bird health records
+    AVI_HEALTH_VIEW = "avi:health:view"        # Read bird health records
+    AVI_INCUBATION_MANAGE = "avi:incubation:manage"  # Write eggs, batches, candling, hatch
+    AVI_INCUBATION_VIEW = "avi:incubation:view"      # Read incubation records & statistics
+
 
 # ── Role → Permission Mapping ─────────────────────────────────────────────────
 # Derived from Engineering Constitution Section 5 RBAC matrix.
@@ -303,6 +320,44 @@ for _data_mover in ("enterprise_owner", "farm_owner", "farm_manager"):
     }
 for _backup_admin in ("enterprise_owner", "farm_owner"):
     ROLE_PERMISSIONS[_backup_admin].add(Permission.BACKUP_MANAGE)
+
+# Aviculture (Module 15) permissions, layered onto the base matrix.
+#
+# Graded by responsibility:
+#   full write   — owner/manager/enterprise run the collection end to end.
+#   care write   — workers add/edit birds, log health, but never transact
+#                  ownership (sale/purchase/transfer/death) or archive records.
+#   clinical     — the vet consultant reads birds and writes health records.
+#   read-only    — viewers see everything, change nothing.
+_AVI_VIEW = {
+    Permission.AVI_BIRD_VIEW,
+    Permission.AVI_AVIARY_VIEW,
+    Permission.AVI_BREEDING_VIEW,
+    Permission.AVI_CATALOG_VIEW,
+    Permission.AVI_HEALTH_VIEW,
+    Permission.AVI_INCUBATION_VIEW,
+}
+_AVI_FULL = _AVI_VIEW | {
+    Permission.AVI_BIRD_CREATE,
+    Permission.AVI_BIRD_UPDATE,
+    Permission.AVI_BIRD_ARCHIVE,
+    Permission.AVI_BIRD_TRANSACT,
+    Permission.AVI_AVIARY_MANAGE,
+    Permission.AVI_BREEDING_MANAGE,
+    Permission.AVI_CATALOG_MANAGE,
+    Permission.AVI_HEALTH_LOG,
+    Permission.AVI_INCUBATION_MANAGE,
+}
+for _avi_full in ("enterprise_owner", "farm_owner", "farm_manager"):
+    ROLE_PERMISSIONS[_avi_full] |= _AVI_FULL
+ROLE_PERMISSIONS["farm_worker"] |= _AVI_VIEW | {
+    Permission.AVI_BIRD_CREATE,
+    Permission.AVI_BIRD_UPDATE,
+    Permission.AVI_HEALTH_LOG,
+    Permission.AVI_INCUBATION_MANAGE,
+}
+ROLE_PERMISSIONS["vet_consultant"] |= _AVI_VIEW | {Permission.AVI_HEALTH_LOG}
+ROLE_PERMISSIONS["viewer"] |= _AVI_VIEW
 
 # platform_admin is an explicit set rather than a farm role, so it is granted
 # the production permissions directly.

@@ -66,6 +66,39 @@ from app.models.ai import (
     AIRecommendation,
     AIUsageLog,
 )
+from app.models.ai_assistant import AIDocument, AISettings
+from app.models.mission import Mission, MissionRevision
+from app.models.aviculture import (
+    AviAviary,
+    AviAviaryEvent,
+    AviAviaryFixture,
+    AviAviaryMedia,
+    AviAviaryTask,
+    AviAviaryZone,
+    AviBird,
+    AviBirdDocument,
+    AviBirdEvent,
+    AviBirdMedia,
+    AviBirdMutation,
+    AviBirdOwnership,
+    AviBreed,
+    AviBreedingGoal,
+    AviBreedingProgram,
+    AviCandlingRecord,
+    AviClutch,
+    AviDiseaseEvent,
+    AviEgg,
+    AviEnvironmentalReading,
+    AviHatchEvent,
+    AviHealthRecord,
+    AviIncubationBatch,
+    AviIncubationLog,
+    AviMutation,
+    AviQuarantine,
+    AviPair,
+    AviPairEvent,
+    AviSpecies,
+)
 from app.models.platform import (
     Notification,
     AuditLog,
@@ -140,6 +173,47 @@ __all__ = [
     "AIInsight",
     "AIRecommendation",
     "AIUsageLog",
+    # AI Assistant (Module 13 Part 8)
+    "AISettings",
+    "AIDocument",
+    # Mission Control (Module 14)
+    "Mission",
+    "MissionRevision",
+    # Aviculture (Module 15, Migration 053)
+    "AviSpecies",
+    "AviBreed",
+    "AviMutation",
+    "AviAviary",
+    "AviBird",
+    "AviBirdMutation",
+    "AviPair",
+    "AviBirdMedia",
+    "AviBirdDocument",
+    "AviHealthRecord",
+    # Aviculture Collection Management (Module 15 Part 2, Migration 054)
+    "AviBirdOwnership",
+    "AviBirdEvent",
+    # Aviculture Aviary Management (Module 15 Part 3, Migration 055)
+    "AviAviaryZone",
+    "AviAviaryFixture",
+    "AviEnvironmentalReading",
+    "AviAviaryTask",
+    "AviAviaryEvent",
+    "AviAviaryMedia",
+    # Aviculture Breeding Engine (Module 15 Part 4, Migration 056)
+    "AviBreedingProgram",
+    "AviBreedingGoal",
+    "AviPairEvent",
+    # Aviculture Incubation Engine (Module 15 Part 5, Migration 057)
+    "AviClutch",
+    "AviIncubationBatch",
+    "AviEgg",
+    "AviIncubationLog",
+    "AviCandlingRecord",
+    "AviHatchEvent",
+    # Aviculture Health Engine (Module 15 Part 6, Migration 058)
+    "AviQuarantine",
+    "AviDiseaseEvent",
     # Platform Layer (Migrations 028-030)
     "Notification",
     "AuditLog",
