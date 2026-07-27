@@ -98,6 +98,7 @@ from app.models.aviculture import (
     AviPair,
     AviPairEvent,
     AviSpecies,
+    AviValuation,
 )
 from app.models.platform import (
     Notification,
@@ -214,6 +215,8 @@ __all__ = [
     # Aviculture Health Engine (Module 15 Part 6, Migration 058)
     "AviQuarantine",
     "AviDiseaseEvent",
+    # Aviculture Valuation (Module 15 Part 7, Migration 059)
+    "AviValuation",
     # Platform Layer (Migrations 028-030)
     "Notification",
     "AuditLog",

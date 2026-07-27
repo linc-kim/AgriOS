@@ -70,6 +70,7 @@ const AviaryDetailScreen = lazy(() => import("@/screens/aviculture/AviaryDetailS
 const BreedingScreen = lazy(() => import("@/screens/aviculture/BreedingScreen"));
 const IncubationScreen = lazy(() => import("@/screens/aviculture/IncubationScreen"));
 const AvicultureHealthScreen = lazy(() => import("@/screens/aviculture/HealthScreen"));
+const AvicultureDashboardScreen = lazy(() => import("@/screens/aviculture/AvicultureDashboardScreen"));
 const AdminScreen = lazy(() => import("@/screens/admin/AdminScreen"));
 const ProductionScreen = lazy(() => import("@/screens/production/ProductionScreen"));
 
@@ -194,6 +195,7 @@ const router = createBrowserRouter([
           { path: "/aviculture/breeding", element: <BreedingScreen /> },
           { path: "/aviculture/incubation", element: <IncubationScreen /> },
           { path: "/aviculture/health", element: <AvicultureHealthScreen /> },
+          { path: "/aviculture/dashboard", element: <AvicultureDashboardScreen /> },
           { path: "/aviculture/:birdId", element: <BirdProfileScreen /> },
           { path: "/admin", element: <AdminScreen /> },
           { path: "/production", element: <ProductionScreen /> },

@@ -34,6 +34,8 @@ from app.api.v1.endpoints import aviculture_aviary
 from app.api.v1.endpoints import aviculture_breeding
 from app.api.v1.endpoints import aviculture_incubation
 from app.api.v1.endpoints import aviculture_health
+from app.api.v1.endpoints import aviculture_finance
+from app.api.v1.endpoints import aviculture_reports
 
 api_router = APIRouter()
 
@@ -107,3 +109,5 @@ api_router.include_router(aviculture_aviary.router)
 api_router.include_router(aviculture_breeding.router)
 api_router.include_router(aviculture_incubation.router)
 api_router.include_router(aviculture_health.router)
+api_router.include_router(aviculture_finance.router)
+api_router.include_router(aviculture_reports.router)

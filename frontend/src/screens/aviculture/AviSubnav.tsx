@@ -9,6 +9,7 @@ const LINKS = [
   { to: "/aviculture/breeding", label: "Breeding" },
   { to: "/aviculture/incubation", label: "Incubation" },
   { to: "/aviculture/health", label: "Health" },
+  { to: "/aviculture/dashboard", label: "Dashboard" },
 ];
 
 export function AviSubnav({ active }: { farmId?: string; active: string }) {

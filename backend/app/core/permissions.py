@@ -119,6 +119,8 @@ class Permission(StrEnum):
     AVI_HEALTH_VIEW = "avi:health:view"        # Read bird health records
     AVI_INCUBATION_MANAGE = "avi:incubation:manage"  # Write eggs, batches, candling, hatch
     AVI_INCUBATION_VIEW = "avi:incubation:view"      # Read incubation records & statistics
+    AVI_FINANCE_MANAGE = "avi:finance:manage"        # Record valuations, post aviculture costs
+    AVI_FINANCE_VIEW = "avi:finance:view"            # Read valuations, finance summary, reports
 
 
 # ── Role → Permission Mapping ─────────────────────────────────────────────────
@@ -336,6 +338,7 @@ _AVI_VIEW = {
     Permission.AVI_CATALOG_VIEW,
     Permission.AVI_HEALTH_VIEW,
     Permission.AVI_INCUBATION_VIEW,
+    Permission.AVI_FINANCE_VIEW,
 }
 _AVI_FULL = _AVI_VIEW | {
     Permission.AVI_BIRD_CREATE,
@@ -347,6 +350,7 @@ _AVI_FULL = _AVI_VIEW | {
     Permission.AVI_CATALOG_MANAGE,
     Permission.AVI_HEALTH_LOG,
     Permission.AVI_INCUBATION_MANAGE,
+    Permission.AVI_FINANCE_MANAGE,
 }
 for _avi_full in ("enterprise_owner", "farm_owner", "farm_manager"):
     ROLE_PERMISSIONS[_avi_full] |= _AVI_FULL

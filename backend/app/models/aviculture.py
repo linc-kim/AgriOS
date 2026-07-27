@@ -133,6 +133,11 @@ HEALTH_SEVERITY_VALUES = ("info", "mild", "moderate", "severe", "critical")
 QUARANTINE_STATUS_VALUES = ("active", "released")
 DISEASE_EVENT_STATUS_VALUES = ("suspected", "confirmed", "contained", "resolved")
 
+# Valuation (Part 7)
+VALUATION_METHOD_VALUES = (
+    "appraised", "market", "insured", "purchase", "sale", "breeding_value",
+)
+
 # Bird statuses that count as "no longer in the active collection" (Doc 02 §4).
 BIRD_TERMINAL_STATUSES = ("sold", "transferred", "deceased")
 
@@ -971,6 +976,30 @@ class AviDiseaseEvent(AGRIOSBase):
     resolved_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     affected_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_notifiable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+
+# ── Valuation (Part 7) ────────────────────────────────────────────────────────
+
+class AviValuation(AGRIOSBase):
+    """A recorded valuation of a bird (or the whole collection). A recorded fact
+    only — the collection value is *computed* by the pure valuation engine, never
+    stored (Doc 14 §2, Doc 13 Part 7). Not an expense or revenue, so it does not
+    belong in the shared finance ledger."""
+
+    __tablename__ = "avi_valuation"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True)
+    bird_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("avi_bird.id", ondelete="CASCADE"), nullable=True, index=True)
+    valued_on: Mapped[date] = mapped_column(Date, nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(8), nullable=False, default="KES")
+    method: Mapped[str] = mapped_column(String(20), nullable=False, default="appraised")
+    source: Mapped[str | None] = mapped_column(String(200), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
