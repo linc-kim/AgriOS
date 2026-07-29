@@ -30,6 +30,9 @@ from app.services import (
     ai_provider,
     aria_planning,
     aria_planning_data,
+    aviculture_automation_service,
+    aviculture_intelligence,
+    aviculture_reporting_service,
     mission_control as mc,
 )
 
@@ -379,6 +382,33 @@ async def ceo_advice(db, farm, user, mission_id, question: str) -> dict:
         "fact_type": "ai_suggestion" if provider in ("gemini", "claude") else "strategic_recommendation",
         "sources": ["mission progress", "cash flow", "adaptation check"],
     }
+
+
+# ── Aviculture integration (Module 15, Part 11) ───────────────────────────────
+
+
+async def aviculture_briefing(db: AsyncSession, farm: Farm) -> aviculture_intelligence.Briefing:
+    """
+    Mission Control's strategic briefing on the aviculture collection.
+
+    Mission Control *orchestrates* here — it does not own the business logic. It
+    gathers the aviculture domain's already-computed deterministic outputs (the
+    reporting dashboard, the population forecast, the automation engine's due
+    items, and the active workflows) and hands them to the pure
+    ``aviculture_intelligence`` engine, which identifies risks, overdue work,
+    breeding and incubation problems, financial issues and population trends —
+    every insight citing the recorded/calculated/forecast evidence it rests on.
+    No aviculture figure is recomputed; the deterministic engines remain the
+    single source of truth.
+    """
+    dashboard = await aviculture_reporting_service.dashboard(db, farm)
+    forecast = await aviculture_reporting_service.population_forecast(db, farm)
+    due_items = await aviculture_automation_service.preview(db, farm)
+    workflow_rows = await aviculture_automation_service.list_workflows(db, farm.id)
+    workflows = [{"status": w.status, "workflow_type": w.workflow_type} for w in workflow_rows]
+
+    return aviculture_intelligence.build_briefing(
+        dashboard=dashboard, forecast=forecast, due_items=due_items, workflows=workflows)
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────

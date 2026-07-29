@@ -57,7 +57,9 @@ Phase 2 is the first expansion past V1, and every item in it was deliberately sc
 
 ## 5. Expansion Beyond Poultry — the Species Roadmap
 
-The technical mechanism for this expansion — `species_profiles`, and the module-accent-color design pattern — already exists and is fully specified in `DATABASE_ARCHITECTURE.md` Section 4.3 and `DESIGN_SYSTEM.md` Section 9. The roadmap for *which* species come next and in what order:
+The technical mechanism for this expansion — `species_profiles`, and the module-accent-color design pattern — already exists and is fully specified in `DATABASE_ARCHITECTURE.md` Section 4.3 and `DESIGN_SYSTEM.md` Section 9.
+
+**Delivered — Aviculture (Module 15), the first activated non-poultry species.** Ornamental and specialty birds shipped as a complete module (Parts 1–11) through exactly the mechanism below: `species_profiles.species_key='aviculture'` activated, all tables `avi_`-prefixed and purely additive, and no change to `flocks` or `daily_logs`. It is documented in `PROJECT_HISTORY.md` Section 14. Aviculture took its own path rather than the Rabbit-first sequence originally sketched here because its aggregate root is the individual bird (pedigree, incubation, collection valuation) — a useful proof that the extensibility model holds even for a species whose data model diverges materially from the flock batch. The roadmap for the remaining species and in what order:
 
 | Module | Accent color | Rationale for its position in the sequence |
 |---|---|---|

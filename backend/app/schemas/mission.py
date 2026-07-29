@@ -314,3 +314,30 @@ class AdvisorOut(AGRIOSSchema):
     grounded_context: str
     fact_type: str
     sources: list[str]
+
+
+# ── Aviculture integration (Module 15, Part 11) ───────────────────────────────
+
+
+class InsightEvidenceOut(AGRIOSSchema):
+    source: str                 # dotted engine path the figure came from
+    value: str | None
+    fact_type: str              # recorded | calculated | forecast | unknown
+
+
+class InsightOut(AGRIOSSchema):
+    category: str               # risk | overdue_work | breeding | incubation | finance | population
+    severity: str               # critical | warning | watch | info
+    title: str
+    detail: str                 # reasoning
+    evidence: list[InsightEvidenceOut]
+    confidence: str = "high"    # high | medium | low
+    limitations: str = ""       # honest caveat (Doc 15 §15)
+
+
+class AvicultureBriefingOut(AGRIOSSchema):
+    headline: str
+    summaries: dict             # consumed engine outputs, honesty labels intact
+    insights: list[InsightOut]
+    priorities: list[str]
+    counts: dict

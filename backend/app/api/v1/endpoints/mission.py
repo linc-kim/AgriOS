@@ -28,10 +28,13 @@ from app.schemas.mission import (
     AdaptationOut,
     AdvisorOut,
     AdvisorRequest,
+    AvicultureBriefingOut,
     BusinessPlanOut,
     DailyMissionOut,
     DashboardOut,
     DiscoveryQuestion,
+    InsightEvidenceOut,
+    InsightOut,
     ManualOut,
     ManualSectionOut,
     MissionCreate,
@@ -126,6 +129,36 @@ async def discovery(
         DiscoveryQuestion(key=q.key, prompt=q.prompt, kind=q.kind, unit=q.unit,
                           options=q.options, why=q.why) for q in qs
     ])
+
+
+# ── Aviculture integration (Module 15, Part 11) ───────────────────────────────
+
+
+@router.get("/aviculture/briefing", response_model=SuccessResponse[AvicultureBriefingOut],
+            summary="Strategic aviculture briefing — Mission Control over the deterministic engines")
+async def aviculture_briefing(
+    farm_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    access=Depends(require_farm_access(_READ)),
+    _: User = Depends(require_permission(Permission.AI_INSIGHT_VIEW)),
+):
+    """Mission Control orchestrates the aviculture health, finance, valuation,
+    breeding, incubation, population-forecast, automation and workflow engines into
+    one strategic briefing — risks, overdue work, breeding/incubation problems,
+    financial issues and population trends — every insight citing recorded evidence.
+    It owns no business logic; the deterministic engines remain the source of truth."""
+    farm, _m = access
+    b = await mcd.aviculture_briefing(db, farm)
+    return SuccessResponse(data=AvicultureBriefingOut(
+        headline=b.headline, summaries=b.summaries, priorities=b.priorities, counts=b.counts,
+        insights=[
+            InsightOut(category=i.category, severity=i.severity, title=i.title, detail=i.detail,
+                       confidence=i.confidence, limitations=i.limitations,
+                       evidence=[InsightEvidenceOut(source=e.source, value=e.value, fact_type=e.fact_type)
+                                 for e in i.evidence])
+            for i in b.insights
+        ],
+    ))
 
 
 # ── Mission CRUD ──────────────────────────────────────────────────────────────

@@ -220,6 +220,30 @@ export interface AdvisorAnswer {
   sources: string[];
 }
 
+// ── Aviculture integration (Module 15, Part 11) ──────────────────────────────
+
+export interface InsightEvidence {
+  source: string;
+  value: string | null;
+  fact_type: "recorded" | "calculated" | "forecast" | "unknown";
+}
+export interface Insight {
+  category: string;       // risk | overdue_work | breeding | incubation | finance | population
+  severity: "critical" | "warning" | "watch" | "info";
+  title: string;
+  detail: string;         // reasoning
+  evidence: InsightEvidence[];
+  confidence: "high" | "medium" | "low";
+  limitations: string;    // honest caveat (Doc 15 §15)
+}
+export interface AvicultureBriefing {
+  headline: string;
+  summaries: Record<string, unknown>;
+  insights: Insight[];
+  priorities: string[];
+  counts: Record<string, number>;
+}
+
 export interface MissionCreate {
   name: string;
   description?: string;
@@ -289,5 +313,9 @@ export async function replan(
 }
 export async function askAdvisor(farmId: string, missionId: string, question: string): Promise<AdvisorAnswer> {
   const { data } = await apiClient.post<APISuccess<AdvisorAnswer>>(`${base(farmId)}/${missionId}/advisor`, { question });
+  return data.data;
+}
+export async function getAvicultureBriefing(farmId: string): Promise<AvicultureBriefing> {
+  const { data } = await apiClient.get<APISuccess<AvicultureBriefing>>(`${base(farmId)}/aviculture/briefing`);
   return data.data;
 }

@@ -14,6 +14,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
+  Bird,
   Compass,
   FileText,
   Flag,
@@ -29,12 +30,14 @@ import {
 import {
   askAdvisor,
   createMission,
+  getAvicultureBriefing,
   getDashboard,
   getManual,
   getPlan,
   getRoadmap,
   listMissions,
   type FactType,
+  type Insight,
   type MValue,
 } from "@/api/mission";
 import { useWorkspace } from "@/shell/useWorkspace";
@@ -49,7 +52,7 @@ const FACT_BADGE: Record<FactType, { label: string; cls: string }> = {
   ai_suggestion: { label: "AI", cls: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300" },
 };
 
-type Tab = "dashboard" | "roadmap" | "plan" | "manual" | "advisor";
+type Tab = "dashboard" | "roadmap" | "plan" | "manual" | "advisor" | "aviculture";
 
 export default function MissionControlScreen() {
   const { currentFarm } = useWorkspace();
@@ -80,6 +83,7 @@ export default function MissionControlScreen() {
     { key: "plan", label: "Business plan", icon: FileText },
     { key: "manual", label: "Manual", icon: Compass },
     { key: "advisor", label: "CEO advisor", icon: MessageSquare },
+    { key: "aviculture", label: "Aviculture", icon: Bird },
   ];
 
   return (
@@ -124,6 +128,7 @@ export default function MissionControlScreen() {
       {tab === "plan" && <PlanTab farmId={farmId} missionId={mission.id} />}
       {tab === "manual" && <ManualTab farmId={farmId} missionId={mission.id} />}
       {tab === "advisor" && <AdvisorTab farmId={farmId} missionId={mission.id} />}
+      {tab === "aviculture" && <AvicultureTab farmId={farmId} />}
 
       <FactLegend />
     </div>
@@ -496,6 +501,114 @@ function CreateMission({ farmId, onCreated }: { farmId: string; onCreated: () =>
           Your starting point is captured from your recorded data, so progress is measured honestly.
         </p>
       </div>
+    </div>
+  );
+}
+
+/* ── Aviculture briefing (Module 15, Part 11) ────────────────────────────── */
+
+const SEVERITY: Record<Insight["severity"], { dot: string; cls: string }> = {
+  critical: { dot: "bg-red-500", cls: "border-red-200 dark:border-red-500/30" },
+  warning: { dot: "bg-amber-500", cls: "border-amber-200 dark:border-amber-500/30" },
+  watch: { dot: "bg-sky-500", cls: "border-sky-200 dark:border-sky-500/30" },
+  info: { dot: "bg-gray-400", cls: "border-gray-200 dark:border-white/10" },
+};
+
+const EV_BADGE: Record<string, string> = {
+  recorded: "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300",
+  calculated: "bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300",
+  forecast: "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300",
+  unknown: "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
+};
+
+function AvicultureTab({ farmId }: { farmId: string }) {
+  const q = useQuery({
+    queryKey: ["mission-aviculture-briefing", farmId],
+    queryFn: () => getAvicultureBriefing(farmId),
+    staleTime: 60_000,
+  });
+  if (q.isLoading) return <Skeleton className="h-96 rounded-2xl" />;
+  if (!q.data) return <Empty>No aviculture briefing.</Empty>;
+  const b = q.data;
+
+  return (
+    <div className="space-y-5">
+      <section className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
+          <Bird className="h-4 w-4 text-brand-500" aria-hidden /> {b.headline}
+        </h2>
+        <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+          {(["critical", "warning", "watch", "info"] as Insight["severity"][]).map((k) =>
+            (b.counts[k] ?? 0) > 0 ? (
+              <span key={k} className="inline-flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                <span className={cn("h-2 w-2 rounded-full", SEVERITY[k].dot)} /> {b.counts[k]} {k}
+              </span>
+            ) : null,
+          )}
+        </div>
+      </section>
+
+      {/* Operational priorities */}
+      {b.priorities.length > 0 && (
+        <section className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
+          <h3 className="mb-2 text-sm font-semibold text-gray-900 dark:text-white">Operational priorities</h3>
+          <ol className="space-y-1.5 text-[13px] text-gray-700 dark:text-gray-300">
+            {b.priorities.map((p, i) => (
+              <li key={i} className="flex gap-2">
+                <span className="font-semibold text-brand-600 dark:text-brand-400">{i + 1}.</span>
+                <span>{p}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      {/* Insights — each citing recorded evidence */}
+      <section>
+        <h3 className="mb-2 text-sm font-semibold text-gray-900 dark:text-white">Insights</h3>
+        {b.insights.length === 0 ? (
+          <p className="text-sm text-gray-400">No elevated risks on record — everything reads clean.</p>
+        ) : (
+          <div className="space-y-2">
+            {b.insights.map((ins, i) => (
+              <div key={i} className={cn("rounded-xl border bg-white p-3 dark:bg-white/[0.03]", SEVERITY[ins.severity].cls)}>
+                <div className="flex items-start gap-2">
+                  <span className={cn("mt-1.5 h-2 w-2 shrink-0 rounded-full", SEVERITY[ins.severity].dot)} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{ins.title}</span>
+                      <span className="text-[10px] uppercase tracking-wide text-gray-400">{ins.category.replace(/_/g, " ")}</span>
+                    </div>
+                    <p className="mt-0.5 text-[13px] leading-snug text-gray-600 dark:text-gray-300">{ins.detail}</p>
+                    <p className="mt-1 text-[11px] text-gray-400">
+                      <span className="font-medium">Confidence:</span> {ins.confidence}
+                      {ins.limitations && <> · <span className="font-medium">Limitations:</span> {ins.limitations}</>}
+                    </p>
+                    {ins.evidence.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {ins.evidence.map((e, j) => (
+                          <span key={j} title={e.source}
+                            className={cn("inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium",
+                              EV_BADGE[e.fact_type] ?? EV_BADGE.unknown)}>
+                            <span className="uppercase tracking-wide">{e.fact_type}</span>
+                            <span className="text-gray-400">·</span>
+                            <span className="normal-case">{e.source.split(".").pop()}{e.value != null ? `: ${e.value}` : ""}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <p className="text-[11px] text-gray-400">
+        Mission Control orchestrates the aviculture engines — it computes no figure of its own.
+        Every insight above traces to a recorded, calculated or forecast fact from the deterministic engines.
+      </p>
     </div>
   );
 }

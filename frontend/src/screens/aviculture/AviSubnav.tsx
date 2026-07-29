@@ -11,6 +11,7 @@ const LINKS = [
   { to: "/aviculture/health", label: "Health" },
   { to: "/aviculture/automation", label: "Tasks" },
   { to: "/aviculture/dashboard", label: "Dashboard" },
+  { to: "/aviculture/aria", label: "Ask ARIA" },
 ];
 
 export function AviSubnav({ active }: { farmId?: string; active: string }) {

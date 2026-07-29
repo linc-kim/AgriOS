@@ -3,10 +3,13 @@
  * shared UI kit has no Dialog primitive, so this stays local to the module and
  * reuses the same tokens (brand colours, dark-mode surfaces) as everything else.
  */
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 
 import { cn } from "@/lib/cn";
+
+const FOCUSABLE =
+  'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
 export function AviModal({
   open,
@@ -21,11 +24,48 @@ export function AviModal({
   children: ReactNode;
   className?: string;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Focus management (WCAG 2.1.2 / 2.4.3): move focus into the dialog on open,
+  // trap Tab within it, and restore focus to the trigger on close.
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const panel = panelRef.current;
+    const first = panel?.querySelector<HTMLElement>(FOCUSABLE);
+    (first ?? panel)?.focus();
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab" || !panel) return;
+      const nodes = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+        (el) => el.offsetParent !== null,
+      );
+      if (nodes.length === 0) {
+        e.preventDefault();
+        panel.focus();
+        return;
+      }
+      const firstEl = nodes[0];
+      const lastEl = nodes[nodes.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === firstEl || active === panel)) {
+        e.preventDefault();
+        lastEl.focus();
+      } else if (!e.shiftKey && active === lastEl) {
+        e.preventDefault();
+        firstEl.focus();
+      }
+    };
+
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      previouslyFocused?.focus?.();
+    };
   }, [open, onClose]);
 
   if (!open) return null;
@@ -39,8 +79,10 @@ export function AviModal({
       onClick={onClose}
     >
       <div
+        ref={panelRef}
+        tabIndex={-1}
         className={cn(
-          "max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl dark:bg-gray-900 sm:max-w-lg sm:rounded-2xl",
+          "max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl outline-none dark:bg-gray-900 sm:max-w-lg sm:rounded-2xl",
           className,
         )}
         onClick={(e) => e.stopPropagation()}
