@@ -123,7 +123,7 @@ Growth Planner Contract (below) recorded & verified **before** implementation.
 | **Integrations** | **New platform capability** (no existing planner to reuse — verified `aria_planning`=forecast helpers, `Mission`=Mission Control). Reuses the `MissionRevision` versioning pattern, `audit_service`, RBAC (`BSF_GROWTH_VIEW/EDIT`), farm-scoping. ARIA/Mission Control will *recommend* changes (later milestone) but **only explicit user calls mutate a plan** — no auto-overwrite |
 | **Deviations** | None. **Cross-module by design** (per instruction): the planner is the canonical long-term-growth store for all future Greena modules via the `module` key + per-module metric providers — not a BSF-specific planner. |
 
-## Milestone H — ARIA & Mission Control integration · commit `__H__`
+## Milestone H — ARIA & Mission Control integration · commit `8c59897`
 
 ARIA & Mission Control Contract (below) recorded & verified **before** implementation. **Final backend milestone.**
 
