@@ -161,7 +161,7 @@ Template = Aviculture screens; gate = `tsc --noEmit` + `vite build` (repo-wide
 ESLint v9 config is broken — pre-existing). Honesty labels stay visually distinct
 via the shared `FactBadge`.
 
-## F1 — Production Board · commit `__F1__`
+## F1 — Production Board · commit `e80b22c`
 
 | Field | Detail |
 |---|---|
