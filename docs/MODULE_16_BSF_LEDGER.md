@@ -123,6 +123,22 @@ Growth Planner Contract (below) recorded & verified **before** implementation.
 | **Integrations** | **New platform capability** (no existing planner to reuse — verified `aria_planning`=forecast helpers, `Mission`=Mission Control). Reuses the `MissionRevision` versioning pattern, `audit_service`, RBAC (`BSF_GROWTH_VIEW/EDIT`), farm-scoping. ARIA/Mission Control will *recommend* changes (later milestone) but **only explicit user calls mutate a plan** — no auto-overwrite |
 | **Deviations** | None. **Cross-module by design** (per instruction): the planner is the canonical long-term-growth store for all future Greena modules via the `module` key + per-module metric providers — not a BSF-specific planner. |
 
+## Milestone H — ARIA & Mission Control integration · commit `__H__`
+
+ARIA & Mission Control Contract (below) recorded & verified **before** implementation. **Final backend milestone.**
+
+| Field | Detail |
+|---|---|
+| **Spec sections** | Part 6 (whole — ARIA/Mission Control/Growth Planner integration); Part 5 §8–13 (bottlenecks, daily execution, ARIA advisor, evidence-based recs, honesty); Part 4 §12 explain-layer |
+| **Migrations** | None — intelligence/ARIA read the deterministic engines; nothing stored |
+| **Models** | None new |
+| **Services/engines** | `bsf_intelligence` (PURE briefing — reads dashboard/forecast/growth/bottlenecks, emits evidence-citing Insights, recomputes nothing); `bsf_aria_service` (deterministic-first Q&A; reuses `ai_provider` + `ai_settings_service`; bounded context; read-only); `mission_control_data.bsf_briefing` (orchestration) |
+| **API routes** | +3: `POST/GET /bsf/aria/ask|context` (`AI_QUERY`/`AI_INSIGHT_VIEW`), `GET /mission/bsf/briefing` (`AI_INSIGHT_VIEW`). Total BSF routes **58** |
+| **Frontend** | Not started |
+| **Tests** | `test_bsf_intelligence` (4) unit; `test_bsf_aria_mission_api` (6) integration — Module 16 suite: **95 unit + 61 integration pass**; mission/aviculture regression green; ruff clean |
+| **Integrations** | **ARIA/Mission Control REUSED** — platform `ai_provider` (offline-grounded), `ai_settings_service` (usage log), `mission_control_data`, `InsightOut`/`InsightEvidenceOut` schemas. Poultry/aviculture AI untouched (extended). ARIA reads the Growth Planner progress; **never mutates a plan** (read-only routes; verified in test). Every insight/answer cites `evidence`/`sources` + honesty label |
+| **Deviations** | None. Cross-module Mission Control roll-up (BSF + aviculture + future in one view) is a **documented future enhancement** — each module exposes its own `/mission/{module}/briefing` today, all consumed identically. |
+
 ---
 
 ## Integration Contract — Finance & Inventory (authoritative; verified against platform code before Milestone D)
@@ -303,6 +319,46 @@ Mission Control's strategic-initiative object, semantically distinct). It reuses
 
 ---
 
+## ARIA & Mission Control Contract (authoritative; recorded before Milestone H code)
+
+The intelligence layer *explains and orchestrates* the deterministic engines — it
+never becomes a source of truth (Spec Part 6, Part 5 §8-13). Reuses the platform
+AI router and Mission Control patterns (verified against `aviculture_aria_service`
+/ `aviculture_intelligence` / `mission_control_data`); no parallel AI system.
+
+### Hard separations (enforced in code + tests)
+- **Deterministic engines are the ONLY source of calculations.** ARIA and the
+  intelligence briefing *read* engine outputs; they never recompute a figure.
+- **Growth Planner is the source of plans & progress.** ARIA/Mission Control read
+  plan progress; **ARIA never mutates a plan** (no write path — `ask`/`context`
+  are read-only; the only plan writes remain the explicit `bsf_growth` user calls).
+- **Mission Control orchestrates.** `mission_control_data.bsf_briefing` *gathers*
+  the BSF deterministic outputs (dashboard, forecast, growth progress, bottlenecks)
+  and hands them to the pure `bsf_intelligence.build_briefing`; it owns no business
+  logic. (Cross-module roll-up across BSF + aviculture + future modules is a
+  documented future enhancement; each module exposes its own briefing today.)
+- **ARIA explains / summarises / recommends / answers — never decides.** No
+  autonomous action, no plan overwrite.
+
+### Rules
+- **Every AI output references its source.** Each briefing `Insight` carries
+  `evidence[]` = `{source (dotted engine path), value, fact_type}`; every ARIA
+  answer carries `sources[]` + a `fact_type` honesty label
+  (`recorded`/`calculated`/`forecast`/`ai_suggestion`/`unavailable`).
+- **Deterministic-first Q&A.** Factual questions are answered directly from
+  recorded facts/engine outputs with **no LLM**; only open explanation routes to
+  the AI router, always with a grounded offline fallback (`ai_provider.complete`).
+  The LLM sees only a bounded context snapshot — never the DB.
+- **Low confidence / assumptions are exposed, not hidden.** Insights carry
+  `confidence` + `limitations`; ARIA labels uncertain answers and degrades to
+  `unavailable`/offline rather than presenting certainty. No fabricated data.
+- **Reuse.** `ai_provider` (+ offline fallback), `ai_settings_service` (usage log),
+  `mission_control_data`, `InsightOut`/`InsightEvidenceOut` schemas, RBAC
+  (`AI_QUERY` for ask, `AI_INSIGHT_VIEW` for reads). Poultry/aviculture AI code is
+  untouched (extended, not modified).
+
+---
+
 ## Cross-cutting spec coverage tracker
 
 | Requirement | Status | Where |
@@ -324,8 +380,8 @@ Mission Control's strategic-initiative object, semantically distinct). It reuses
 | Reuse Inventory | ✅ | `bsf_harvest_service` → `inventory_service.record_movement` (adjustment) |
 | Harvest / frass tracking & yield (Part 2 §11–12, Part 4 §8–9) | ✅ | `bsf_harvest_engine`, `bsf_frass_engine` |
 | Reuse Reminders/Notifications | ◻ Automation | — |
-| ARIA integration | ◻ | — |
-| Mission Control integration | ◻ | — |
+| ARIA integration | ✅ | `bsf_aria_service` (deterministic-first, read-only, reuses AI router) |
+| Mission Control integration | ✅ | `bsf_intelligence` + `mission_control_data.bsf_briefing` (`/mission/bsf/briefing`) |
 | Growth Planner integration | ✅ | platform `growth_*` tables + `growth_planner_engine`/`_service` + BSF provider; canonical, cross-module |
 | Frontend workflows | ◻ frontend milestone | — |
 | Performance / accessibility / QA audit (Part 9) | ◻ final | — |

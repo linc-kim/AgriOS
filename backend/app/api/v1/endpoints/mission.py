@@ -29,6 +29,7 @@ from app.schemas.mission import (
     AdvisorOut,
     AdvisorRequest,
     AvicultureBriefingOut,
+    BsfBriefingOut,
     BusinessPlanOut,
     DailyMissionOut,
     DashboardOut,
@@ -150,6 +151,34 @@ async def aviculture_briefing(
     farm, _m = access
     b = await mcd.aviculture_briefing(db, farm)
     return SuccessResponse(data=AvicultureBriefingOut(
+        headline=b.headline, summaries=b.summaries, priorities=b.priorities, counts=b.counts,
+        insights=[
+            InsightOut(category=i.category, severity=i.severity, title=i.title, detail=i.detail,
+                       confidence=i.confidence, limitations=i.limitations,
+                       evidence=[InsightEvidenceOut(source=e.source, value=e.value, fact_type=e.fact_type)
+                                 for e in i.evidence])
+            for i in b.insights
+        ],
+    ))
+
+
+@router.get("/bsf/briefing", response_model=SuccessResponse[BsfBriefingOut],
+            summary="Strategic BSF briefing — Mission Control over the deterministic engines")
+async def bsf_briefing(
+    farm_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    access=Depends(require_farm_access(_READ)),
+    _: User = Depends(require_permission(Permission.AI_INSIGHT_VIEW)),
+):
+    """Mission Control orchestrates the BSF production/feed/environment/health/
+    finance/sustainability/forecast/bottleneck engines and the Growth Planner's
+    recorded progress into one strategic briefing — risks, financial issues and
+    growth deviations — every insight citing recorded/calculated evidence. It owns
+    no business logic; the deterministic engines and Growth Planner remain the
+    sources of truth."""
+    farm, _m = access
+    b = await mcd.bsf_briefing(db, farm)
+    return SuccessResponse(data=BsfBriefingOut(
         headline=b.headline, summaries=b.summaries, priorities=b.priorities, counts=b.counts,
         insights=[
             InsightOut(category=i.category, severity=i.severity, title=i.title, detail=i.detail,

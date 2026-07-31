@@ -33,6 +33,9 @@ from app.services import (
     aviculture_automation_service,
     aviculture_intelligence,
     aviculture_reporting_service,
+    bsf_intelligence,
+    bsf_reporting_service,
+    growth_planner_service,
     mission_control as mc,
 )
 
@@ -409,6 +412,30 @@ async def aviculture_briefing(db: AsyncSession, farm: Farm) -> aviculture_intell
 
     return aviculture_intelligence.build_briefing(
         dashboard=dashboard, forecast=forecast, due_items=due_items, workflows=workflows)
+
+
+async def bsf_briefing(db: AsyncSession, farm: Farm) -> bsf_intelligence.Briefing:
+    """Mission Control's strategic briefing on Black Soldier Fly production.
+
+    Mission Control *orchestrates* — it owns no BSF business logic. It gathers the
+    BSF domain's already-computed deterministic outputs (the executive dashboard,
+    which itself composes the production/feed/environment/health/finance/
+    sustainability engines plus the forecast and bottleneck engines) and the
+    Growth Planner's recorded progress, and hands them to the pure
+    ``bsf_intelligence`` engine. No BSF figure is recomputed; the deterministic
+    engines and the Growth Planner remain the sources of truth.
+    """
+    dashboard = await bsf_reporting_service.executive_dashboard(db, farm.id)
+    forecast = dashboard.get("forecast", {})
+    bottlenecks = dashboard.get("bottlenecks", [])
+
+    growth = None
+    plan = await growth_planner_service.get_primary_plan(db, farm.id, "bsf")
+    if plan is not None:
+        growth = await growth_planner_service.compute_progress(db, farm.id, "bsf", plan)
+
+    return bsf_intelligence.build_briefing(
+        dashboard=dashboard, forecast=forecast, growth=growth, bottlenecks=bottlenecks)
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
