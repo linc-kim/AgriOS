@@ -172,7 +172,7 @@ via the shared `FactBadge`.
 | **Verification** | `tsc` clean · `vite build` ✓ (exit 0) · browser-verified end-to-end: login → `/bsf` renders (subnav/filters/empty state), `GET .../bsf/batches → 200`, created a batch → backend auto-numbered `BSF-00001` → card rendered (active/Egg/10,000/500 g), **no console errors**. Cross-checked the "Loading" cold-load stall is a pre-existing app-shell auth-refresh cycle (reproduced on `/aviculture`), not BSF |
 | **Deviations** | Frontend has no client-side RBAC layer (established pattern) — screens rely on backend 403s + error states. Promoted `FactBadge`/`Modal` to shared locations rather than coupling BSF to aviculture's local copies (aviculture's locals left untouched) |
 
-## F2 — Batch Workspace · commit `__F2__`
+## F2 — Batch Workspace · commit `0218674`
 
 | Field | Detail |
 |---|---|
