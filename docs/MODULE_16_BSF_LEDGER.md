@@ -201,7 +201,7 @@ via the shared `FactBadge`.
 | **Verification** | `tsc` clean · `vite build` ✓ · browser-verified end-to-end: added a 100 kg lot → card rendered; recorded a 30 kg feeding → lot decremented **100 → 70 kg**, status `available → in use` (backend consumption); **Post to ledger** → "Cost posted to the finance ledger" (shared-ledger reuse). No console errors |
 | **Deviations** | Feeding is initiated here (pick a batch) rather than only from the batch workspace — a farm-wide feedstock view is the natural home; per-batch feed-conversion is available via the API and surfaced on Reports. Backend enforces over-feed/permission rules (errors surfaced) |
 
-## F5 — Harvest & Frass · commit `__F5__`
+## F5 — Harvest & Frass · commit `ee658bf`
 
 | Field | Detail |
 |---|---|
