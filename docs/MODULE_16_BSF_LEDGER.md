@@ -172,6 +172,16 @@ via the shared `FactBadge`.
 | **Verification** | `tsc` clean · `vite build` ✓ (exit 0) · browser-verified end-to-end: login → `/bsf` renders (subnav/filters/empty state), `GET .../bsf/batches → 200`, created a batch → backend auto-numbered `BSF-00001` → card rendered (active/Egg/10,000/500 g), **no console errors**. Cross-checked the "Loading" cold-load stall is a pre-existing app-shell auth-refresh cycle (reproduced on `/aviculture`), not BSF |
 | **Deviations** | Frontend has no client-side RBAC layer (established pattern) — screens rely on backend 403s + error states. Promoted `FactBadge`/`Modal` to shared locations rather than coupling BSF to aviculture's local copies (aviculture's locals left untouched) |
 
+## F2 — Batch Workspace · commit `__F2__`
+
+| Field | Detail |
+|---|---|
+| **Screens** | `BatchWorkspaceScreen` (`/bsf/batches/:batchId`) — overview with honesty-labelled metrics (population `recorded`, avg-weight/survival/velocity/days `calculated`, capacity/expected `unknown`) + lifecycle pacing, immutable lifecycle history, event timeline, and lifecycle actions (advance/move/split/terminate) as modals |
+| **API consumed** | `GET /bsf/batches/{id}` (metrics+pacing), `/lifecycle`, `/timeline`; `POST /advance /move /split /terminate` (+ units for the move form) |
+| **Reuse** | Shared `Modal`, `LabelledValue`/`FactBadge`, `Button`/`Select`/`TextField`/`Skeleton`; error `detail` surfaced from the backend envelope |
+| **Verification** | `tsc` clean · `vite build` ✓ · browser-verified: card → workspace, 3 detail queries `→ 200`, honesty labels visually distinct (tooltips show recorded/calculated/unknown), **Advance** modal offers forward-only stages → advanced Egg → Hatchling (backend-validated) → header refreshed. No console errors |
+| **Deviations** | Merge is a farm-level (multi-batch) action — belongs on the board/reports, not the single-batch workspace; deferred to a later screen. Lifecycle actions are hidden for terminal batches (backend also rejects) |
+
 Verified against `finance_service`, `inventory_service` and the frozen finance
 model. **No BSF-specific finance/stock logic is created; no platform capability
 is expanded.** Where a platform constraint blocks reuse, BSF owns the fact and the

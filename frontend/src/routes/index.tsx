@@ -76,6 +76,7 @@ const AvicultureAriaScreen = lazy(() => import("@/screens/aviculture/AvicultureA
 
 // ── Module 16 — Black Soldier Fly ──────────────────────────────────────────────
 const BsfProductionBoardScreen = lazy(() => import("@/screens/bsf/ProductionBoardScreen"));
+const BsfBatchWorkspaceScreen = lazy(() => import("@/screens/bsf/BatchWorkspaceScreen"));
 const AdminScreen = lazy(() => import("@/screens/admin/AdminScreen"));
 const ProductionScreen = lazy(() => import("@/screens/production/ProductionScreen"));
 
@@ -206,6 +207,7 @@ const router = createBrowserRouter([
           { path: "/aviculture/:birdId", element: <BirdProfileScreen /> },
           // ── Module 16 — Black Soldier Fly ──────────────────────────────────
           { path: "/bsf", element: <BsfProductionBoardScreen /> },
+          { path: "/bsf/batches/:batchId", element: <BsfBatchWorkspaceScreen /> },
           { path: "/admin", element: <AdminScreen /> },
           { path: "/production", element: <ProductionScreen /> },
           ...moduleRoutes,
