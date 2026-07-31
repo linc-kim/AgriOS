@@ -219,6 +219,15 @@ via the shared `FactBadge`.
 | **Verification** | `tsc` clean · `vite build` ✓ · browser-verified end-to-end: added unit "Rearing Bin 1", recorded a reading (Temp 30 / Humidity 65) → live assessment returned; assessment panel shows temperature/humidity `recorded` ("no recommended range"), moisture/airflow `unknown`; readings table populated. No console errors |
 | **Deviations** | **Production-unit management is hosted on this screen** (Add-unit) since units are infrastructure not otherwise surfaced and the environment view needs them — pragmatic, avoids a thin extra screen. A dedicated infrastructure screen could later absorb it |
 
+## F7 — Growth Planner · commit `__F7__`
+
+| Field | Detail |
+|---|---|
+| **Screens** | `BsfGrowthScreen` (`/bsf/growth`) — plan list/selector, New-plan modal (title + primary goal metric/target/date + milestones), and plan detail: overall progress (honesty-labelled), goals (progress % + actual/target + run-rate verdict), editable milestone statuses, and immutable version history. Consumes the **platform** Growth Planner (module='bsf') |
+| **API** | `api/bsfGrowth.ts` — listPlans, createPlan, getPlanDetail, updateMilestoneStatus, listRevisions, archivePlan |
+| **Verification** | `tsc` clean · `vite build` ✓ · browser-verified end-to-end: created plan "Reach 100 kg total harvest" (Rev 1) with 2 milestones; goal progress computed from **recorded** harvest facts (actual 0 / target 100, `calculated`, run-rate `unknown`); changed a milestone → "achieved" (backend wrote Rev 2); version history rendered. No console errors |
+| **Deviations** | Revision-list freshness: added the revisions query key to post-mutation invalidation. Compare-revisions is available via the API but not yet surfaced in the UI (diff view is a later enhancement). ARIA/Mission Control never mutate plans — only these explicit user actions do |
+
 Verified against `finance_service`, `inventory_service` and the frozen finance
 model. **No BSF-specific finance/stock logic is created; no platform capability
 is expanded.** Where a platform constraint blocks reuse, BSF owns the fact and the
