@@ -151,6 +151,10 @@ def test_worker_operates_but_cannot_delete_or_touch_finance_and_growth():
     assert Permission.BSF_BATCH_DELETE not in perms
     assert Permission.BSF_GROWTH_EDIT not in perms
     assert Permission.BSF_CATALOG_MANAGE not in perms
+    # Strategic/financial views are manager/owner concerns (Spec §6, §8-9).
+    assert Permission.BSF_FINANCE_VIEW not in perms
+    assert Permission.BSF_REPORT_VIEW not in perms
+    assert Permission.BSF_GROWTH_VIEW not in perms
 
 
 def test_viewer_is_read_only():

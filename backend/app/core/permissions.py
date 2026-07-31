@@ -430,7 +430,14 @@ _BSF_FULL = _BSF_VIEW | {
 }
 for _bsf_full in ("enterprise_owner", "farm_owner", "farm_manager"):
     ROLE_PERMISSIONS[_bsf_full] |= _BSF_FULL
-ROLE_PERMISSIONS["farm_worker"] |= _BSF_VIEW | {
+# Workers operate production but do not see strategic/financial data (Spec §6):
+# finance, reports and growth-plan views are manager/owner concerns (Spec §8-9).
+_BSF_WORKER_VIEW = _BSF_VIEW - {
+    Permission.BSF_FINANCE_VIEW,
+    Permission.BSF_REPORT_VIEW,
+    Permission.BSF_GROWTH_VIEW,
+}
+ROLE_PERMISSIONS["farm_worker"] |= _BSF_WORKER_VIEW | {
     Permission.BSF_BATCH_CREATE,
     Permission.BSF_BATCH_EDIT,
     Permission.BSF_UNIT_MANAGE,

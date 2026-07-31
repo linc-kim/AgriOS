@@ -460,3 +460,35 @@ class FrassProductionResponse(TimestampedSchema):
     inventory_item_id: UUID | None
     inventory_movement_id: UUID | None
     notes: str | None
+
+
+# ── Mortality events (Spec Part 3 §17) ────────────────────────────────────────
+
+class MortalityEventCreate(AGRIOSSchema):
+    occurred_on: date | None = None
+    estimated_loss: int = Field(..., gt=0)
+    cause: str = Field("unknown")
+    observations: str | None = None
+
+    _c = field_validator("cause")(_one_of("cause", bsf.MORTALITY_CAUSE_VALUES))
+
+
+class MortalityEventResponse(TimestampedSchema):
+    farm_id: UUID
+    batch_id: UUID
+    occurred_on: date
+    estimated_loss: int
+    cause: str
+    observations: str | None
+
+
+# ── Finance integration (Spec Part 4 §16, Part 7 §10) ─────────────────────────
+
+class OperationalExpenseCreate(AGRIOSSchema):
+    """Post a BSF operating cost to the SHARED expenses ledger (reuse Finance)."""
+
+    category_slug: str = Field(..., min_length=1, max_length=100,
+                               description="A platform expense-category slug, e.g. 'labour', 'other'.")
+    amount: Decimal = Field(..., gt=0)
+    description: str = Field(..., min_length=1, max_length=500)
+    expense_date: date | None = None

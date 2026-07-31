@@ -108,6 +108,12 @@ FEEDING_METHOD_VALUES = (
 # Environmental readings (Spec Part 2 §10, Part 3 §13)
 ENV_READING_SOURCE_VALUES = ("manual", "sensor", "scheduled")
 
+# Mortality events (Spec Part 3 §17, Part 4 §15)
+MORTALITY_CAUSE_VALUES = (
+    "disease", "environmental", "predation", "handling", "contamination",
+    "cannibalism", "starvation", "unknown", "other",
+)
+
 # Harvest events (Spec Part 2 §11, Part 3 §15)
 HARVEST_TYPE_VALUES = ("larvae", "prepupae", "pupae", "adult", "frass", "mixed")
 HARVEST_DESTINATION_VALUES = (
@@ -624,3 +630,34 @@ class BsfFrassProduction(AGRIOSBase):
 
     def __repr__(self) -> str:
         return f"<BsfFrassProduction batch={self.batch_id} weight={self.weight_kg}kg>"
+
+
+# ── Mortality events (Spec Part 3 §17, Part 4 §15) ────────────────────────────
+
+class BsfMortalityEvent(AGRIOSBase):
+    """An immutable record of estimated population loss in a batch (Spec Part 3
+    §17). Mortality influences deterministic analytics (survival, health trends);
+    the Health engine identifies abnormal patterns but never diagnoses disease."""
+
+    __tablename__ = "bsf_mortality_event"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    batch_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("bsf_batch.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    occurred_on: Mapped[date] = mapped_column(Date, nullable=False)
+    estimated_loss: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    cause: Mapped[str] = mapped_column(String(20), nullable=False, default="unknown")
+    observations: Mapped[str | None] = mapped_column(Text, nullable=True)
+    operator_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    batch: Mapped["BsfBatch"] = relationship(foreign_keys=[batch_id], lazy="noload")
+
+    def __repr__(self) -> str:
+        return f"<BsfMortalityEvent batch={self.batch_id} loss={self.estimated_loss} cause={self.cause}>"

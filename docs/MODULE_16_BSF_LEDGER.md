@@ -75,6 +75,22 @@ Integration contract (below) was written and verified **before** any Finance/Inv
 | **Integrations** | **Inventory ✅ REUSED** — `inventory_service.record_movement` (inbound `adjustment`), item quantity verified to increase, movement `direction=1`, no `stock_in` (so no expense double-book); BSF stores only `inventory_movement_id`. **Finance ✅ contract-honoured** — harvest revenue recorded as a fact (no `revenue_records` row, no expense written); Audit ✅ |
 | **Deviations** | (1) **Harvest revenue is a recorded fact**, not a `revenue_records` row — forced by the frozen flock-scoped revenue ledger (contract §Finance). (2) **Harvested output uses an existing Inventory category** (catch-all `miscellaneous`; farmer's choice) — the platform has no "produce/output" category, but a catch-all suffices, so Inventory is **not** expanded (per instruction). A dedicated category is a possible future platform enhancement, not a BSF requirement. |
 
+## Milestone E — Mortality, Health, Finance P&L & Sustainability · commit `b363a26`
+
+Finance P&L contract (below, §Finance → P&L computation) written & verified **before** any Finance code.
+
+| Field | Detail |
+|---|---|
+| **Spec sections** | Part 3 §17 (mortality); Part 4 §14 (Sustainability), §15 (Health Monitoring), §16 (finance/reporting); Part 7 §10 (financial analytics), §20 (sustainability metrics) |
+| **Migrations** | `064_bsf_mortality` (down_revision 063; round-trips) — 1 table |
+| **Models** | `BsfMortalityEvent` |
+| **Services/engines** | Engines (pure): `bsf_health_engine` (mortality rate/trend, pattern flag — never a diagnosis), `bsf_sustainability_engine` (waste diverted, conversion efficiency, carbon *estimate* only with a supplied factor), `bsf_finance_engine` (P&L arithmetic; confirmed vs calculated). Services: `bsf_mortality_service` (record → decrement population; health summary), `bsf_finance_service` (**reuse** finance ledger; feedstock/operational cost posting; computed P&L), `bsf_analytics_service` (sustainability) |
+| **API routes** | +7 under `/farms/{farm_id}/bsf`: batches/{id}/mortality (record/list), batches/{id}/health, feedstock-lots/{id}/post-expense, finance/expenses, finance/summary, analytics/sustainability. Total BSF routes now **43** |
+| **Frontend** | Not started |
+| **Tests** | `test_bsf_analytics_engines` (8) unit; `test_bsf_analytics_finance_api` (7) integration — **113 BSF tests pass**; Finance regression (39) green; ruff clean |
+| **Integrations** | **Finance ✅ REUSED** — costs post via `finance_service.record_category_expense(flock_id=None)` tagged `Expense.metadata_["module"]="bsf"`; P&L reads revenue from recorded harvest facts + cost from tag-filtered ledger (the verified `aviculture_finance_service` query, retargeted). No BSF finance table; feedstock cost posts **once** (idempotent via `lot.metadata_["expense_id"]`). Audit ✅ |
+| **Deviations** | **RBAC refinement (spec-alignment, not a deviation):** `farm_worker` no longer holds `BSF_FINANCE_VIEW`/`BSF_REPORT_VIEW`/`BSF_GROWTH_VIEW` — strategic/financial views are manager/owner concerns (Spec §6, §8-9). Foundation RBAC test updated. No spec deviations. |
+
 ---
 
 ## Integration Contract — Finance & Inventory (authoritative; verified against platform code before Milestone D)
@@ -129,6 +145,32 @@ constraint is recorded as a deviation — it is never worked around by duplicati
 - **Scoping:** every finance call passes the BSF farm's `farm_id` and `flock_id=None` →
   costs are farm-scoped and never attributed to another tenant's flock.
 
+#### P&L computation (Milestone E) — verified against `aviculture_finance_service`
+- **Cost posting mechanism (reuse, verified):** `finance_service.record_category_expense(
+  db, farm_id, flock_id=None, category_slug, amount, description, user, date)` returns an
+  `Expense`; the caller then tags `expense.metadata_["module"] = "bsf"` (+ source ids) and
+  flushes — exactly the Aviculture pattern (`Expense` carries `metadata_` JSONB from
+  `AGRIOSBase`). No BSF cost table.
+- **Idempotency (verified requirement):** a feedstock lot posts its cost **once** — the
+  lot stores the resulting `expense_id`; re-posting is a no-op. The source BSF record id is
+  the dedup key.
+- **P&L read model — every figure traces to a stored fact, confirmed vs projected:**
+  - *Revenue (CONFIRMED / recorded fact):* `Σ bsf_harvest_event.revenue_amount` — BSF-owned
+    facts. Never from `revenue_records`.
+  - *Operating cost (CONFIRMED / recorded fact):* `Σ Expense.amount WHERE farm_id=? AND
+    metadata_["module"].astext='bsf'` — the shared ledger, filtered by tag (the exact
+    `aviculture_finance_service.finance_summary` query, retargeted to `'bsf'`).
+  - *Gross profit / cost-per-kg / ROI (CALCULATED):* derived from the two confirmed sums +
+    recorded harvest mass; each output honesty-labelled and citing its inputs.
+  - *Projected revenue / break-even (FORECAST):* clearly labelled projections from the
+    Forecast engine (Milestone F) — never mixed into the confirmed figures.
+  - No value is stored as a competing snapshot; the P&L is computed on demand (Spec Part 3
+    §20). Confirmed financial records and module-level projections are separate fields with
+    distinct honesty labels (Spec Part 1 §8, Part 9 §17).
+- **No platform expansion:** uses existing slugs (`feed_purchase` for feedstock, `labour`,
+  `utilities` if present else `other`) and the existing `metadata_` column; Finance is not
+  extended.
+
 ### Deviations captured here
 1. **BSF revenue is a recorded fact, not a `revenue_records` row** — forced by the
    frozen flock-only revenue/snapshot model; avoids inventing a `flock_id`. (Same as
@@ -149,7 +191,10 @@ constraint is recorded as a deviation — it is never worked around by duplicati
 | Organisation isolation / RBAC | ✅ | `farm_id` scoping + `BSF_*` perms |
 | Audit log immutability | ✅ | `audit_service.log_action` |
 | Complete lineage / traceability | ✅ | lifecycle events, batch events, split/merge links |
-| Reuse Finance (no duplicate ledger) | ◻ Part-7 P&L (revenue fact captured) | contract §Finance |
+| Reuse Finance (no duplicate ledger) | ✅ | `bsf_finance_service` → `record_category_expense` + tag; computed P&L (`bsf_finance_engine`) |
+| Sustainability metrics (Part 4 §14, Part 7 §20) | ✅ | `bsf_sustainability_engine` |
+| Health / mortality monitoring (Part 3 §17, Part 4 §15) | ✅ | `bsf_health_engine` (patterns, not diagnosis) |
+| Confirmed records vs projections labelled | ✅ | P&L: revenue/cost `recorded`, derivations `calculated`; forecasts land `forecast` (Milestone F) |
 | Reuse Inventory | ✅ | `bsf_harvest_service` → `inventory_service.record_movement` (adjustment) |
 | Harvest / frass tracking & yield (Part 2 §11–12, Part 4 §8–9) | ✅ | `bsf_harvest_engine`, `bsf_frass_engine` |
 | Reuse Reminders/Notifications | ◻ Automation | — |
