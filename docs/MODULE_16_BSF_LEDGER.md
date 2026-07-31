@@ -182,7 +182,7 @@ via the shared `FactBadge`.
 | **Verification** | `tsc` clean · `vite build` ✓ · browser-verified: card → workspace, 3 detail queries `→ 200`, honesty labels visually distinct (tooltips show recorded/calculated/unknown), **Advance** modal offers forward-only stages → advanced Egg → Hatchling (backend-validated) → header refreshed. No console errors |
 | **Deviations** | Merge is a farm-level (multi-batch) action — belongs on the board/reports, not the single-batch workspace; deferred to a later screen. Lifecycle actions are hidden for terminal batches (backend also rejects) |
 
-## F3 — Executive Dashboard · commit `__F3__`
+## F3 — Executive Dashboard · commit `db12c53`
 
 | Field | Detail |
 |---|---|
