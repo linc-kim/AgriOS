@@ -102,6 +102,16 @@ from app.models.aviculture import (
     AviWorkflow,
     AviWorkflowEvent,
 )
+from app.models.bsf import (
+    BsfBatch,
+    BsfBatchDocument,
+    BsfBatchEvent,
+    BsfBatchMedia,
+    BsfColony,
+    BsfLifecycleEvent,
+    BsfProductionUnit,
+    BsfSpecies,
+)
 from app.models.platform import (
     Notification,
     AuditLog,
@@ -222,6 +232,15 @@ __all__ = [
     # Aviculture Workflows (Module 15 Part 9, Migration 060)
     "AviWorkflow",
     "AviWorkflowEvent",
+    # Black Soldier Fly (Module 16 Part 1, Migration 061)
+    "BsfSpecies",
+    "BsfProductionUnit",
+    "BsfColony",
+    "BsfBatch",
+    "BsfLifecycleEvent",
+    "BsfBatchEvent",
+    "BsfBatchMedia",
+    "BsfBatchDocument",
     # Platform Layer (Migrations 028-030)
     "Notification",
     "AuditLog",

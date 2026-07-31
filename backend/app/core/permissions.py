@@ -124,6 +124,32 @@ class Permission(StrEnum):
     AVI_AUTOMATION_MANAGE = "avi:automation:manage"  # Generate reminders, drive workflows
     AVI_AUTOMATION_VIEW = "avi:automation:view"      # Read tasks, reminders, workflows
 
+    # Black Soldier Fly — Insect Farming (Module 16). Spec Part 8 §5.
+    # ARIA / Mission Control reuse the platform AI_QUERY / AI_INSIGHT_VIEW perms.
+    BSF_BATCH_CREATE = "bsf:batch:create"        # Create production batches / colonies
+    BSF_BATCH_EDIT = "bsf:batch:edit"            # Edit batches, split, merge, move, lifecycle
+    BSF_BATCH_DELETE = "bsf:batch:delete"        # Terminate / archive batches
+    BSF_BATCH_VIEW = "bsf:batch:view"            # Read batches, lifecycle, timeline, media
+    BSF_UNIT_MANAGE = "bsf:unit:manage"          # Write production units (bins/trays/racks…)
+    BSF_UNIT_VIEW = "bsf:unit:view"              # Read production units
+    BSF_COLONY_MANAGE = "bsf:colony:manage"      # Write adult breeding colonies
+    BSF_COLONY_VIEW = "bsf:colony:view"          # Read breeding colonies
+    BSF_CATALOG_MANAGE = "bsf:catalog:manage"    # Write custom BSF species / strains
+    BSF_CATALOG_VIEW = "bsf:catalog:view"        # Read the species / strain catalog
+    BSF_FEED_RECORD = "bsf:feed:record"          # Record feedstock lots & feeding events
+    BSF_FEED_VIEW = "bsf:feed:view"              # Read feedstock & feeding history
+    BSF_HARVEST_RECORD = "bsf:harvest:record"    # Record harvests & frass collection
+    BSF_HARVEST_VIEW = "bsf:harvest:view"        # Read harvest & frass records
+    BSF_ENVIRONMENT_RECORD = "bsf:environment:record"  # Record environmental readings
+    BSF_ENVIRONMENT_VIEW = "bsf:environment:view"      # Read environmental records
+    BSF_FINANCE_VIEW = "bsf:finance:view"        # Read BSF finance summary & analytics
+    BSF_REPORT_VIEW = "bsf:report:view"          # Read reports & dashboards
+    BSF_REPORT_EXPORT = "bsf:report:export"      # Export reports (PDF / Excel / CSV)
+    BSF_GROWTH_VIEW = "bsf:growth:view"          # Read growth plan / roadmap / progress
+    BSF_GROWTH_EDIT = "bsf:growth:edit"          # Create / edit growth goals & roadmaps
+    BSF_AUTOMATION_MANAGE = "bsf:automation:manage"  # Generate reminders, drive workflows
+    BSF_AUTOMATION_VIEW = "bsf:automation:view"      # Read BSF tasks, reminders, workflows
+
 
 # ── Role → Permission Mapping ─────────────────────────────────────────────────
 # Derived from Engineering Constitution Section 5 RBAC matrix.
@@ -367,6 +393,55 @@ ROLE_PERMISSIONS["farm_worker"] |= _AVI_VIEW | {
 }
 ROLE_PERMISSIONS["vet_consultant"] |= _AVI_VIEW | {Permission.AVI_HEALTH_LOG}
 ROLE_PERMISSIONS["viewer"] |= _AVI_VIEW
+
+# ── Black Soldier Fly RBAC (Module 16). Spec Part 8 §5-9. ─────────────────────
+# Graded by responsibility, mirroring the platform role model:
+#   full        — owner/manager/enterprise run BSF production end to end.
+#   operational — workers create/edit batches, record feeding/harvest/environment
+#                 and drive automation, but never delete batches, edit the growth
+#                 plan or touch finance.
+#   read-only   — viewers see everything, change nothing.
+_BSF_VIEW = {
+    Permission.BSF_BATCH_VIEW,
+    Permission.BSF_UNIT_VIEW,
+    Permission.BSF_COLONY_VIEW,
+    Permission.BSF_CATALOG_VIEW,
+    Permission.BSF_FEED_VIEW,
+    Permission.BSF_HARVEST_VIEW,
+    Permission.BSF_ENVIRONMENT_VIEW,
+    Permission.BSF_FINANCE_VIEW,
+    Permission.BSF_REPORT_VIEW,
+    Permission.BSF_GROWTH_VIEW,
+    Permission.BSF_AUTOMATION_VIEW,
+}
+_BSF_FULL = _BSF_VIEW | {
+    Permission.BSF_BATCH_CREATE,
+    Permission.BSF_BATCH_EDIT,
+    Permission.BSF_BATCH_DELETE,
+    Permission.BSF_UNIT_MANAGE,
+    Permission.BSF_COLONY_MANAGE,
+    Permission.BSF_CATALOG_MANAGE,
+    Permission.BSF_FEED_RECORD,
+    Permission.BSF_HARVEST_RECORD,
+    Permission.BSF_ENVIRONMENT_RECORD,
+    Permission.BSF_REPORT_EXPORT,
+    Permission.BSF_GROWTH_EDIT,
+    Permission.BSF_AUTOMATION_MANAGE,
+}
+for _bsf_full in ("enterprise_owner", "farm_owner", "farm_manager"):
+    ROLE_PERMISSIONS[_bsf_full] |= _BSF_FULL
+ROLE_PERMISSIONS["farm_worker"] |= _BSF_VIEW | {
+    Permission.BSF_BATCH_CREATE,
+    Permission.BSF_BATCH_EDIT,
+    Permission.BSF_UNIT_MANAGE,
+    Permission.BSF_COLONY_MANAGE,
+    Permission.BSF_FEED_RECORD,
+    Permission.BSF_HARVEST_RECORD,
+    Permission.BSF_ENVIRONMENT_RECORD,
+    Permission.BSF_AUTOMATION_MANAGE,
+}
+ROLE_PERMISSIONS["vet_consultant"] |= _BSF_VIEW
+ROLE_PERMISSIONS["viewer"] |= _BSF_VIEW
 
 # platform_admin is an explicit set rather than a farm role, so it is granted
 # the production permissions directly.
