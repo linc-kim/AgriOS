@@ -228,7 +228,7 @@ via the shared `FactBadge`.
 | **Verification** | `tsc` clean · `vite build` ✓ · browser-verified end-to-end: created plan "Reach 100 kg total harvest" (Rev 1) with 2 milestones; goal progress computed from **recorded** harvest facts (actual 0 / target 100, `calculated`, run-rate `unknown`); changed a milestone → "achieved" (backend wrote Rev 2); version history rendered. No console errors |
 | **Deviations** | Revision-list freshness: added the revisions query key to post-mutation invalidation. Compare-revisions is available via the API but not yet surfaced in the UI (diff view is a later enhancement). ARIA/Mission Control never mutate plans — only these explicit user actions do |
 
-## F8 — Reports & Analytics · commit `__F8__`
+## F8 — Reports & Analytics · commit `67866e1`
 
 | Field | Detail |
 |---|---|
@@ -237,7 +237,7 @@ via the shared `FactBadge`.
 | **Verification** | `tsc` clean · `vite build` ✓ · browser-verified: forecast cards labelled **forecast** ("a model projection, not a confirmed value"), method + assumptions ("Based on N recorded observations", "A projection, not a promise") shown, confidence surfaced. No console errors |
 | **Deviations** | None. Read-only; overlaps the dashboard by design (focused analytics + export) |
 
-## F9 — ARIA Workspace · commit `__F9__`
+## F9 — ARIA Workspace · commit `67866e1`
 
 | Field | Detail |
 |---|---|
@@ -246,7 +246,7 @@ via the shared `FactBadge`.
 | **Verification** | `tsc` clean · `vite build` ✓ · browser-verified: asked "How much feedstock is on hand?" → **"There is 70.0 kg of feedstock on hand"**, labelled **recorded fact**, confidence high, source `reports.recorded_facts.feedstock_available_kg` — deterministic-first, advisory only. No console errors |
 | **Deviations** | ARIA is strictly advisory/read-only — no mutation path exists on the screen (matches backend contract) |
 
-## F10 — Mission Control · commit `__F10__`
+## F10 — Mission Control · commit `67866e1`
 
 | Field | Detail |
 |---|---|
