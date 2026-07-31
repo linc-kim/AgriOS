@@ -210,7 +210,7 @@ via the shared `FactBadge`.
 | **Verification** | `tsc` clean · `vite build` ✓ · browser-verified: selected batch → readiness "**Batch is at 'hatchling' — too early to harvest**" with `calculated` label + total-harvested; recorded frass 8 kg/40% → appeared in Frass history. No console errors |
 | **Deviations** | Revenue is captured as a recorded fact (backend); Inventory routing is optional (demo farm had no items — dropdown offered "record fact only"). Harvest revenue never posts to `revenue_records` (backend contract) |
 
-## F6 — Environment Monitoring · commit `__F6__`
+## F6 — Environment Monitoring · commit `11865c1`
 
 | Field | Detail |
 |---|---|
