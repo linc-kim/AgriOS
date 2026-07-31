@@ -45,7 +45,7 @@ push/deploy without explicit per-action approval.
 | **Integrations** | Audit ✅ (`audit_service.log_action` on every write); Auth/RBAC ✅ (`require_farm_access` + `require_permission`); Finance ◻ (Part-7 group); Inventory ◻ (Part-5 group); Reminders/Notifications ◻ (Part-4 group / automation); ARIA ◻; Mission Control ◻ |
 | **Deviations** | None. "Batch Engine" (Spec Part 4 §4) is realised as service orchestration (`bsf_batch_service`) delegating pure maths to `bsf_lifecycle_engine`/`bsf_production_engine`, rather than a third engine file — same layering Aviculture uses; all §4 responsibilities covered. |
 
-## Milestone C — Feedstock, Feeding & Environment · commit `0d5b47e`
+## Milestone C — Feedstock, Feeding & Environment · commit `707985a`
 
 | Field | Detail |
 |---|---|
