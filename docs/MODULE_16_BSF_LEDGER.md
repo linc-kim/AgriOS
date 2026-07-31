@@ -91,7 +91,7 @@ Finance P&L contract (below, §Finance → P&L computation) written & verified *
 | **Integrations** | **Finance ✅ REUSED** — costs post via `finance_service.record_category_expense(flock_id=None)` tagged `Expense.metadata_["module"]="bsf"`; P&L reads revenue from recorded harvest facts + cost from tag-filtered ledger (the verified `aviculture_finance_service` query, retargeted). No BSF finance table; feedstock cost posts **once** (idempotent via `lot.metadata_["expense_id"]`). Audit ✅ |
 | **Deviations** | **RBAC refinement (spec-alignment, not a deviation):** `farm_worker` no longer holds `BSF_FINANCE_VIEW`/`BSF_REPORT_VIEW`/`BSF_GROWTH_VIEW` — strategic/financial views are manager/owner concerns (Spec §6, §8-9). Foundation RBAC test updated. No spec deviations. |
 
-## Milestone F — Forecasting, Bottleneck analysis & Executive reporting · commit `__F__`
+## Milestone F — Forecasting, Bottleneck analysis & Executive reporting · commit `39491bb`
 
 Forecasting & Reporting Contract (below) recorded & verified **before** any forecast/report code.
 
