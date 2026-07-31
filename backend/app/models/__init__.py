@@ -111,6 +111,8 @@ from app.models.bsf import (
     BsfEnvironmentalReading,
     BsfFeedingEvent,
     BsfFeedstockLot,
+    BsfFrassProduction,
+    BsfHarvestEvent,
     BsfLifecycleEvent,
     BsfProductionUnit,
     BsfSpecies,
@@ -247,6 +249,8 @@ __all__ = [
     "BsfFeedstockLot",
     "BsfFeedingEvent",
     "BsfEnvironmentalReading",
+    "BsfHarvestEvent",
+    "BsfFrassProduction",
     # Platform Layer (Migrations 028-030)
     "Notification",
     "AuditLog",

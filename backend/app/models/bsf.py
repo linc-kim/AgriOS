@@ -108,6 +108,13 @@ FEEDING_METHOD_VALUES = (
 # Environmental readings (Spec Part 2 §10, Part 3 §13)
 ENV_READING_SOURCE_VALUES = ("manual", "sensor", "scheduled")
 
+# Harvest events (Spec Part 2 §11, Part 3 §15)
+HARVEST_TYPE_VALUES = ("larvae", "prepupae", "pupae", "adult", "frass", "mixed")
+HARVEST_DESTINATION_VALUES = (
+    "inventory", "sale", "feed", "processing", "disposal", "other",
+)
+QUALITY_GRADE_VALUES = ("premium", "standard", "low", "reject", "ungraded")
+
 
 # ── Catalog: BSF species / strain (Spec Part 3 §5) ────────────────────────────
 
@@ -536,3 +543,84 @@ class BsfEnvironmentalReading(AGRIOSBase):
 
     def __repr__(self) -> str:
         return f"<BsfEnvironmentalReading unit={self.production_unit_id} at={self.recorded_at}>"
+
+
+# ── Harvest events (Spec Part 2 §11, Part 3 §15) ──────────────────────────────
+
+class BsfHarvestEvent(AGRIOSBase):
+    """A harvest of larvae / prepupae / pupae / adults / frass from a batch
+    (Spec Part 3 §15). Revenue is a RECORDED FACT here (the platform revenue
+    ledger is flock-scoped — see the finance integration contract); harvested
+    stock optionally references a platform Inventory movement (never a BSF stock
+    table). ``inventory_item_id`` / ``inventory_movement_id`` are soft references
+    into the Inventory module, keeping the modules decoupled."""
+
+    __tablename__ = "bsf_harvest_event"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    batch_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("bsf_batch.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    harvest_type: Mapped[str] = mapped_column(String(20), nullable=False, default="larvae")
+    is_complete: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    harvested_on: Mapped[date] = mapped_column(Date, nullable=False)
+    quantity_kg: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    population_estimate: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    quality_grade: Mapped[str] = mapped_column(String(20), nullable=False, default="ungraded")
+    destination: Mapped[str] = mapped_column(String(20), nullable=False, default="inventory")
+    # Revenue as a recorded fact (finance integration contract §Finance).
+    revenue_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    unit_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 4), nullable=True)
+    currency: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    buyer_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # Soft references into the platform Inventory module (no FK — decoupled).
+    inventory_item_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    inventory_movement_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    observations: Mapped[str | None] = mapped_column(Text, nullable=True)
+    operator_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    batch: Mapped["BsfBatch"] = relationship(foreign_keys=[batch_id], lazy="noload")
+
+    def __repr__(self) -> str:
+        return f"<BsfHarvestEvent batch={self.batch_id} type={self.harvest_type} qty={self.quantity_kg}kg>"
+
+
+# ── Frass production (Spec Part 2 §12, Part 3 §16) ────────────────────────────
+
+class BsfFrassProduction(AGRIOSBase):
+    """Frass collected from a batch, kept traceable to its originating batch
+    (Spec Part 3 §16). Like harvest, collected frass optionally references a
+    platform Inventory movement rather than a BSF stock table."""
+
+    __tablename__ = "bsf_frass_production"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    batch_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("bsf_batch.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    collected_on: Mapped[date] = mapped_column(Date, nullable=False)
+    weight_kg: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    moisture_pct: Mapped[Decimal | None] = mapped_column(Numeric(6, 2), nullable=True)
+    quality: Mapped[str] = mapped_column(String(20), nullable=False, default="ungraded")
+    storage_location: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    inventory_item_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    inventory_movement_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    operator_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    batch: Mapped["BsfBatch"] = relationship(foreign_keys=[batch_id], lazy="noload")
+
+    def __repr__(self) -> str:
+        return f"<BsfFrassProduction batch={self.batch_id} weight={self.weight_kg}kg>"

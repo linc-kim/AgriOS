@@ -390,3 +390,73 @@ class EnvironmentalReadingResult(AGRIOSSchema):
 
     reading: EnvironmentalReadingResponse
     assessment: dict
+
+
+# ── Harvest events (Spec Part 3 §15) ──────────────────────────────────────────
+
+class HarvestEventCreate(AGRIOSSchema):
+    harvest_type: str = Field("larvae")
+    is_complete: bool = Field(False)
+    harvested_on: date | None = None
+    quantity_kg: Decimal = Field(..., gt=0)
+    population_estimate: int | None = Field(None, ge=0)
+    quality_grade: str = Field("ungraded")
+    destination: str = Field("inventory")
+    revenue_amount: Decimal | None = Field(None, ge=0)
+    unit_price: Decimal | None = Field(None, ge=0)
+    currency: str | None = Field(None, max_length=10)
+    buyer_name: str | None = Field(None, max_length=200)
+    inventory_item_id: UUID | None = Field(
+        None, description="Optional platform Inventory item to receive the harvested stock.")
+    observations: str | None = None
+
+    _ht = field_validator("harvest_type")(_one_of("harvest_type", bsf.HARVEST_TYPE_VALUES))
+    _qg = field_validator("quality_grade")(_one_of("quality_grade", bsf.QUALITY_GRADE_VALUES))
+    _dest = field_validator("destination")(_one_of("destination", bsf.HARVEST_DESTINATION_VALUES))
+
+
+class HarvestEventResponse(TimestampedSchema):
+    farm_id: UUID
+    batch_id: UUID
+    harvest_type: str
+    is_complete: bool
+    harvested_on: date
+    quantity_kg: Decimal
+    population_estimate: int | None
+    quality_grade: str
+    destination: str
+    revenue_amount: Decimal | None
+    unit_price: Decimal | None
+    currency: str | None
+    buyer_name: str | None
+    inventory_item_id: UUID | None
+    inventory_movement_id: UUID | None
+    observations: str | None
+
+
+# ── Frass production (Spec Part 3 §16) ────────────────────────────────────────
+
+class FrassProductionCreate(AGRIOSSchema):
+    collected_on: date | None = None
+    weight_kg: Decimal = Field(..., gt=0)
+    moisture_pct: Decimal | None = Field(None, ge=0, le=100)
+    quality: str = Field("ungraded")
+    storage_location: str | None = Field(None, max_length=200)
+    inventory_item_id: UUID | None = Field(
+        None, description="Optional platform Inventory item to receive the frass.")
+    notes: str | None = None
+
+    _q = field_validator("quality")(_one_of("quality", bsf.QUALITY_GRADE_VALUES))
+
+
+class FrassProductionResponse(TimestampedSchema):
+    farm_id: UUID
+    batch_id: UUID
+    collected_on: date
+    weight_kg: Decimal
+    moisture_pct: Decimal | None
+    quality: str
+    storage_location: str | None
+    inventory_item_id: UUID | None
+    inventory_movement_id: UUID | None
+    notes: str | None

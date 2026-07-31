@@ -41,6 +41,7 @@ from app.api.v1.endpoints import aviculture_aria
 from app.api.v1.endpoints import bsf
 from app.api.v1.endpoints import bsf_feeding
 from app.api.v1.endpoints import bsf_environment
+from app.api.v1.endpoints import bsf_harvest
 
 api_router = APIRouter()
 
@@ -123,3 +124,4 @@ api_router.include_router(aviculture_aria.router)
 api_router.include_router(bsf.router)
 api_router.include_router(bsf_feeding.router)
 api_router.include_router(bsf_environment.router)
+api_router.include_router(bsf_harvest.router)

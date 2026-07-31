@@ -59,6 +59,83 @@ push/deploy without explicit per-action approval.
 | **Integrations** | Audit ✅; Finance ◻ (feedstock `cost` captured on the lot now; posting to shared ledger in Part-7 group); Inventory ◻ (Part-5 group); Reminders/Notifications — threshold *detection* deterministic here, *emission* deferred to Automation milestone (see deviation) |
 | **Deviations** | **Environmental alert emission → Automation milestone (P9).** Spec Part 2 §10 / Part 4 §10 require threshold violations to trigger Reminder/Notification. The Environment Engine computes violations deterministically now (returned live on each recorded reading); actual Reminder/Notification materialisation is centralised in the later Automation milestone (idempotent, `metadata.module='bsf'`, dedup keys) — mirroring Aviculture, and avoiding `create_notification`'s independent-commit coupling and duplicated alert logic. Capability is fully delivered; only its trigger seam moves. |
 
+## Milestone D — Harvest, Frass & Inventory reuse · commit `f8be59b`
+
+Integration contract (below) was written and verified **before** any Finance/Inventory code.
+
+| Field | Detail |
+|---|---|
+| **Spec sections** | Part 2 §11–12 (harvest, frass); Part 3 §15–16 (harvest events, frass production); Part 4 §8–9 (Harvest Engine, Frass Engine); Part 8 §15 file/inventory reuse principle |
+| **Migrations** | `063_bsf_harvest_frass` (down_revision 062; round-trips) — 2 tables |
+| **Models** | `BsfHarvestEvent` (revenue as recorded fact; soft inventory refs), `BsfFrassProduction` |
+| **Services/engines** | Engines (pure): `bsf_harvest_engine` (readiness, expected/actual yield, quantity validation), `bsf_frass_engine` (moisture-adjusted dry weight, frass yield/ratio). Service: `bsf_harvest_service` (harvest + frass; optional Inventory routing; batch close/biomass decrement) |
+| **API routes** | +5 under `/farms/{farm_id}/bsf`: batches/{id}/harvests (record/list), batches/{id}/harvest-readiness, batches/{id}/frass (record/list). Total BSF routes now **36** |
+| **Frontend** | Not started |
+| **Tests** | `test_bsf_harvest_frass_engines` (8) unit; `test_bsf_harvest_frass_api` (8) integration — **98 BSF tests pass**; Inventory regression (13) green; ruff clean |
+| **Integrations** | **Inventory ✅ REUSED** — `inventory_service.record_movement` (inbound `adjustment`), item quantity verified to increase, movement `direction=1`, no `stock_in` (so no expense double-book); BSF stores only `inventory_movement_id`. **Finance ✅ contract-honoured** — harvest revenue recorded as a fact (no `revenue_records` row, no expense written); Audit ✅ |
+| **Deviations** | (1) **Harvest revenue is a recorded fact**, not a `revenue_records` row — forced by the frozen flock-scoped revenue ledger (contract §Finance). (2) **Harvested output uses an existing Inventory category** (catch-all `miscellaneous`; farmer's choice) — the platform has no "produce/output" category, but a catch-all suffices, so Inventory is **not** expanded (per instruction). A dedicated category is a possible future platform enhancement, not a BSF requirement. |
+
+---
+
+## Integration Contract — Finance & Inventory (authoritative; verified against platform code before Milestone D)
+
+Verified against `finance_service`, `inventory_service` and the frozen finance
+model. **No BSF-specific finance/stock logic is created; no platform capability
+is expanded.** Where a platform constraint blocks reuse, BSF owns the fact and the
+constraint is recorded as a deviation — it is never worked around by duplication.
+
+### Inventory (reuse `inventory_service.record_movement`)
+- **Reused pattern:** harvested larvae/prepupae and collected frass enter stock via
+  `inventory_service.record_movement(db, farm, MovementCreate(...), user)` with
+  `movement_type="adjustment"` (an inbound type: `_IN_TYPES = {stock_in, transfer_in,
+  return, adjustment}`). **Never `stock_in`** — `stock_in` auto-books a purchase
+  Expense (`inventory_service` lines ~340), which would double-count feedstock cost.
+  `adjustment` adds quantity with no expense and no supplier requirement.
+- **Ownership:** Inventory OWNS the `InventoryItem` and `InventoryMovement`. BSF OWNS
+  `bsf_harvest_event` / `bsf_frass_production` and merely *references* the movement.
+  The farmer supplies an existing `inventory_item_id`; BSF never creates items or a
+  parallel stock table.
+- **Cross-link / traceability:** the movement carries `reference = batch_number`; the
+  returned `move.id` is stored on the BSF record as `inventory_movement_id`.
+- **Idempotency:** the BSF harvest/frass record is the idempotency key — a movement is
+  created at most once per record (guarded: skip if `inventory_movement_id` already
+  set), inside the same DB transaction as the record. No automatic cross-module retry
+  path exists in this milestone (the scheduled/reminder path with dedup_keys is the
+  Automation milestone).
+- **Scoping:** `record_movement` takes the BSF farm's `Farm` object; `_get_item`
+  validates the item belongs to that farm → no cross-tenant movement is possible.
+
+### Finance (reuse `finance_service`; do NOT duplicate the ledger)
+- **Revenue — platform constraint:** `finance_service.log_revenue` **requires a valid
+  `flock_id`** (validated against `flocks`); the finance dashboard/snapshot is
+  flock-scoped (frozen DB-07). BSF has no flock. **Therefore BSF harvest revenue is a
+  RECORDED FACT on `bsf_harvest_event`** (`revenue_amount`, `currency`, `buyer_name`),
+  not posted to `revenue_records`. Consuming these facts into a P&L summary is the
+  Part-7 finance milestone (computed, read-only — never a competing snapshot). This is
+  the identical decision taken for Aviculture (`aviculture_finance_service`).
+- **Cost:** operational costs post to the SHARED `expenses` ledger via
+  `finance_service.record_category_expense(db, farm_id, flock_id=None, slug, amount,
+  description, user, date)` (flushes in the caller's txn) — system slugs
+  `feed_purchase` / `labour` / `other`. Feedstock `cost` is already a recorded fact on
+  `bsf_feedstock_lot`; posting consumption/production cost to the ledger lands in the
+  Part-7 finance milestone. Milestone D posts **no** expenses (harvest is output, not a
+  purchase) and books **no** revenue.
+- **Ownership:** Finance OWNS `Expense` / `RevenueRecord`. BSF OWNS its harvest/frass/
+  feedstock facts and, in Part-7, calls finance services (never writes those tables
+  directly) and *computes* the BSF P&L from recorded facts.
+- **Idempotency:** cost postings (Part-7) will use `record_category_expense` once per
+  source BSF record, tagged in the description for attribution; the source record id is
+  the dedup key.
+- **Scoping:** every finance call passes the BSF farm's `farm_id` and `flock_id=None` →
+  costs are farm-scoped and never attributed to another tenant's flock.
+
+### Deviations captured here
+1. **BSF revenue is a recorded fact, not a `revenue_records` row** — forced by the
+   frozen flock-only revenue/snapshot model; avoids inventing a `flock_id`. (Same as
+   Aviculture.)
+2. **No new movement type added** — `adjustment` is reused for produced-goods inbound;
+   the platform is not extended.
+
 ---
 
 ## Cross-cutting spec coverage tracker
@@ -72,8 +149,9 @@ push/deploy without explicit per-action approval.
 | Organisation isolation / RBAC | ✅ | `farm_id` scoping + `BSF_*` perms |
 | Audit log immutability | ✅ | `audit_service.log_action` |
 | Complete lineage / traceability | ✅ | lifecycle events, batch events, split/merge links |
-| Reuse Finance (no duplicate ledger) | ◻ Part-7 group | — |
-| Reuse Inventory | ◻ Part-5 group | — |
+| Reuse Finance (no duplicate ledger) | ◻ Part-7 P&L (revenue fact captured) | contract §Finance |
+| Reuse Inventory | ✅ | `bsf_harvest_service` → `inventory_service.record_movement` (adjustment) |
+| Harvest / frass tracking & yield (Part 2 §11–12, Part 4 §8–9) | ✅ | `bsf_harvest_engine`, `bsf_frass_engine` |
 | Reuse Reminders/Notifications | ◻ Automation | — |
 | ARIA integration | ◻ | — |
 | Mission Control integration | ◻ | — |
