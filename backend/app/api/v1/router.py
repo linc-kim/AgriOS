@@ -38,6 +38,7 @@ from app.api.v1.endpoints import aviculture_finance
 from app.api.v1.endpoints import aviculture_reports
 from app.api.v1.endpoints import aviculture_automation
 from app.api.v1.endpoints import aviculture_aria
+from app.api.v1.endpoints import bsf
 
 api_router = APIRouter()
 
@@ -115,3 +116,6 @@ api_router.include_router(aviculture_finance.router)
 api_router.include_router(aviculture_reports.router)
 api_router.include_router(aviculture_automation.router)
 api_router.include_router(aviculture_aria.router)
+
+# ── Module 16 (Black Soldier Fly — insect farming) ────────────────────────────
+api_router.include_router(bsf.router)
