@@ -182,6 +182,16 @@ via the shared `FactBadge`.
 | **Verification** | `tsc` clean · `vite build` ✓ · browser-verified: card → workspace, 3 detail queries `→ 200`, honesty labels visually distinct (tooltips show recorded/calculated/unknown), **Advance** modal offers forward-only stages → advanced Egg → Hatchling (backend-validated) → header refreshed. No console errors |
 | **Deviations** | Merge is a farm-level (multi-batch) action — belongs on the board/reports, not the single-batch workspace; deferred to a later screen. Lifecycle actions are hidden for terminal batches (backend also rejects) |
 
+## F3 — Executive Dashboard · commit `__F3__`
+
+| Field | Detail |
+|---|---|
+| **Screens** | `BsfDashboardScreen` (`/bsf/dashboard`) — read-only: business scores, production summary (recorded facts), production KPIs, financial snapshot, sustainability, forecast tiles, ranked bottlenecks. Every figure carries its honesty label + tooltip |
+| **API** | `api/bsfReports.ts` (getDashboard/getForecast/getBottlenecks + authenticated CSV blob). Consumes `GET /bsf/reports/dashboard` |
+| **Reuse** | `FactBadge`/`LabelledValue`, `Skeleton`, `Button`; subnav gains "Dashboard" |
+| **Verification** | `tsc` clean · `vite build` ✓ · browser-verified: dashboard endpoint `→ 200`, all sections render with honesty labels visually distinct (scores Calculated/Unknown/**Unavailable** for growth w/o a plan; recorded facts `recorded`; KPIs mixed calculated/unknown; forecast labelled `forecast`). No console errors |
+| **Deviations** | None. Fully read-only (no mutations) — presentation of the backend composed dashboard; no recomputation |
+
 Verified against `finance_service`, `inventory_service` and the frozen finance
 model. **No BSF-specific finance/stock logic is created; no platform capability
 is expanded.** Where a platform constraint blocks reuse, BSF owns the fact and the

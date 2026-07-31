@@ -6,8 +6,9 @@ import { cn } from "@/lib/cn";
 
 const LINKS = [
   { to: "/bsf", label: "Production" },
-  // Added per milestone: dashboard, feedstock, harvest, environment, growth,
-  // reports, aria, mission.
+  { to: "/bsf/dashboard", label: "Dashboard" },
+  // Added per milestone: feedstock, harvest, environment, growth, reports,
+  // aria, mission.
 ];
 
 export function BsfSubnav({ active }: { active: string }) {
