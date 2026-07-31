@@ -219,7 +219,7 @@ via the shared `FactBadge`.
 | **Verification** | `tsc` clean · `vite build` ✓ · browser-verified end-to-end: added unit "Rearing Bin 1", recorded a reading (Temp 30 / Humidity 65) → live assessment returned; assessment panel shows temperature/humidity `recorded` ("no recommended range"), moisture/airflow `unknown`; readings table populated. No console errors |
 | **Deviations** | **Production-unit management is hosted on this screen** (Add-unit) since units are infrastructure not otherwise surfaced and the environment view needs them — pragmatic, avoids a thin extra screen. A dedicated infrastructure screen could later absorb it |
 
-## F7 — Growth Planner · commit `__F7__`
+## F7 — Growth Planner · commit `0b13fbe`
 
 | Field | Detail |
 |---|---|
