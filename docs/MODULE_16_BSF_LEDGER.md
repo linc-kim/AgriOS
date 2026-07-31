@@ -75,7 +75,7 @@ Integration contract (below) was written and verified **before** any Finance/Inv
 | **Integrations** | **Inventory ✅ REUSED** — `inventory_service.record_movement` (inbound `adjustment`), item quantity verified to increase, movement `direction=1`, no `stock_in` (so no expense double-book); BSF stores only `inventory_movement_id`. **Finance ✅ contract-honoured** — harvest revenue recorded as a fact (no `revenue_records` row, no expense written); Audit ✅ |
 | **Deviations** | (1) **Harvest revenue is a recorded fact**, not a `revenue_records` row — forced by the frozen flock-scoped revenue ledger (contract §Finance). (2) **Harvested output uses an existing Inventory category** (catch-all `miscellaneous`; farmer's choice) — the platform has no "produce/output" category, but a catch-all suffices, so Inventory is **not** expanded (per instruction). A dedicated category is a possible future platform enhancement, not a BSF requirement. |
 
-## Milestone E — Mortality, Health, Finance P&L & Sustainability · commit `b363a26`
+## Milestone E — Mortality, Health, Finance P&L & Sustainability · commit `07fd529`
 
 Finance P&L contract (below, §Finance → P&L computation) written & verified **before** any Finance code.
 
