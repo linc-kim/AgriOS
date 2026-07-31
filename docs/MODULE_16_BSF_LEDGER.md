@@ -59,7 +59,7 @@ push/deploy without explicit per-action approval.
 | **Integrations** | Audit ✅; Finance ◻ (feedstock `cost` captured on the lot now; posting to shared ledger in Part-7 group); Inventory ◻ (Part-5 group); Reminders/Notifications — threshold *detection* deterministic here, *emission* deferred to Automation milestone (see deviation) |
 | **Deviations** | **Environmental alert emission → Automation milestone (P9).** Spec Part 2 §10 / Part 4 §10 require threshold violations to trigger Reminder/Notification. The Environment Engine computes violations deterministically now (returned live on each recorded reading); actual Reminder/Notification materialisation is centralised in the later Automation milestone (idempotent, `metadata.module='bsf'`, dedup keys) — mirroring Aviculture, and avoiding `create_notification`'s independent-commit coupling and duplicated alert logic. Capability is fully delivered; only its trigger seam moves. |
 
-## Milestone D — Harvest, Frass & Inventory reuse · commit `f8be59b`
+## Milestone D — Harvest, Frass & Inventory reuse · commit `afa281c`
 
 Integration contract (below) was written and verified **before** any Finance/Inventory code.
 
