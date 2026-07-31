@@ -107,7 +107,7 @@ Forecasting & Reporting Contract (below) recorded & verified **before** any fore
 | **Integrations** | **Reporting/Analytics REUSED** — composes existing `bsf_*_engine` outputs + Part-5 services; CSV via platform `Response`/`text/csv` (as `aviculture_reports`). **No parallel reporting framework, no recomputation.** Dashboard exposes `recorded_facts` + `analytics` blocks → full traceability for ARIA/Mission Control/users. Audit — read-only, none needed |
 | **Deviations** | None. **Growth score is `unavailable`** (not faked) pending the Growth Planner milestone. Farm-wide capacity utilisation is `unknown` on the dashboard (no aggregate unit-capacity roll-up yet) — a known gap, not a fabricated value. |
 
-## Milestone G — Growth Planner (platform-level, canonical) · commit `__G__`
+## Milestone G — Growth Planner (platform-level, canonical) · commit `a0db832`
 
 Growth Planner Contract (below) recorded & verified **before** implementation.
 
