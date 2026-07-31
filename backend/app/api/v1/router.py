@@ -44,6 +44,7 @@ from app.api.v1.endpoints import bsf_environment
 from app.api.v1.endpoints import bsf_harvest
 from app.api.v1.endpoints import bsf_health
 from app.api.v1.endpoints import bsf_finance
+from app.api.v1.endpoints import bsf_reports
 
 api_router = APIRouter()
 
@@ -129,3 +130,4 @@ api_router.include_router(bsf_environment.router)
 api_router.include_router(bsf_harvest.router)
 api_router.include_router(bsf_health.router)
 api_router.include_router(bsf_finance.router)
+api_router.include_router(bsf_reports.router)

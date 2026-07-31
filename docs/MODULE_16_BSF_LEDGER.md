@@ -91,6 +91,22 @@ Finance P&L contract (below, §Finance → P&L computation) written & verified *
 | **Integrations** | **Finance ✅ REUSED** — costs post via `finance_service.record_category_expense(flock_id=None)` tagged `Expense.metadata_["module"]="bsf"`; P&L reads revenue from recorded harvest facts + cost from tag-filtered ledger (the verified `aviculture_finance_service` query, retargeted). No BSF finance table; feedstock cost posts **once** (idempotent via `lot.metadata_["expense_id"]`). Audit ✅ |
 | **Deviations** | **RBAC refinement (spec-alignment, not a deviation):** `farm_worker` no longer holds `BSF_FINANCE_VIEW`/`BSF_REPORT_VIEW`/`BSF_GROWTH_VIEW` — strategic/financial views are manager/owner concerns (Spec §6, §8-9). Foundation RBAC test updated. No spec deviations. |
 
+## Milestone F — Forecasting, Bottleneck analysis & Executive reporting · commit `__F__`
+
+Forecasting & Reporting Contract (below) recorded & verified **before** any forecast/report code.
+
+| Field | Detail |
+|---|---|
+| **Spec sections** | Part 4 §11 (Forecast Engine), §13 (Bottleneck Engine), §16 (Reporting composes, not recalculates); Part 7 §11–13 (growth/bottleneck/forecasting analytics), §18–19 (reporting, executive dashboards) |
+| **Migrations** | None — reporting is computed on demand, nothing stored (Spec Part 3 §20) |
+| **Models** | None new |
+| **Services/engines** | Engines (pure): `bsf_forecast_engine` (linear flow/stock projections, always `forecast`-labelled + method/assumptions/confidence/limitations), `bsf_bottleneck_engine` (severity-ranked constraints w/ evidence + action), `bsf_score_engine` (bounded 0–100 composite scores; growth `unavailable`). Service: `bsf_reporting_service` (composes engines + Part-5 finance/sustainability into the executive dashboard, forecast bundle, CSV export) |
+| **API routes** | +4 under `/farms/{farm_id}/bsf/reports`: dashboard, forecast, bottlenecks, production.csv. Total BSF routes now **47** |
+| **Frontend** | Not started |
+| **Tests** | `test_bsf_forecast_bottleneck_score_engines` (9) unit; `test_bsf_reports_api` (7) integration — **129 BSF tests pass**; ruff clean |
+| **Integrations** | **Reporting/Analytics REUSED** — composes existing `bsf_*_engine` outputs + Part-5 services; CSV via platform `Response`/`text/csv` (as `aviculture_reports`). **No parallel reporting framework, no recomputation.** Dashboard exposes `recorded_facts` + `analytics` blocks → full traceability for ARIA/Mission Control/users. Audit — read-only, none needed |
+| **Deviations** | None. **Growth score is `unavailable`** (not faked) pending the Growth Planner milestone. Farm-wide capacity utilisation is `unknown` on the dashboard (no aggregate unit-capacity roll-up yet) — a known gap, not a fabricated value. |
+
 ---
 
 ## Integration Contract — Finance & Inventory (authoritative; verified against platform code before Milestone D)
@@ -180,6 +196,50 @@ constraint is recorded as a deviation — it is never worked around by duplicati
 
 ---
 
+## Forecasting & Reporting Contract (authoritative; recorded before Milestone F code)
+
+Governs the Forecast/Bottleneck engines and the executive reporting layer. Reuses
+the platform's honesty-label convention (from `analytics_engine`) and export
+mechanism (FastAPI `Response`, CSV) — **no parallel reporting/analytics framework**.
+
+### Output classification (every reported figure carries exactly one)
+| Class (spec) | Engine label | Meaning | Example |
+|---|---|---|---|
+| **Recorded** | `recorded` | A stored fact, unmodified | Σ harvest revenue; total feed logged |
+| **Calculated** | `calculated` | Deterministic from stored facts only | FCR, gross profit, health/production score |
+| **Forecast** | `forecast` | A model projection of a future value | projected biomass/harvest/revenue at horizon |
+| **Estimated** | `estimate` | Needs an assumption supplied by user/config | carbon diversion (emission factor), any user-set ratio |
+| *(missing)* | `unknown` / `unavailable` | Inputs absent — never guessed | forecast with no history window |
+
+### Rules
+- **Forecasts are never presented as confirmed.** Every forecast field is labelled
+  `forecast` and additionally carries `method`, `assumptions[]`, `confidence`
+  (low/medium/high from the count of recorded observations) and `limitations[]` —
+  mirroring `analytics_engine.population_forecast`. A dashboard never places a
+  forecast in a "recorded" or "confirmed" position.
+- **Estimates declare their assumption.** An `estimate` figure is produced only when
+  the required assumption (e.g. emission factor, horizon) is explicitly supplied;
+  otherwise the figure is `unknown`. No default assumption is invented.
+- **Traceability — dashboards expose facts AND analytics.** The executive dashboard
+  returns a `recorded_facts` block (raw counts/sums straight from stored rows)
+  alongside the `analytics` block (calculated + forecast). Every derived figure cites
+  its inputs in `detail`, so ARIA / Mission Control / users can trace any conclusion
+  back to the recorded rows that produced it (Spec Part 1 §8, Part 7 §2, Part 9 §17).
+- **Composite scores are calculated, bounded, and degrade to unknown.** Health/
+  production/financial/sustainability scores are deterministic functions of recorded
+  ratios (0–100), labelled `calculated`, citing their formula; missing inputs →
+  `unknown` (never a filler score). The **growth score is `unavailable`** until the
+  Growth Planner milestone supplies a goal — not faked.
+- **Reuse, not replacement.** The reporting service *composes* the existing
+  `bsf_*_engine` outputs and the Part-5 finance/sustainability services; CSV export
+  uses the platform `Response`/`text/csv` pattern (as `aviculture_reports`). No new
+  report store, no recomputation of figures the engines already produce (Spec Part 4
+  §16 "compose … rather than recalculating").
+- **Scoping:** all reads are farm-scoped; forecasts/scores are computed on demand and
+  never stored (Spec Part 3 §20).
+
+---
+
 ## Cross-cutting spec coverage tracker
 
 | Requirement | Status | Where |
@@ -194,7 +254,10 @@ constraint is recorded as a deviation — it is never worked around by duplicati
 | Reuse Finance (no duplicate ledger) | ✅ | `bsf_finance_service` → `record_category_expense` + tag; computed P&L (`bsf_finance_engine`) |
 | Sustainability metrics (Part 4 §14, Part 7 §20) | ✅ | `bsf_sustainability_engine` |
 | Health / mortality monitoring (Part 3 §17, Part 4 §15) | ✅ | `bsf_health_engine` (patterns, not diagnosis) |
-| Confirmed records vs projections labelled | ✅ | P&L: revenue/cost `recorded`, derivations `calculated`; forecasts land `forecast` (Milestone F) |
+| Confirmed records vs projections labelled | ✅ | P&L `recorded`/`calculated`; forecasts `forecast` (`bsf_forecast_engine`); estimates `estimate` |
+| Forecasting (Part 4 §11, Part 7 §13) | ✅ | `bsf_forecast_engine` — never presented as confirmed |
+| Bottleneck analysis (Part 4 §13, Part 7 §12) | ✅ | `bsf_bottleneck_engine` — ranked, evidenced |
+| Executive reporting / dashboards (Part 7 §18–19) | ✅ | `bsf_reporting_service` — facts + analytics, CSV reuse |
 | Reuse Inventory | ✅ | `bsf_harvest_service` → `inventory_service.record_movement` (adjustment) |
 | Harvest / frass tracking & yield (Part 2 §11–12, Part 4 §8–9) | ✅ | `bsf_harvest_engine`, `bsf_frass_engine` |
 | Reuse Reminders/Notifications | ◻ Automation | — |
