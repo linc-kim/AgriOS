@@ -79,6 +79,7 @@ const BsfProductionBoardScreen = lazy(() => import("@/screens/bsf/ProductionBoar
 const BsfBatchWorkspaceScreen = lazy(() => import("@/screens/bsf/BatchWorkspaceScreen"));
 const BsfDashboardScreen = lazy(() => import("@/screens/bsf/BsfDashboardScreen"));
 const BsfFeedstockScreen = lazy(() => import("@/screens/bsf/BsfFeedstockScreen"));
+const BsfHarvestScreen = lazy(() => import("@/screens/bsf/BsfHarvestScreen"));
 const AdminScreen = lazy(() => import("@/screens/admin/AdminScreen"));
 const ProductionScreen = lazy(() => import("@/screens/production/ProductionScreen"));
 
@@ -212,6 +213,7 @@ const router = createBrowserRouter([
           { path: "/bsf/batches/:batchId", element: <BsfBatchWorkspaceScreen /> },
           { path: "/bsf/dashboard", element: <BsfDashboardScreen /> },
           { path: "/bsf/feedstock", element: <BsfFeedstockScreen /> },
+          { path: "/bsf/harvest", element: <BsfHarvestScreen /> },
           { path: "/admin", element: <AdminScreen /> },
           { path: "/production", element: <ProductionScreen /> },
           ...moduleRoutes,

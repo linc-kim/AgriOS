@@ -201,6 +201,15 @@ via the shared `FactBadge`.
 | **Verification** | `tsc` clean · `vite build` ✓ · browser-verified end-to-end: added a 100 kg lot → card rendered; recorded a 30 kg feeding → lot decremented **100 → 70 kg**, status `available → in use` (backend consumption); **Post to ledger** → "Cost posted to the finance ledger" (shared-ledger reuse). No console errors |
 | **Deviations** | Feeding is initiated here (pick a batch) rather than only from the batch workspace — a farm-wide feedstock view is the natural home; per-batch feed-conversion is available via the API and surfaced on Reports. Backend enforces over-feed/permission rules (errors surfaced) |
 
+## F5 — Harvest & Frass · commit `__F5__`
+
+| Field | Detail |
+|---|---|
+| **Screens** | `BsfHarvestScreen` (`/bsf/harvest`) — batch selector, deterministic **harvest-readiness** signal (honesty-labelled), harvest + frass histories, and record modals (harvest: type/quality/qty/destination/revenue/complete + optional Inventory item; frass: weight/moisture + optional Inventory item) |
+| **API** | `api/bsfHarvest.ts` — getHarvestReadiness, listHarvests, recordHarvest, listFrass, recordFrass. Reuses `listInvItems` for the Inventory-routing dropdown |
+| **Verification** | `tsc` clean · `vite build` ✓ · browser-verified: selected batch → readiness "**Batch is at 'hatchling' — too early to harvest**" with `calculated` label + total-harvested; recorded frass 8 kg/40% → appeared in Frass history. No console errors |
+| **Deviations** | Revenue is captured as a recorded fact (backend); Inventory routing is optional (demo farm had no items — dropdown offered "record fact only"). Harvest revenue never posts to `revenue_records` (backend contract) |
+
 Verified against `finance_service`, `inventory_service` and the frozen finance
 model. **No BSF-specific finance/stock logic is created; no platform capability
 is expanded.** Where a platform constraint blocks reuse, BSF owns the fact and the
