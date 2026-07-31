@@ -4,9 +4,15 @@ Running record of Module 16 delivery against the authoritative BSF specification
 (Parts 1–10). One section per milestone. Kept in lock-step with the code so the
 implementation never drifts from the spec.
 
-> **Canonical technical reference:** [`MODULE_16_BSF_HANDOFF.md`](MODULE_16_BSF_HANDOFF.md)
-> — architecture, dependency graph, API inventory, contracts, extension guide, stats.
-> This ledger is the per-milestone build history behind it.
+> **Canonical technical references:** backend →
+> [`MODULE_16_BSF_HANDOFF.md`](MODULE_16_BSF_HANDOFF.md), frontend →
+> [`MODULE_16_BSF_FRONTEND_HANDOFF.md`](MODULE_16_BSF_FRONTEND_HANDOFF.md).
+> This ledger is the per-milestone build history behind them.
+>
+> **Frontend status (2026-07-31): COMPLETE** — all 10 screens (`/bsf/*`) built,
+> browser-verified end-to-end, and committed locally on `phase-2-auth` (unpushed).
+> tsc + vite build green throughout. Remaining module scope: the Automation part
+> (P9) and its UI. Deployment not performed.
 
 **Module model:** batch-centric (aggregate root = Production Batch). Template =
 Module 15 Aviculture. All tables `bsf_`-prefixed; farm-scoped (org isolation via
