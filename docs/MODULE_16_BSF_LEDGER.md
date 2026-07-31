@@ -192,7 +192,7 @@ via the shared `FactBadge`.
 | **Verification** | `tsc` clean · `vite build` ✓ · browser-verified: dashboard endpoint `→ 200`, all sections render with honesty labels visually distinct (scores Calculated/Unknown/**Unavailable** for growth w/o a plan; recorded facts `recorded`; KPIs mixed calculated/unknown; forecast labelled `forecast`). No console errors |
 | **Deviations** | None. Fully read-only (no mutations) — presentation of the backend composed dashboard; no recomputation |
 
-## F4 — Feedstock & Feeding · commit `__F4__`
+## F4 — Feedstock & Feeding · commit `29b463b`
 
 | Field | Detail |
 |---|---|
