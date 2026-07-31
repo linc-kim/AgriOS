@@ -92,6 +92,22 @@ DOCUMENT_TYPE_VALUES = (
     "certificate", "inspection_report", "permit", "other",
 )
 
+# Feedstock lot (Spec Part 2 §8, Part 3 §11)
+FEEDSTOCK_CATEGORY_VALUES = (
+    "fruit_waste", "vegetable_waste", "market_waste", "brewery_waste",
+    "food_processing_waste", "agricultural_byproduct", "manure", "organic_waste", "other",
+)
+FEEDSTOCK_QUALITY_VALUES = ("excellent", "good", "fair", "poor", "spoiled", "unknown")
+FEEDSTOCK_STATUS_VALUES = ("available", "in_use", "depleted", "spoiled", "discarded")
+
+# Feeding events (Spec Part 2 §9, Part 3 §12)
+FEEDING_METHOD_VALUES = (
+    "manual", "automated", "top_dressing", "single_dose", "continuous", "other",
+)
+
+# Environmental readings (Spec Part 2 §10, Part 3 §13)
+ENV_READING_SOURCE_VALUES = ("manual", "sensor", "scheduled")
+
 
 # ── Catalog: BSF species / strain (Spec Part 3 §5) ────────────────────────────
 
@@ -411,3 +427,112 @@ class BsfBatchDocument(AGRIOSBase):
     )
 
     batch: Mapped["BsfBatch"] = relationship(back_populates="documents", lazy="noload")
+
+
+# ── Feedstock lot (Spec Part 2 §8, Part 3 §11) ────────────────────────────────
+
+class BsfFeedstockLot(AGRIOSBase):
+    """A delivered batch of organic feedstock, managed as a first-class resource
+    and tracked as a lot (Spec Part 3 §11). ``remaining_kg`` is decremented as
+    feeding events consume it; consumption references the lot."""
+
+    __tablename__ = "bsf_feedstock_lot"
+    __table_args__ = (
+        UniqueConstraint("farm_id", "code", name="uq_bsf_feedstock_farm_code"),
+    )
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    code: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    category: Mapped[str] = mapped_column(String(40), nullable=False, default="organic_waste")
+    source: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    supplier: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    collection_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    delivery_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    weight_kg: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False, default=0)
+    remaining_kg: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False, default=0)
+    moisture_pct: Mapped[Decimal | None] = mapped_column(Numeric(6, 2), nullable=True)
+    quality: Mapped[str] = mapped_column(String(20), nullable=False, default="unknown")
+    storage_location: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    cost: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    currency: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="available")
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<BsfFeedstockLot {self.name!r} remaining={self.remaining_kg}kg status={self.status}>"
+
+
+# ── Feeding events (Spec Part 2 §9, Part 3 §12) ───────────────────────────────
+
+class BsfFeedingEvent(AGRIOSBase):
+    """An immutable feeding operation: a quantity of feedstock delivered to a
+    batch (Spec Part 3 §12). Consumption history is never edited."""
+
+    __tablename__ = "bsf_feeding_event"
+
+    batch_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("bsf_batch.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    feedstock_lot_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("bsf_feedstock_lot.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
+    quantity_kg: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    feeding_method: Mapped[str] = mapped_column(String(20), nullable=False, default="manual")
+    fed_on: Mapped[date] = mapped_column(Date, nullable=False)
+    observations: Mapped[str | None] = mapped_column(Text, nullable=True)
+    operator_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    batch: Mapped["BsfBatch"] = relationship(foreign_keys=[batch_id], lazy="noload")
+    feedstock_lot: Mapped["BsfFeedstockLot | None"] = relationship(
+        foreign_keys=[feedstock_lot_id], lazy="noload"
+    )
+
+    def __repr__(self) -> str:
+        return f"<BsfFeedingEvent batch={self.batch_id} qty={self.quantity_kg}kg>"
+
+
+# ── Environmental readings (Spec Part 2 §10, Part 3 §13) ──────────────────────
+
+class BsfEnvironmentalReading(AGRIOSBase):
+    """An immutable environmental reading for a production unit (Spec Part 3 §13).
+    Historical readings are never overwritten. May optionally reference the batch
+    occupying the unit at the time."""
+
+    __tablename__ = "bsf_environmental_reading"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    production_unit_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("bsf_production_unit.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
+    batch_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("bsf_batch.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    temperature_c: Mapped[Decimal | None] = mapped_column(Numeric(6, 2), nullable=True)
+    humidity_pct: Mapped[Decimal | None] = mapped_column(Numeric(6, 2), nullable=True)
+    moisture_pct: Mapped[Decimal | None] = mapped_column(Numeric(6, 2), nullable=True)
+    airflow_mps: Mapped[Decimal | None] = mapped_column(Numeric(6, 2), nullable=True)
+    source: Mapped[str] = mapped_column(String(20), nullable=False, default="manual")
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<BsfEnvironmentalReading unit={self.production_unit_id} at={self.recorded_at}>"

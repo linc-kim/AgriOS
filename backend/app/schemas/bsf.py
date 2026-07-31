@@ -13,7 +13,7 @@ Part 1 (Foundation) + Part 2 (Batch backbone) surface:
   * lifecycle history, batch timeline, deterministic production metrics
 """
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -271,3 +271,122 @@ class BatchDetailResponse(BatchResponse):
 
     metrics: dict
     pacing: dict
+
+
+# ── Feedstock lots (Spec Part 3 §11) ──────────────────────────────────────────
+
+class FeedstockLotCreate(AGRIOSSchema):
+    name: str = Field(..., min_length=1, max_length=200)
+    code: str | None = Field(None, max_length=50)
+    category: str = Field("organic_waste")
+    source: str | None = Field(None, max_length=200)
+    supplier: str | None = Field(None, max_length=200)
+    collection_date: date | None = None
+    delivery_date: date | None = None
+    weight_kg: Decimal = Field(..., ge=0)
+    remaining_kg: Decimal | None = Field(None, ge=0)
+    moisture_pct: Decimal | None = Field(None, ge=0, le=100)
+    quality: str = Field("unknown")
+    storage_location: str | None = Field(None, max_length=200)
+    cost: Decimal | None = Field(None, ge=0)
+    currency: str | None = Field(None, max_length=10)
+    notes: str | None = None
+
+    _cat = field_validator("category")(_one_of("category", bsf.FEEDSTOCK_CATEGORY_VALUES))
+    _q = field_validator("quality")(_one_of("quality", bsf.FEEDSTOCK_QUALITY_VALUES))
+
+
+class FeedstockLotUpdate(AGRIOSSchema):
+    name: str | None = Field(None, min_length=1, max_length=200)
+    category: str | None = None
+    source: str | None = Field(None, max_length=200)
+    supplier: str | None = Field(None, max_length=200)
+    moisture_pct: Decimal | None = Field(None, ge=0, le=100)
+    quality: str | None = None
+    storage_location: str | None = Field(None, max_length=200)
+    remaining_kg: Decimal | None = Field(None, ge=0)
+    cost: Decimal | None = Field(None, ge=0)
+    currency: str | None = Field(None, max_length=10)
+    status: str | None = None
+    notes: str | None = None
+
+    _cat = field_validator("category")(_one_of("category", bsf.FEEDSTOCK_CATEGORY_VALUES))
+    _q = field_validator("quality")(_one_of("quality", bsf.FEEDSTOCK_QUALITY_VALUES))
+    _st = field_validator("status")(_one_of("status", bsf.FEEDSTOCK_STATUS_VALUES))
+
+
+class FeedstockLotResponse(TimestampedSchema):
+    farm_id: UUID
+    name: str
+    code: str | None
+    category: str
+    source: str | None
+    supplier: str | None
+    collection_date: date | None
+    delivery_date: date | None
+    weight_kg: Decimal
+    remaining_kg: Decimal
+    moisture_pct: Decimal | None
+    quality: str
+    storage_location: str | None
+    cost: Decimal | None
+    currency: str | None
+    status: str
+    notes: str | None
+
+
+# ── Feeding events (Spec Part 3 §12) ──────────────────────────────────────────
+
+class FeedingEventCreate(AGRIOSSchema):
+    feedstock_lot_id: UUID | None = None
+    quantity_kg: Decimal = Field(..., gt=0)
+    feeding_method: str = Field("manual")
+    fed_on: date | None = None
+    observations: str | None = None
+
+    _fm = field_validator("feeding_method")(_one_of("feeding_method", bsf.FEEDING_METHOD_VALUES))
+
+
+class FeedingEventResponse(TimestampedSchema):
+    batch_id: UUID
+    feedstock_lot_id: UUID | None
+    quantity_kg: Decimal
+    feeding_method: str
+    fed_on: date
+    observations: str | None
+
+
+# ── Environmental readings (Spec Part 3 §13) ──────────────────────────────────
+
+class EnvironmentalReadingCreate(AGRIOSSchema):
+    production_unit_id: UUID | None = None
+    batch_id: UUID | None = None
+    recorded_at: datetime | None = None
+    temperature_c: Decimal | None = None
+    humidity_pct: Decimal | None = Field(None, ge=0, le=100)
+    moisture_pct: Decimal | None = Field(None, ge=0, le=100)
+    airflow_mps: Decimal | None = Field(None, ge=0)
+    source: str = Field("manual")
+    notes: str | None = None
+
+    _src = field_validator("source")(_one_of("source", bsf.ENV_READING_SOURCE_VALUES))
+
+
+class EnvironmentalReadingResponse(TimestampedSchema):
+    farm_id: UUID
+    production_unit_id: UUID | None
+    batch_id: UUID | None
+    recorded_at: datetime
+    temperature_c: Decimal | None
+    humidity_pct: Decimal | None
+    moisture_pct: Decimal | None
+    airflow_mps: Decimal | None
+    source: str
+    notes: str | None
+
+
+class EnvironmentalReadingResult(AGRIOSSchema):
+    """A recorded reading plus its deterministic threshold assessment."""
+
+    reading: EnvironmentalReadingResponse
+    assessment: dict
