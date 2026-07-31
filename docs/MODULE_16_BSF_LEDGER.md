@@ -4,6 +4,10 @@ Running record of Module 16 delivery against the authoritative BSF specification
 (Parts 1–10). One section per milestone. Kept in lock-step with the code so the
 implementation never drifts from the spec.
 
+> **Canonical technical reference:** [`MODULE_16_BSF_HANDOFF.md`](MODULE_16_BSF_HANDOFF.md)
+> — architecture, dependency graph, API inventory, contracts, extension guide, stats.
+> This ledger is the per-milestone build history behind it.
+
 **Module model:** batch-centric (aggregate root = Production Batch). Template =
 Module 15 Aviculture. All tables `bsf_`-prefixed; farm-scoped (org isolation via
 `farms.organization_id`); catalog carries nullable `organization_id`
