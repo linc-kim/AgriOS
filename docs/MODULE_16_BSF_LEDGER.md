@@ -15,6 +15,14 @@ push/deploy without explicit per-action approval.
 
 **Legend — integration points:** ✅ done · ◻ planned (with milestone) · — n/a.
 
+**Backend status (2026-07-31): COMPLETE** — Milestones A–H committed on `phase-2-auth`
+(local only, unpushed). 5 migrations (061–065, at head), 18 tables (14 `bsf_*` + 4
+platform `growth_*`), 14 pure deterministic engines, ~20 services, 58 `/bsf` routes
++ `/mission/bsf/briefing`. **156 Module-16 tests pass** (95 unit + 61 integration);
+mission/aviculture regression 117 green; ruff clean on all module files. **Frontend
+and the Automation part (P9 reminders/tasks/workflows) are the remaining scope** —
+see the final implementation summary.
+
 ---
 
 ## Milestone A — Part 1: Foundation · commit `a799f10`
