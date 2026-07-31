@@ -1,0 +1,105 @@
+/**
+ * Modal — a small, accessible dialog primitive for the shared UI kit.
+ *
+ * Focus management (WCAG 2.1.2 / 2.4.3): moves focus into the dialog on open,
+ * traps Tab within it, restores focus to the trigger on close, and closes on
+ * Escape or backdrop click. Bottom-sheet on mobile, centred card on desktop.
+ */
+import { useEffect, useRef, type ReactNode } from "react";
+import { X } from "lucide-react";
+
+import { cn } from "@/lib/cn";
+
+const FOCUSABLE =
+  'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
+
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  className,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const panel = panelRef.current;
+    const first = panel?.querySelector<HTMLElement>(FOCUSABLE);
+    (first ?? panel)?.focus();
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab" || !panel) return;
+      const nodes = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+        (el) => el.offsetParent !== null,
+      );
+      if (nodes.length === 0) {
+        e.preventDefault();
+        panel.focus();
+        return;
+      }
+      const firstEl = nodes[0];
+      const lastEl = nodes[nodes.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === firstEl || active === panel)) {
+        e.preventDefault();
+        lastEl.focus();
+      } else if (!e.shiftKey && active === lastEl) {
+        e.preventDefault();
+        firstEl.focus();
+      }
+    };
+
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      previouslyFocused?.focus?.();
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      onClick={onClose}
+    >
+      <div
+        ref={panelRef}
+        tabIndex={-1}
+        className={cn(
+          "max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl outline-none dark:bg-gray-900 sm:max-w-lg sm:rounded-2xl",
+          className,
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}

@@ -153,7 +153,24 @@ ARIA & Mission Control Contract (below) recorded & verified **before** implement
 
 ---
 
-## Integration Contract — Finance & Inventory (authoritative; verified against platform code before Milestone D)
+# FRONTEND MILESTONES
+
+Frontend consumes the stable backend APIs — presentation, interaction, navigation,
+state, a11y, responsive, loading/error only. No recalculation of backend logic.
+Template = Aviculture screens; gate = `tsc --noEmit` + `vite build` (repo-wide
+ESLint v9 config is broken — pre-existing). Honesty labels stay visually distinct
+via the shared `FactBadge`.
+
+## F1 — Production Board · commit `__F1__`
+
+| Field | Detail |
+|---|---|
+| **Screens** | `ProductionBoardScreen` (`/bsf`) — batch cards (number, stage, status, population, biomass, days-in-stage), Status/Stage filters, New-batch modal, loading/empty/error states |
+| **Shared infra created** | `components/common/FactBadge.tsx` (canonical honesty badge, adds `estimate` + `LabelledValue`), `components/ui/Modal.tsx` (accessible dialog w/ focus-trap — kit had none). Both reusable by future modules |
+| **BSF frontend** | `api/bsf.ts` (core types + batch/unit/colony/species fns), `screens/bsf/BsfSubnav.tsx`, `screens/bsf/badges.tsx` (StageBadge/BatchStatusBadge), route `/bsf` in `routes/index.tsx` |
+| **API consumed** | `GET /bsf/batches`, `POST /bsf/batches` (+ species/units/colonies for the form) |
+| **Verification** | `tsc` clean · `vite build` ✓ (exit 0) · browser-verified end-to-end: login → `/bsf` renders (subnav/filters/empty state), `GET .../bsf/batches → 200`, created a batch → backend auto-numbered `BSF-00001` → card rendered (active/Egg/10,000/500 g), **no console errors**. Cross-checked the "Loading" cold-load stall is a pre-existing app-shell auth-refresh cycle (reproduced on `/aviculture`), not BSF |
+| **Deviations** | Frontend has no client-side RBAC layer (established pattern) — screens rely on backend 403s + error states. Promoted `FactBadge`/`Modal` to shared locations rather than coupling BSF to aviculture's local copies (aviculture's locals left untouched) |
 
 Verified against `finance_service`, `inventory_service` and the frozen finance
 model. **No BSF-specific finance/stock logic is created; no platform capability
