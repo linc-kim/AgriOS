@@ -82,6 +82,9 @@ const BsfFeedstockScreen = lazy(() => import("@/screens/bsf/BsfFeedstockScreen")
 const BsfHarvestScreen = lazy(() => import("@/screens/bsf/BsfHarvestScreen"));
 const BsfEnvironmentScreen = lazy(() => import("@/screens/bsf/BsfEnvironmentScreen"));
 const BsfGrowthScreen = lazy(() => import("@/screens/bsf/BsfGrowthScreen"));
+const BsfReportsScreen = lazy(() => import("@/screens/bsf/BsfReportsScreen"));
+const BsfAriaScreen = lazy(() => import("@/screens/bsf/BsfAriaScreen"));
+const BsfMissionScreen = lazy(() => import("@/screens/bsf/BsfMissionScreen"));
 const AdminScreen = lazy(() => import("@/screens/admin/AdminScreen"));
 const ProductionScreen = lazy(() => import("@/screens/production/ProductionScreen"));
 
@@ -218,6 +221,9 @@ const router = createBrowserRouter([
           { path: "/bsf/harvest", element: <BsfHarvestScreen /> },
           { path: "/bsf/environment", element: <BsfEnvironmentScreen /> },
           { path: "/bsf/growth", element: <BsfGrowthScreen /> },
+          { path: "/bsf/reports", element: <BsfReportsScreen /> },
+          { path: "/bsf/aria", element: <BsfAriaScreen /> },
+          { path: "/bsf/mission", element: <BsfMissionScreen /> },
           { path: "/admin", element: <AdminScreen /> },
           { path: "/production", element: <ProductionScreen /> },
           ...moduleRoutes,

@@ -11,7 +11,9 @@ const LINKS = [
   { to: "/bsf/harvest", label: "Harvest" },
   { to: "/bsf/environment", label: "Environment" },
   { to: "/bsf/growth", label: "Growth" },
-  // Added per milestone: reports, aria, mission.
+  { to: "/bsf/reports", label: "Reports" },
+  { to: "/bsf/aria", label: "Ask ARIA" },
+  { to: "/bsf/mission", label: "Mission Control" },
 ];
 
 export function BsfSubnav({ active }: { active: string }) {

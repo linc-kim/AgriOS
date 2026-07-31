@@ -228,6 +228,33 @@ via the shared `FactBadge`.
 | **Verification** | `tsc` clean · `vite build` ✓ · browser-verified end-to-end: created plan "Reach 100 kg total harvest" (Rev 1) with 2 milestones; goal progress computed from **recorded** harvest facts (actual 0 / target 100, `calculated`, run-rate `unknown`); changed a milestone → "achieved" (backend wrote Rev 2); version history rendered. No console errors |
 | **Deviations** | Revision-list freshness: added the revisions query key to post-mutation invalidation. Compare-revisions is available via the API but not yet surfaced in the UI (diff view is a later enhancement). ARIA/Mission Control never mutate plans — only these explicit user actions do |
 
+## F8 — Reports & Analytics · commit `__F8__`
+
+| Field | Detail |
+|---|---|
+| **Screens** | `BsfReportsScreen` (`/bsf/reports`) — 90-day forecast cards (with method/assumptions/confidence/limitations in a details disclosure), sustainability tiles, full ranked bottleneck list, and an authenticated CSV export (blob download, not a plain `<a href>`) |
+| **API** | reuses `api/bsfReports.ts` (getForecast/getBottlenecks/getDashboard/exportProductionCsv) |
+| **Verification** | `tsc` clean · `vite build` ✓ · browser-verified: forecast cards labelled **forecast** ("a model projection, not a confirmed value"), method + assumptions ("Based on N recorded observations", "A projection, not a promise") shown, confidence surfaced. No console errors |
+| **Deviations** | None. Read-only; overlaps the dashboard by design (focused analytics + export) |
+
+## F9 — ARIA Workspace · commit `__F9__`
+
+| Field | Detail |
+|---|---|
+| **Screens** | `BsfAriaScreen` (`/bsf/aria`) — conversational surface with suggestion chips; each answer shows its `fact_type` honesty badge, confidence, and cited sources; offline indicator when AI is disabled |
+| **API** | `api/bsfAria.ts` — askAria, getAriaContext (read-only) |
+| **Verification** | `tsc` clean · `vite build` ✓ · browser-verified: asked "How much feedstock is on hand?" → **"There is 70.0 kg of feedstock on hand"**, labelled **recorded fact**, confidence high, source `reports.recorded_facts.feedstock_available_kg` — deterministic-first, advisory only. No console errors |
+| **Deviations** | ARIA is strictly advisory/read-only — no mutation path exists on the screen (matches backend contract) |
+
+## F10 — Mission Control · commit `__F10__`
+
+| Field | Detail |
+|---|---|
+| **Screens** | `BsfMissionScreen` (`/bsf/mission`) — headline + severity counts, ranked priorities, and evidence-citing insights (each with `evidence` badges, confidence, limitations) |
+| **API** | `api/bsfMission.ts` — getBsfBriefing (`GET /mission/bsf/briefing`, read-only) |
+| **Verification** | `tsc` clean · `vite build` ✓ · browser-verified: briefing rendered — headline "1 item to watch across 1 active batch", insight "Operating at a loss" citing `finance.gross_profit -2000` (calculated) / `revenue 0` (recorded) / `operating_cost 2000` (recorded) with confidence + limitations; "Growth progress 0.0%" citing `growth.overall_percent`. No console errors |
+| **Deviations** | None. Read-only; Mission Control orchestrates, owns no business logic. **All 10 frontend milestones complete & browser-verified.** |
+
 Verified against `finance_service`, `inventory_service` and the frozen finance
 model. **No BSF-specific finance/stock logic is created; no platform capability
 is expanded.** Where a platform constraint blocks reuse, BSF owns the fact and the
