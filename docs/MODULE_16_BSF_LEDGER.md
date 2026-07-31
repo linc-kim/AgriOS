@@ -210,6 +210,15 @@ via the shared `FactBadge`.
 | **Verification** | `tsc` clean · `vite build` ✓ · browser-verified: selected batch → readiness "**Batch is at 'hatchling' — too early to harvest**" with `calculated` label + total-harvested; recorded frass 8 kg/40% → appeared in Frass history. No console errors |
 | **Deviations** | Revenue is captured as a recorded fact (backend); Inventory routing is optional (demo farm had no items — dropdown offered "record fact only"). Harvest revenue never posts to `revenue_records` (backend contract) |
 
+## F6 — Environment Monitoring · commit `__F6__`
+
+| Field | Detail |
+|---|---|
+| **Screens** | `BsfEnvironmentScreen` (`/bsf/environment`) — production-unit selector, latest threshold assessment (per-parameter honesty labels + violation highlighting + stability σ), recent-readings table, Record-reading modal (returns a live assessment), and an Add-unit modal (units are the module's physical infrastructure) |
+| **API** | `api/bsfEnvironment.ts` — listReadings, recordReading (→ assessment), getUnitAssessment. Reuses `createUnit`/`listUnits` |
+| **Verification** | `tsc` clean · `vite build` ✓ · browser-verified end-to-end: added unit "Rearing Bin 1", recorded a reading (Temp 30 / Humidity 65) → live assessment returned; assessment panel shows temperature/humidity `recorded` ("no recommended range"), moisture/airflow `unknown`; readings table populated. No console errors |
+| **Deviations** | **Production-unit management is hosted on this screen** (Add-unit) since units are infrastructure not otherwise surfaced and the environment view needs them — pragmatic, avoids a thin extra screen. A dedicated infrastructure screen could later absorb it |
+
 Verified against `finance_service`, `inventory_service` and the frozen finance
 model. **No BSF-specific finance/stock logic is created; no platform capability
 is expanded.** Where a platform constraint blocks reuse, BSF owns the fact and the
