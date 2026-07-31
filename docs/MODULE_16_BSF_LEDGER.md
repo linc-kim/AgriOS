@@ -107,6 +107,22 @@ Forecasting & Reporting Contract (below) recorded & verified **before** any fore
 | **Integrations** | **Reporting/Analytics REUSED** — composes existing `bsf_*_engine` outputs + Part-5 services; CSV via platform `Response`/`text/csv` (as `aviculture_reports`). **No parallel reporting framework, no recomputation.** Dashboard exposes `recorded_facts` + `analytics` blocks → full traceability for ARIA/Mission Control/users. Audit — read-only, none needed |
 | **Deviations** | None. **Growth score is `unavailable`** (not faked) pending the Growth Planner milestone. Farm-wide capacity utilisation is `unknown` on the dashboard (no aggregate unit-capacity roll-up yet) — a known gap, not a fabricated value. |
 
+## Milestone G — Growth Planner (platform-level, canonical) · commit `__G__`
+
+Growth Planner Contract (below) recorded & verified **before** implementation.
+
+| Field | Detail |
+|---|---|
+| **Spec sections** | Part 4 §12 (Growth Planner Engine); Part 5 §5–7 (building/adaptive plans, progress); Part 6 §3–7 (planner vs Mission Control, discovery, roadmap, adaptive revisions, tracking) |
+| **Migrations** | `065_growth_planner` (down_revision 064; round-trips) — 4 **platform** tables (`growth_plan`, `growth_goal`, `growth_milestone`, `growth_plan_revision`) |
+| **Models** | `app/models/growth.py`: `GrowthPlan`, `GrowthGoal`, `GrowthMilestone`, `GrowthPlanRevision` — **NOT `bsf_`-prefixed**; `module` discriminator for cross-module reuse |
+| **Services/engines** | Engine (pure): `growth_planner_engine` (goal_progress, required_run_rate, realism_verdict, milestone_rollup, diff_revisions). Services: `growth_planner_service` (platform; provider registry, revision-on-every-mutation, compare), `bsf_growth_provider` (BSF "actual" from recorded harvest/biomass/revenue facts). Reporting now feeds the primary plan's progress into the dashboard **growth score** (was `unavailable`) |
+| **API routes** | +8 under `/farms/{farm_id}/bsf/growth`: plans (list/create/detail/patch/archive), milestones/{id} status, revisions, compare. Total BSF routes now **55** (8 growth) |
+| **Frontend** | Not started |
+| **Tests** | `test_growth_planner_engine` (9) unit; `test_bsf_growth_api` (7) integration — **145 tests pass** (module + planner); migration round-trips; ruff clean |
+| **Integrations** | **New platform capability** (no existing planner to reuse — verified `aria_planning`=forecast helpers, `Mission`=Mission Control). Reuses the `MissionRevision` versioning pattern, `audit_service`, RBAC (`BSF_GROWTH_VIEW/EDIT`), farm-scoping. ARIA/Mission Control will *recommend* changes (later milestone) but **only explicit user calls mutate a plan** — no auto-overwrite |
+| **Deviations** | None. **Cross-module by design** (per instruction): the planner is the canonical long-term-growth store for all future Greena modules via the `module` key + per-module metric providers — not a BSF-specific planner. |
+
 ---
 
 ## Integration Contract — Finance & Inventory (authoritative; verified against platform code before Milestone D)
@@ -240,6 +256,53 @@ mechanism (FastAPI `Response`, CSV) — **no parallel reporting/analytics framew
 
 ---
 
+## Growth Planner Contract (authoritative; recorded before Milestone G code)
+
+The Growth Planner is built as a **platform-level, cross-module** capability — the
+canonical long-term-growth store for BSF *and* future Greena agricultural modules
+(Spec Part 4 §12, Part 5 §5-7, Part 6 §3-7). Verified: no existing platform planner
+to reuse (`aria_planning` = pure forecasting helpers; `Mission`/`MissionRevision` =
+Mission Control's strategic-initiative object, semantically distinct). It reuses the
+`MissionRevision` versioning pattern rather than inventing a new one.
+
+### Shape (generic, NOT `bsf_`-prefixed)
+- New platform tables (migration 065): `growth_plan`, `growth_goal`, `growth_milestone`,
+  `growth_plan_revision`. Farm-scoped (org isolation via `farms.organization_id`) with a
+  **`module` discriminator** (`'bsf'`, later `'aviculture'`, `'poultry'`, …) so every
+  module shares one planner. Models live in `app/models/growth.py`; the engine
+  (`growth_planner_engine`) and service (`growth_planner_service`) are platform-level.
+- **Recorded domain objects, not AI text (Spec discipline):** goals (`metric_key`,
+  `baseline_value`, `target_value`, `unit`, `target_date`, `status`), milestones
+  (`title`, `sequence`, `target_date`, `status`, `expected_impact`, `dependencies`) and
+  progress are **structured rows**, never free-form AI-generated prose. ARIA may *draft*
+  a plan, but what is stored is deterministic domain data.
+
+### Rules
+- **Version history is mandatory & immutable.** Every plan/goal/milestone mutation writes
+  a `growth_plan_revision` (`revision_number` unique per plan, `reason`, `trigger`,
+  `snapshot` JSONB of the full plan state) — mirroring `MissionRevision`. Revisions are
+  never edited; any two are comparable via `growth_planner_engine.diff_revisions`.
+- **Planned vs actual uses recorded operational data only.** "Actual" is supplied by a
+  **per-module metric provider** registered with the planner
+  (`register_metric_provider(module, fn)`); the BSF provider reads recorded reporting
+  facts (harvest/biomass/revenue). The engine computes progress %/variance/status
+  deterministically; a metric with no provider or no data is `unknown` — never invented.
+- **Deterministic; advisors never overwrite.** The engine + service are deterministic.
+  ARIA and Mission Control may surface *recommendations* (separate suggestion objects),
+  but **only an explicit user action mutates a plan** — no automatic plan overwrite
+  (Spec Part 6 §6, §10-11). Realism checks (feasible/ambitious/unrealistic) are
+  deterministic and evidence-based; ARIA explains them, it does not enforce them.
+- **Output classification** follows the Forecasting & Reporting Contract: baseline/target
+  are `recorded`; progress %/variance/required-rate are `calculated`; projected
+  completion dates are `forecast`; anything needing a user assumption is `estimate`.
+- **Ownership & reuse.** The platform owns the `growth_*` tables/engine/service; each
+  module owns its metric provider and its own permission-guarded API surface (BSF uses
+  `BSF_GROWTH_VIEW`/`BSF_GROWTH_EDIT` under `/farms/{id}/bsf/growth/*`). No parallel
+  planning store; audit/RBAC/farm-scoping reused.
+- **Unlocks** the executive dashboard's growth score (was `unavailable` in Milestone F).
+
+---
+
 ## Cross-cutting spec coverage tracker
 
 | Requirement | Status | Where |
@@ -263,6 +326,6 @@ mechanism (FastAPI `Response`, CSV) — **no parallel reporting/analytics framew
 | Reuse Reminders/Notifications | ◻ Automation | — |
 | ARIA integration | ◻ | — |
 | Mission Control integration | ◻ | — |
-| Growth Planner integration | ◻ | — |
+| Growth Planner integration | ✅ | platform `growth_*` tables + `growth_planner_engine`/`_service` + BSF provider; canonical, cross-module |
 | Frontend workflows | ◻ frontend milestone | — |
 | Performance / accessibility / QA audit (Part 9) | ◻ final | — |

@@ -118,6 +118,12 @@ from app.models.bsf import (
     BsfProductionUnit,
     BsfSpecies,
 )
+from app.models.growth import (
+    GrowthGoal,
+    GrowthMilestone,
+    GrowthPlan,
+    GrowthPlanRevision,
+)
 from app.models.platform import (
     Notification,
     AuditLog,
@@ -253,6 +259,11 @@ __all__ = [
     "BsfHarvestEvent",
     "BsfFrassProduction",
     "BsfMortalityEvent",
+    # Growth Planner (Platform, Migration 065)
+    "GrowthPlan",
+    "GrowthGoal",
+    "GrowthMilestone",
+    "GrowthPlanRevision",
     # Platform Layer (Migrations 028-030)
     "Notification",
     "AuditLog",

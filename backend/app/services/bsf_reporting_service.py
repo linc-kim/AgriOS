@@ -29,7 +29,7 @@ from app.models.bsf import (
     BsfLifecycleEvent,
     BsfMortalityEvent,
 )
-from app.services import bsf_analytics_service, bsf_finance_service
+from app.services import bsf_analytics_service, bsf_finance_service, growth_planner_service
 from app.services import bsf_bottleneck_engine as bottleneck_eng
 from app.services import bsf_feed_conversion_engine as fce
 from app.services import bsf_forecast_engine as forecast_eng
@@ -120,9 +120,12 @@ async def executive_dashboard(db: AsyncSession, farm_id: uuid.UUID) -> dict:
     fin_score = score_eng.financial_score(finance["gross_margin_pct"]["value"])
     sus_score = score_eng.sustainability_score(sustainability["waste_conversion_efficiency_pct"]["value"])
     hp_score = score_eng.health_score(health["mortality_rate_pct"]["value"])
+    # Growth score from the primary growth plan's progress (recorded actuals), if any.
+    growth_progress = await growth_planner_service.primary_overall_progress(db, farm_id, "bsf")
+    growth_score = score_eng.growth_score(growth_progress)
     scores = {
         "production": prod_score, "financial": fin_score, "sustainability": sus_score,
-        "health": hp_score, "growth": score_eng.growth_score(),
+        "health": hp_score, "growth": growth_score,
         "business_health": score_eng.business_health_score([prod_score, fin_score, sus_score, hp_score]),
     }
 

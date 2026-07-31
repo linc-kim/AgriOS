@@ -65,6 +65,10 @@ def business_health_score(component_scores: list[dict]) -> dict:
                 f"Mean of {len(values)} available component score(s).")
 
 
-def growth_score() -> dict:
-    """Deferred to the Growth Planner milestone — not fabricated."""
-    return _lbl(UNAVAILABLE, None, "Requires a growth goal (Growth Planner milestone).")
+def growth_score(primary_goal_progress_pct: float | None = None) -> dict:
+    """Progress toward the primary growth goal (0–100). ``unavailable`` when no
+    active growth plan/goal supplies a recorded progress value — never faked."""
+    if primary_goal_progress_pct is None:
+        return _lbl(UNAVAILABLE, None, "No active growth plan with a recorded-actual goal.")
+    return _lbl(CALCULATED, _clamp(primary_goal_progress_pct),
+                "Progress toward the primary growth goal (Growth Planner).")
