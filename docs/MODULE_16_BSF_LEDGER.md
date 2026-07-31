@@ -192,6 +192,15 @@ via the shared `FactBadge`.
 | **Verification** | `tsc` clean · `vite build` ✓ · browser-verified: dashboard endpoint `→ 200`, all sections render with honesty labels visually distinct (scores Calculated/Unknown/**Unavailable** for growth w/o a plan; recorded facts `recorded`; KPIs mixed calculated/unknown; forecast labelled `forecast`). No console errors |
 | **Deviations** | None. Fully read-only (no mutations) — presentation of the backend composed dashboard; no recomputation |
 
+## F4 — Feedstock & Feeding · commit `__F4__`
+
+| Field | Detail |
+|---|---|
+| **Screens** | `BsfFeedstockScreen` (`/bsf/feedstock`) — feedstock lots grid (remaining/weight bar, quality, cost, status, low-stock & spoilage warnings), Add-lot modal, Record-feeding modal (pick batch + lot + qty + method), and a "Post to ledger" action (Finance reuse) |
+| **API** | `api/bsfFeeding.ts` — feedstock lots list/create, recordFeeding, listFeedings, getFeedConversion, postFeedstockExpense |
+| **Verification** | `tsc` clean · `vite build` ✓ · browser-verified end-to-end: added a 100 kg lot → card rendered; recorded a 30 kg feeding → lot decremented **100 → 70 kg**, status `available → in use` (backend consumption); **Post to ledger** → "Cost posted to the finance ledger" (shared-ledger reuse). No console errors |
+| **Deviations** | Feeding is initiated here (pick a batch) rather than only from the batch workspace — a farm-wide feedstock view is the natural home; per-batch feed-conversion is available via the API and surfaced on Reports. Backend enforces over-feed/permission rules (errors surfaced) |
+
 Verified against `finance_service`, `inventory_service` and the frozen finance
 model. **No BSF-specific finance/stock logic is created; no platform capability
 is expanded.** Where a platform constraint blocks reuse, BSF owns the fact and the

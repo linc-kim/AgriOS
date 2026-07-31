@@ -78,6 +78,7 @@ const AvicultureAriaScreen = lazy(() => import("@/screens/aviculture/AvicultureA
 const BsfProductionBoardScreen = lazy(() => import("@/screens/bsf/ProductionBoardScreen"));
 const BsfBatchWorkspaceScreen = lazy(() => import("@/screens/bsf/BatchWorkspaceScreen"));
 const BsfDashboardScreen = lazy(() => import("@/screens/bsf/BsfDashboardScreen"));
+const BsfFeedstockScreen = lazy(() => import("@/screens/bsf/BsfFeedstockScreen"));
 const AdminScreen = lazy(() => import("@/screens/admin/AdminScreen"));
 const ProductionScreen = lazy(() => import("@/screens/production/ProductionScreen"));
 
@@ -210,6 +211,7 @@ const router = createBrowserRouter([
           { path: "/bsf", element: <BsfProductionBoardScreen /> },
           { path: "/bsf/batches/:batchId", element: <BsfBatchWorkspaceScreen /> },
           { path: "/bsf/dashboard", element: <BsfDashboardScreen /> },
+          { path: "/bsf/feedstock", element: <BsfFeedstockScreen /> },
           { path: "/admin", element: <AdminScreen /> },
           { path: "/production", element: <ProductionScreen /> },
           ...moduleRoutes,
