@@ -180,6 +180,21 @@ class Permission(StrEnum):
     RABBIT_AUTOMATION_MANAGE = "rabbit:automation:manage"  # Generate reminders, drive workflows
     RABBIT_AUTOMATION_VIEW = "rabbit:automation:view"      # Read rabbit tasks, reminders, workflows
 
+    # ── Operations Planner (Platform Module 5) ────────────────────────────────
+    # Cross-module recurring-operations engine. `ops:` is already taken by the
+    # daily ops-log perms, so the routine engine namespaces under `opsplan:`.
+    OPSPLAN_ROUTINE_VIEW = "opsplan:routine:view"      # Read routines / library / schedules / calendar
+    OPSPLAN_ROUTINE_EDIT = "opsplan:routine:edit"      # Create / edit / version / activate routines
+    OPSPLAN_MANUAL_VIEW = "opsplan:manual:view"        # Read the Operations Manual
+    OPSPLAN_MANUAL_EDIT = "opsplan:manual:edit"        # Edit the Operations Manual
+    OPSPLAN_MANUAL_APPROVE = "opsplan:manual:approve"  # Approve manual / routine versions (owner concern)
+    OPSPLAN_SOP_VIEW = "opsplan:sop:view"              # Read SOPs & checklists
+    OPSPLAN_SOP_EDIT = "opsplan:sop:edit"              # Create / edit / approve SOPs & checklists
+    OPSPLAN_SCHEDULE_MANAGE = "opsplan:schedule:manage"  # Generate / recalculate schedules & calendar events
+    OPSPLAN_ASSIGN_MANAGE = "opsplan:assign:manage"    # Assign workers/teams/shifts, record completions
+    OPSPLAN_ANALYTICS_VIEW = "opsplan:analytics:view"  # Read performance / compliance / optimisation analytics
+    OPSPLAN_SETTINGS_MANAGE = "opsplan:settings:manage"  # Manage Operations Planner settings & automation rules
+
 
 # ── Role → Permission Mapping ─────────────────────────────────────────────────
 # Derived from Engineering Constitution Section 5 RBAC matrix.
@@ -548,6 +563,43 @@ ROLE_PERMISSIONS["platform_admin"] |= {
     Permission.BACKUP_MANAGE,
     Permission.DIAGNOSTICS_RUN,
 }
+
+
+# ── Operations Planner RBAC (Platform Module 5) ───────────────────────────────
+# Graded by blast radius (spec Doc 4 §21), mirroring the platform role model:
+#   full     — owner/manager/enterprise run the operational rhythm end to end.
+#   execute  — workers see routines/SOPs/calendar and record completions, but do
+#              not author routines, edit the manual, or approve changes.
+#   read     — viewers/vets see the operating rhythm, change nothing.
+# Approving the manual and routine versions is an owner/enterprise concern.
+_OPSPLAN_VIEW = {
+    Permission.OPSPLAN_ROUTINE_VIEW,
+    Permission.OPSPLAN_MANUAL_VIEW,
+    Permission.OPSPLAN_SOP_VIEW,
+    Permission.OPSPLAN_ANALYTICS_VIEW,
+}
+_OPSPLAN_FULL = _OPSPLAN_VIEW | {
+    Permission.OPSPLAN_ROUTINE_EDIT,
+    Permission.OPSPLAN_MANUAL_EDIT,
+    Permission.OPSPLAN_MANUAL_APPROVE,
+    Permission.OPSPLAN_SOP_EDIT,
+    Permission.OPSPLAN_SCHEDULE_MANAGE,
+    Permission.OPSPLAN_ASSIGN_MANAGE,
+    Permission.OPSPLAN_SETTINGS_MANAGE,
+}
+for _ops_full in ("enterprise_owner", "farm_owner", "farm_manager"):
+    ROLE_PERMISSIONS[_ops_full] |= _OPSPLAN_FULL
+# Managers author but only owners/enterprise approve the manual (owner concern):
+ROLE_PERMISSIONS["farm_manager"] -= {Permission.OPSPLAN_MANUAL_APPROVE}
+# Workers execute the rhythm and record completions, nothing strategic:
+ROLE_PERMISSIONS["farm_worker"] |= {
+    Permission.OPSPLAN_ROUTINE_VIEW,
+    Permission.OPSPLAN_MANUAL_VIEW,
+    Permission.OPSPLAN_SOP_VIEW,
+    Permission.OPSPLAN_ASSIGN_MANAGE,
+}
+for _ops_reader in ("vet_consultant", "viewer"):
+    ROLE_PERMISSIONS[_ops_reader] |= _OPSPLAN_VIEW
 
 
 def get_user_permissions(role_name: str) -> set[Permission]:
