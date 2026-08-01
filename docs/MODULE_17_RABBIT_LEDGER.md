@@ -93,6 +93,74 @@ deferred. Maintained alongside implementation (GMIS §8; Spec Part 10 §15).
 - **Contract:** sale/transfer/death record herd facts + timeline only; revenue
   posting to Finance is deferred to the Sales/Finance milestone (mirrors avi/bsf).
 
+### Milestone 3 — Breeding, Pedigree & Genetics — 🚧 CONTRACTS (recorded before coding)
+
+Architectural contracts fixed before implementation (GMIS §11.3):
+
+- **CON-M3-1 — Reuse the platform Pedigree engine.** `app/services/pedigree_engine.py`
+  (built for Aviculture, Module 15 Part 4) is a PURE, species-agnostic engine
+  computing Wright's inbreeding `F`, kinship, coefficient of relationship,
+  ancestry trees, founders and `would_create_cycle` from a plain
+  `{id: (sire_id, dam_id)}` map. Rabbit **reuses these primitives directly** — the
+  correctness-critical genetics math is NOT reimplemented. The rabbit breeding
+  service builds the parent map from `rabbit.sire_id/dam_id` and delegates.
+- **CON-M3-2 — Thin rabbit genetics wrapper only.** `pedigree_engine.compatibility()`
+  hard-codes male/female sex semantics; rabbits use buck/doe. A small PURE
+  `rabbit_genetics.py` maps buck→male/doe→female and adds rabbit-domain messaging +
+  inbreeding-risk banding, reusing `relatedness`/`inbreeding_coefficient`. No
+  duplicate Wright's implementation.
+- **CON-M3-3 — Rabbit-domain deterministic engine.** `rabbit_breeding_engine.py`
+  (PURE) owns rabbit reproduction math: breeding-eligibility rules,
+  expected-kindling-date (gestation) + gestation progress, litter performance,
+  doe productivity, buck fertility, herd reproduction summary, breeding-value
+  ranking. Honesty-labelled (recorded/calculated/forecast/estimated/unknown).
+- **CON-M3-4 — Gestation is data-driven.** Default rabbit gestation = **31 days**;
+  overridable per breed via `rabbit_breed.profile["gestation_days"]`. Planned
+  kindling dates are labelled **forecast**, never recorded fact.
+- **CON-M3-5 — Kit → litter link.** Migration 067 adds nullable `rabbit.litter_id`
+  (birth litter, SET NULL). Kits created at kindling get `litter_id` + `sire_id`
+  (buck) + `dam_id` (doe) so pedigree links flow automatically; kit auto-creation
+  is optional (bulk minimal rows in the kindling transaction, reusing the
+  `RB-#####` ref generator). Mirrors Aviculture incubation→chick creation.
+- **CON-M3-6 — One breeding row per mating attempt; one litter per kindling.**
+  `rabbit_breeding` spans service→pregnancy-check→kindling (repeat services linked
+  via `repeat_of_id`); `rabbit_litter` is created at kindling and updated through
+  foster/weaning. No separate pregnancy/kindling/weaning tables (those are phases,
+  not aggregates) — breeding milestones also append to the doe's `rabbit_event`
+  timeline. Breeding eligibility is validated before recording a service (Spec Part 4 §6).
+- **CON-M3-7 — RBAC.** breeding/litter writes → `RABBIT_BREEDING_MANAGE`;
+  breeding/litter reads → `RABBIT_BREEDING_VIEW`; pedigree/genetics reads →
+  `RABBIT_PEDIGREE_VIEW`; pedigree-link corrections continue through rabbit update
+  (`RABBIT_EDIT`) with the engine's cycle guard.
+
+### Milestone 3 — Breeding, Pedigree & Genetics — ✅ DONE (local, unpushed)
+
+- **Migration `067`** (down_revision 066, single head): `rabbit_breeding` (mating
+  cycle: service→pregnancy-check→kindling, `repeat_of_id` self-FK for repeat
+  services), `rabbit_litter` (birth stats + foster/wean, `LT-#####`), and adds
+  nullable `rabbit.litter_id` (kit→birth-litter link). Round-trips cleanly.
+- **REUSE** `pedigree_engine` (Aviculture) for all Wright's math (CON-M3-1);
+  `rabbit_genetics.py` is a thin PURE wrapper (buck/doe semantics + risk banding,
+  CON-M3-2) — no duplicate genetics math.
+- **PURE** `rabbit_breeding_engine.py`: eligibility, gestation forecast/progress
+  (default 31d, breed-overridable), litter performance, doe productivity, buck
+  fertility, herd reproduction summary, advisory breeding-value ranking. Zero
+  denominators → `unknown`, never fabricated.
+- **Service** `rabbit_breeding_service.py` (reuses `rabbit_service` helpers): full
+  cycle create/service/pregnancy-check/prepare-kindling/kindling (creates litter +
+  optional kit rabbit rows with sire/dam/litter links)/close; litter foster +
+  weaning (advances kits to `weaner`, doe → `resting`); pedigree, compatibility,
+  doe/buck performance, reproduction summary, genetic overview. Eligibility
+  validated before service; open-cycle blocks re-breeding; every milestone appends
+  a doe timeline event + audit entry.
+- **Schemas** extended; **endpoints** `rabbit_breeding.py` = **17 routes** (55
+  rabbit routes total). Writes → `RABBIT_BREEDING_MANAGE`; pedigree/genetics reads
+  → `RABBIT_PEDIGREE_VIEW`; other reads → `RABBIT_BREEDING_VIEW`.
+- **Tests:** 26 engine/genetics unit (incl. textbook full-sib F=0.25) + 9
+  integration (full cycle, eligibility, open-cycle guard, kit creation, pedigree,
+  compatibility, reproduction summary, genetics, RBAC). Full rabbit suite + avi
+  breeding/BSF/mission regression = **107 pass**; ruff clean; app boots (55 routes).
+
 ## Deviations / decisions
 
 - **DEC-1:** The `rabbit` species profile already existed (Migration 007 seeded it

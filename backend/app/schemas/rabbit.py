@@ -343,6 +343,7 @@ class RabbitResponse(TimestampedSchema):
     breed_id: UUID | None
     bloodline_id: UUID | None
     cage_id: UUID | None
+    litter_id: UUID | None
     internal_ref: str
     name: str | None
     ear_tag: str | None
@@ -477,3 +478,108 @@ class DocumentResponse(TimestampedSchema):
     size_bytes: int | None
     issued_on: date | None
     expires_on: date | None
+
+
+# ── Breeding cycle (Spec Part 3 §7, Part 4 §6) ─────────────────────────────────
+
+class BreedingCreate(AGRIOSSchema):
+    doe_id: UUID
+    buck_id: UUID
+    method: str = Field("natural")
+    service_date: date | None = None
+    repeat_of_id: UUID | None = None
+    notes: str | None = None
+
+    _m = field_validator("method")(_one_of("method", rb.BREEDING_METHOD_VALUES))
+
+
+class ServiceInput(AGRIOSSchema):
+    service_date: date
+    method: str | None = None
+
+    _m = field_validator("method")(_one_of("method", rb.BREEDING_METHOD_VALUES))
+
+
+class PregnancyCheckInput(AGRIOSSchema):
+    result: str
+    checked_on: date | None = None
+    notes: str | None = None
+
+    @field_validator("result")
+    @classmethod
+    def _check_result(cls, v):
+        if v not in ("pregnant", "not_pregnant"):
+            raise ValueError("result must be 'pregnant' or 'not_pregnant'")
+        return v
+
+
+class PrepareKindlingInput(AGRIOSSchema):
+    prepared_on: date | None = None
+
+
+class KindlingInput(AGRIOSSchema):
+    kindling_date: date
+    total_kits: int = Field(..., ge=0)
+    live_kits: int | None = Field(None, ge=0)
+    stillbirths: int | None = Field(None, ge=0)
+    avg_birth_weight_g: Decimal | None = Field(None, ge=0)
+    create_kits: bool = False
+    notes: str | None = None
+
+
+class FosterInput(AGRIOSSchema):
+    fostered_in: int | None = Field(None, ge=0)
+    fostered_out: int | None = Field(None, ge=0)
+    notes: str | None = None
+
+
+class WeaningInput(AGRIOSSchema):
+    weaned_kits: int = Field(..., ge=0)
+    weaning_date: date | None = None
+    notes: str | None = None
+
+
+class CompatibilityInput(AGRIOSSchema):
+    buck_id: UUID
+    doe_id: UUID
+
+
+class BreedingResponse(TimestampedSchema):
+    farm_id: UUID
+    doe_id: UUID | None
+    buck_id: UUID | None
+    repeat_of_id: UUID | None
+    method: str
+    service_date: date | None
+    planned_kindling_date: date | None
+    pregnancy_checked_on: date | None
+    pregnancy_result: str
+    nest_box_prepared_on: date | None
+    actual_kindling_date: date | None
+    status: str
+    outcome: str | None
+    notes: str | None
+
+
+class LitterResponse(TimestampedSchema):
+    farm_id: UUID
+    breeding_id: UUID | None
+    doe_id: UUID | None
+    buck_id: UUID | None
+    litter_code: str
+    kindling_date: date
+    total_kits: int
+    live_kits: int
+    stillbirths: int
+    fostered_in: int
+    fostered_out: int
+    weaned_kits: int
+    mortality: int
+    avg_birth_weight_g: Decimal | None
+    weaning_date: date | None
+    status: str
+    notes: str | None
+
+
+class LitterDetailResponse(LitterResponse):
+    performance: dict

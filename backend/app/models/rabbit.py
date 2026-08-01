@@ -103,6 +103,21 @@ DOCUMENT_TYPE_VALUES = (
     "vet_report", "purchase_record", "sale_document", "invoice", "other",
 )
 
+# Breeding cycle (Spec Part 3 §7, Part 4 §6)
+BREEDING_METHOD_VALUES = ("natural", "artificial")
+BREEDING_STATUS_VALUES = (
+    "planned", "serviced", "pregnant", "not_pregnant", "kindled", "failed", "closed", "cancelled",
+)
+PREGNANCY_RESULT_VALUES = ("unknown", "pregnant", "not_pregnant")
+BREEDING_OUTCOME_VALUES = ("successful", "failed", "aborted", "reabsorbed", "unknown")
+
+# Litter (Spec Part 3 §8)
+LITTER_STATUS_VALUES = ("active", "weaned", "closed")
+
+# Default rabbit gestation in days (ledger CON-M3-4); overridable per breed via
+# ``rabbit_breed.profile["gestation_days"]``.
+DEFAULT_GESTATION_DAYS = 31
+
 
 # ── Catalog: Breed (Spec Part 3 §5) ───────────────────────────────────────────
 
@@ -359,6 +374,12 @@ class Rabbit(AGRIOSBase):
         UUID(as_uuid=True), ForeignKey("rabbit_cage.id", ondelete="SET NULL"),
         nullable=True, index=True,
     )
+    # Birth litter (Spec Part 3 §8; added in Migration 067). Kits keep this link
+    # permanently. SET NULL preserves the rabbit if its litter is ever removed.
+    litter_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rabbit_litter.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
 
     # Identity (Spec Part 1 §5, Part 3 §4)
     internal_ref: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -512,3 +533,101 @@ class RabbitDocument(AGRIOSBase):
     )
 
     rabbit: Mapped["Rabbit"] = relationship(back_populates="documents", lazy="noload")
+
+
+# ── Breeding cycle (Spec Part 3 §7, Part 4 §6) ─────────────────────────────────
+
+class RabbitBreeding(AGRIOSBase):
+    """A single mating attempt / breeding cycle: service → pregnancy check →
+    kindling (Spec Part 3 §7). Repeat services link back to the previous attempt
+    via ``repeat_of_id``. Buck/doe use SET NULL so breeding history survives a
+    rabbit's soft-deletion. ``planned_kindling_date`` is a FORECAST derived from
+    the service date and breed gestation — never a recorded fact."""
+
+    __tablename__ = "rabbit_breeding"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    doe_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rabbit.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    buck_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rabbit.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    repeat_of_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rabbit_breeding.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    method: Mapped[str] = mapped_column(String(20), nullable=False, default="natural")
+    service_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    planned_kindling_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    pregnancy_checked_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    pregnancy_result: Mapped[str] = mapped_column(String(20), nullable=False, default="unknown")
+    nest_box_prepared_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    actual_kindling_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="planned")
+    outcome: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    doe: Mapped["Rabbit | None"] = relationship(foreign_keys=[doe_id], lazy="noload")
+    buck: Mapped["Rabbit | None"] = relationship(foreign_keys=[buck_id], lazy="noload")
+
+    @property
+    def is_open(self) -> bool:
+        """True while the cycle is unresolved (blocks a doe from being re-serviced)."""
+        return self.status in ("planned", "serviced", "pregnant")
+
+    def __repr__(self) -> str:
+        return f"<RabbitBreeding doe={self.doe_id} buck={self.buck_id} status={self.status}>"
+
+
+# ── Litter (Spec Part 3 §8) ────────────────────────────────────────────────────
+
+class RabbitLitter(AGRIOSBase):
+    """A litter produced at kindling (Spec Part 3 §8). Birth statistics are
+    recorded facts; performance (survival, mortality rate) is calculated by the
+    deterministic engine, never stored. Kits reference this row via
+    ``rabbit.litter_id`` and remain linked permanently."""
+
+    __tablename__ = "rabbit_litter"
+    __table_args__ = (
+        UniqueConstraint("farm_id", "litter_code", name="uq_rabbit_litter_farm_code"),
+    )
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    breeding_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rabbit_breeding.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    doe_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rabbit.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    buck_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rabbit.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    litter_code: Mapped[str] = mapped_column(String(50), nullable=False)
+    kindling_date: Mapped[date] = mapped_column(Date, nullable=False)
+    total_kits: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    live_kits: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    stillbirths: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    fostered_in: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    fostered_out: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    weaned_kits: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    mortality: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    avg_birth_weight_g: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    weaning_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    doe: Mapped["Rabbit | None"] = relationship(foreign_keys=[doe_id], lazy="noload")
+    buck: Mapped["Rabbit | None"] = relationship(foreign_keys=[buck_id], lazy="noload")
+
+    def __repr__(self) -> str:
+        return f"<RabbitLitter {self.litter_code} kits={self.total_kits} status={self.status}>"

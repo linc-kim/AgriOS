@@ -71,7 +71,7 @@ def _rabbit_response(r, names) -> RabbitResponse:
     breed_names, line_names, cage_names = names
     payload = {k: getattr(r, k) for k in (
         "id", "created_at", "updated_at", "farm_id", "breed_id", "bloodline_id", "cage_id",
-        "internal_ref", "name", "ear_tag", "tattoo", "qr_code", "rfid", "variety", "color",
+        "litter_id", "internal_ref", "name", "ear_tag", "tattoo", "qr_code", "rfid", "variety", "color",
         "sex", "purpose", "purposes", "date_of_birth", "dob_estimated", "birth_weight_g",
         "current_weight_g", "lifecycle_stage", "status", "reproductive_status",
         "fertility_status", "acquisition_type", "acquired_on", "sire_id", "dam_id", "tags", "notes",
