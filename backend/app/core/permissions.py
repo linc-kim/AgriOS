@@ -150,6 +150,36 @@ class Permission(StrEnum):
     BSF_AUTOMATION_MANAGE = "bsf:automation:manage"  # Generate reminders, drive workflows
     BSF_AUTOMATION_VIEW = "bsf:automation:view"      # Read BSF tasks, reminders, workflows
 
+    # Rabbit Management (Module 17). Spec Part 8 §5.
+    # ARIA / Mission Control reuse the platform AI_QUERY / AI_INSIGHT_VIEW perms.
+    RABBIT_CREATE = "rabbit:create"              # Register rabbits
+    RABBIT_EDIT = "rabbit:edit"                  # Edit rabbit identity / details, move between cages
+    RABBIT_ARCHIVE = "rabbit:archive"            # Archive / restore rabbits (no hard delete)
+    RABBIT_TRANSACT = "rabbit:transact"          # Ownership events: sale, transfer, death
+    RABBIT_VIEW = "rabbit:view"                  # Read rabbits, timeline, media, documents
+    RABBIT_HOUSING_MANAGE = "rabbit:housing:manage"  # Write rabbitries/buildings/rooms/rows/cages
+    RABBIT_HOUSING_VIEW = "rabbit:housing:view"      # Read housing hierarchy & occupancy
+    RABBIT_CATALOG_MANAGE = "rabbit:catalog:manage"  # Write custom breeds / bloodlines
+    RABBIT_CATALOG_VIEW = "rabbit:catalog:view"      # Read breed / bloodline catalog
+    RABBIT_BREEDING_MANAGE = "rabbit:breeding:manage"  # Write breedings, litters, kindling, weaning
+    RABBIT_BREEDING_VIEW = "rabbit:breeding:view"      # Read breeding records & litters
+    RABBIT_PEDIGREE_EDIT = "rabbit:pedigree:edit"      # Edit pedigree links (authorised correction)
+    RABBIT_PEDIGREE_VIEW = "rabbit:pedigree:view"      # Read pedigrees / genetics
+    RABBIT_HEALTH_LOG = "rabbit:health:log"      # Write health, vaccination, mortality records
+    RABBIT_HEALTH_VIEW = "rabbit:health:view"    # Read health & mortality records
+    RABBIT_WEIGHT_LOG = "rabbit:weight:log"      # Record weights / growth measurements
+    RABBIT_FEED_RECORD = "rabbit:feed:record"    # Record feeding events
+    RABBIT_FEED_VIEW = "rabbit:feed:view"        # Read feeding history
+    RABBIT_SALES_RECORD = "rabbit:sales:record"  # Record sales
+    RABBIT_SALES_VIEW = "rabbit:sales:view"      # Read sales history
+    RABBIT_FINANCE_VIEW = "rabbit:finance:view"  # Read rabbit finance summary & analytics
+    RABBIT_REPORT_VIEW = "rabbit:report:view"    # Read reports & dashboards
+    RABBIT_REPORT_EXPORT = "rabbit:report:export"  # Export reports (PDF / Excel / CSV)
+    RABBIT_GROWTH_VIEW = "rabbit:growth:view"    # Read growth plan / roadmap / progress
+    RABBIT_GROWTH_EDIT = "rabbit:growth:edit"    # Create / edit growth goals & roadmaps
+    RABBIT_AUTOMATION_MANAGE = "rabbit:automation:manage"  # Generate reminders, drive workflows
+    RABBIT_AUTOMATION_VIEW = "rabbit:automation:view"      # Read rabbit tasks, reminders, workflows
+
 
 # ── Role → Permission Mapping ─────────────────────────────────────────────────
 # Derived from Engineering Constitution Section 5 RBAC matrix.
@@ -449,6 +479,65 @@ ROLE_PERMISSIONS["farm_worker"] |= _BSF_WORKER_VIEW | {
 }
 ROLE_PERMISSIONS["vet_consultant"] |= _BSF_VIEW
 ROLE_PERMISSIONS["viewer"] |= _BSF_VIEW
+
+
+# Rabbit Management (Module 17) permissions layered onto the base matrix.
+# Spec Part 8 §5-9: owner/manager hold full control; workers operate but cannot
+# archive, transact, manage catalog/housing or see strategic finance/reports/
+# growth views; vets get clinical write; viewers are read-only.
+_RABBIT_VIEW = {
+    Permission.RABBIT_VIEW,
+    Permission.RABBIT_HOUSING_VIEW,
+    Permission.RABBIT_CATALOG_VIEW,
+    Permission.RABBIT_BREEDING_VIEW,
+    Permission.RABBIT_PEDIGREE_VIEW,
+    Permission.RABBIT_HEALTH_VIEW,
+    Permission.RABBIT_FEED_VIEW,
+    Permission.RABBIT_SALES_VIEW,
+    Permission.RABBIT_FINANCE_VIEW,
+    Permission.RABBIT_REPORT_VIEW,
+    Permission.RABBIT_GROWTH_VIEW,
+    Permission.RABBIT_AUTOMATION_VIEW,
+}
+_RABBIT_FULL = _RABBIT_VIEW | {
+    Permission.RABBIT_CREATE,
+    Permission.RABBIT_EDIT,
+    Permission.RABBIT_ARCHIVE,
+    Permission.RABBIT_TRANSACT,
+    Permission.RABBIT_HOUSING_MANAGE,
+    Permission.RABBIT_CATALOG_MANAGE,
+    Permission.RABBIT_BREEDING_MANAGE,
+    Permission.RABBIT_PEDIGREE_EDIT,
+    Permission.RABBIT_HEALTH_LOG,
+    Permission.RABBIT_WEIGHT_LOG,
+    Permission.RABBIT_FEED_RECORD,
+    Permission.RABBIT_SALES_RECORD,
+    Permission.RABBIT_REPORT_EXPORT,
+    Permission.RABBIT_GROWTH_EDIT,
+    Permission.RABBIT_AUTOMATION_MANAGE,
+}
+for _rabbit_full in ("enterprise_owner", "farm_owner", "farm_manager"):
+    ROLE_PERMISSIONS[_rabbit_full] |= _RABBIT_FULL
+
+# Workers do the daily operational work but not strategic/transactional actions.
+_RABBIT_WORKER_VIEW = _RABBIT_VIEW - {
+    Permission.RABBIT_SALES_VIEW,
+    Permission.RABBIT_FINANCE_VIEW,
+    Permission.RABBIT_REPORT_VIEW,
+    Permission.RABBIT_GROWTH_VIEW,
+}
+ROLE_PERMISSIONS["farm_worker"] |= _RABBIT_WORKER_VIEW | {
+    Permission.RABBIT_CREATE,
+    Permission.RABBIT_EDIT,
+    Permission.RABBIT_BREEDING_MANAGE,
+    Permission.RABBIT_HEALTH_LOG,
+    Permission.RABBIT_WEIGHT_LOG,
+    Permission.RABBIT_FEED_RECORD,
+    Permission.RABBIT_AUTOMATION_MANAGE,
+}
+ROLE_PERMISSIONS["vet_consultant"] |= _RABBIT_VIEW | {Permission.RABBIT_HEALTH_LOG}
+ROLE_PERMISSIONS["viewer"] |= _RABBIT_VIEW
+
 
 # platform_admin is an explicit set rather than a farm role, so it is granted
 # the production permissions directly.

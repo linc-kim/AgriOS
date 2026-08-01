@@ -118,6 +118,19 @@ from app.models.bsf import (
     BsfProductionUnit,
     BsfSpecies,
 )
+from app.models.rabbit import (
+    Rabbit,
+    RabbitBloodline,
+    RabbitBreed,
+    RabbitBuilding,
+    RabbitCage,
+    RabbitDocument,
+    RabbitEvent,
+    RabbitMedia,
+    RabbitRabbitry,
+    RabbitRoom,
+    RabbitRow,
+)
 from app.models.growth import (
     GrowthGoal,
     GrowthMilestone,
@@ -259,6 +272,18 @@ __all__ = [
     "BsfHarvestEvent",
     "BsfFrassProduction",
     "BsfMortalityEvent",
+    # Rabbit Management (Module 17 Part 1, Migration 066)
+    "RabbitBreed",
+    "RabbitBloodline",
+    "RabbitRabbitry",
+    "RabbitBuilding",
+    "RabbitRoom",
+    "RabbitRow",
+    "RabbitCage",
+    "Rabbit",
+    "RabbitEvent",
+    "RabbitMedia",
+    "RabbitDocument",
     # Growth Planner (Platform, Migration 065)
     "GrowthPlan",
     "GrowthGoal",
