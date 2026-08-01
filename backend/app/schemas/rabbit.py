@@ -714,3 +714,47 @@ class MortalityResponse(TimestampedSchema):
     cause: str
     suspected_cause: str | None
     postmortem_notes: str | None
+
+
+# ── Sales & Finance (Spec Part 2 §16, Part 3 §15, Part 4 §12) ──────────────────
+
+class SaleCreate(AGRIOSSchema):
+    rabbit_id: UUID | None = None
+    sale_type: str = Field("live")
+    buyer_name: str | None = Field(None, max_length=200)
+    buyer_contact: str | None = Field(None, max_length=200)
+    sale_date: date
+    quantity: int = Field(1, ge=1)
+    weight_kg: Decimal | None = Field(None, ge=0)
+    unit_price: Decimal | None = Field(None, ge=0)
+    total_price: Decimal | None = Field(None, ge=0)
+    currency: str | None = Field(None, max_length=10)
+    invoice_reference: str | None = Field(None, max_length=150)
+    notes: str | None = None
+
+    _st = field_validator("sale_type")(_one_of("sale_type", rb.SALE_TYPE_VALUES))
+
+
+class SaleResponse(TimestampedSchema):
+    farm_id: UUID
+    rabbit_id: UUID | None
+    sale_type: str
+    buyer_name: str | None
+    buyer_contact: str | None
+    sale_date: date
+    quantity: int
+    weight_kg: Decimal | None
+    unit_price: Decimal | None
+    total_price: Decimal
+    currency: str | None
+    invoice_reference: str | None
+    notes: str | None
+
+
+class OperationalExpenseCreate(AGRIOSSchema):
+    """A rabbit operating cost posted to the SHARED expenses ledger (CON-M6-1)."""
+
+    category_slug: str = Field(..., min_length=1, max_length=100)
+    amount: Decimal = Field(..., gt=0)
+    description: str = Field(..., min_length=1, max_length=500)
+    expense_date: date | None = None

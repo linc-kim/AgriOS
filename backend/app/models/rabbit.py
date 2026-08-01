@@ -136,6 +136,11 @@ MORTALITY_CAUSE_VALUES = (
     "respiratory", "heat_stress", "starvation", "unknown", "other",
 )
 
+# Sales (Spec Part 2 §16, Part 3 §15)
+SALE_TYPE_VALUES = (
+    "live", "breeding_stock", "pet", "meat", "fiber", "manure", "other",
+)
+
 
 # ── Catalog: Breed (Spec Part 3 §5) ───────────────────────────────────────────
 
@@ -812,3 +817,41 @@ class RabbitMortality(AGRIOSBase):
 
     def __repr__(self) -> str:
         return f"<RabbitMortality rabbit={self.rabbit_id} cause={self.cause} on {self.occurred_on}>"
+
+
+# ── Sales (Spec Part 2 §16, Part 3 §15) ─────────────────────────────────────────
+
+class RabbitSale(AGRIOSBase):
+    """A sale of a rabbit or a rabbit product (meat/fiber/manure). ``total_price``
+    is the RECORDED revenue fact — it is never posted to the flock-scoped platform
+    revenue ledger (frozen DB-07; ledger CON-M6-2). ``rabbit_id`` is NULL for
+    product sales not tied to a single rabbit. P&L is computed on demand by the
+    deterministic finance engine from these recorded facts."""
+
+    __tablename__ = "rabbit_sale"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    rabbit_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rabbit.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    sale_type: Mapped[str] = mapped_column(String(20), nullable=False, default="live")
+    buyer_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    buyer_contact: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    sale_date: Mapped[date] = mapped_column(Date, nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    weight_kg: Mapped[Decimal | None] = mapped_column(Numeric(12, 3), nullable=True)
+    unit_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    total_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    currency: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    invoice_reference: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    rabbit: Mapped["Rabbit | None"] = relationship(foreign_keys=[rabbit_id], lazy="noload")
+
+    def __repr__(self) -> str:
+        return f"<RabbitSale {self.sale_type} total={self.total_price} on {self.sale_date}>"

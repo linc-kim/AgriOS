@@ -132,6 +132,7 @@ from app.models.rabbit import (
     RabbitLitter,
     RabbitMedia,
     RabbitMortality,
+    RabbitSale,
     RabbitVaccination,
     RabbitWeight,
     RabbitRabbitry,
@@ -301,6 +302,8 @@ __all__ = [
     "RabbitHealthRecord",
     "RabbitVaccination",
     "RabbitMortality",
+    # Rabbit Sales (Module 17 Milestone 6, Migration 070)
+    "RabbitSale",
     # Growth Planner (Platform, Migration 065)
     "GrowthPlan",
     "GrowthGoal",

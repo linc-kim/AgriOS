@@ -272,6 +272,70 @@ into the Notification engine. Timeline/audit are the shared `rabbit_event` +
   lightweight status) and M5 `/mortality` (RABBIT_HEALTH_LOG, authoritative
   clinical record). No deviation from spec.
 
+### Milestone 6 — Sales & Finance — 🚧 CONTRACTS (recorded before coding)
+
+Verified Finance contract: `finance_service.record_category_expense(db, farm_id,
+flock_id=None, category_slug, amount, description, current_user, expense_date)`
+creates an `Expense` under a system category (adds+flushes, no commit) or returns
+`None` if the slug/amount is missing. `revenue_records` is **flock-scoped (frozen
+DB-07)**. Valid system slugs include `feed_purchase`, `feed_supplements`,
+`vaccination`, `medication`, `vet_fees`, `labour`, `electricity`, `water`,
+`equipment`, `repairs`, `transport`, `bedding`, `other`. Aviculture/BSF post costs
+to the shared ledger tagged `metadata_["module"]=<mod>` and keep revenue as a
+recorded fact — **exactly** the pattern reused here.
+
+- **CON-M6-1 — Reuse the shared Finance ledger; no rabbit finance table for costs.**
+  Operational costs (vet, labour, housing/equipment, utilities…) post to the shared
+  `expenses` ledger via `finance_service.record_category_expense(flock_id=None)` and
+  are tagged `metadata_["module"]="rabbit"` for attribution. No modification to the
+  Finance platform.
+- **CON-M6-2 — Sale revenue is a recorded fact (DB-07).** Because `revenue_records`
+  is flock-scoped, rabbit sale revenue is stored on the new `rabbit_sale` table
+  (`total_price`) and **never** posted to `revenue_records` — mirroring Aviculture/
+  BSF. Sales support live/breeding/pet/meat/fiber/manure types (Spec Part 2 §16).
+- **CON-M6-3 — Feed cost = recorded consumption allocation, not a ledger re-post.**
+  The rabbit P&L's feed cost is `Σ rabbit_feed_record.cost` (the M4 consumption
+  snapshot, a recorded fact). Feed purchases are already expensed once at Inventory
+  `stock_in` (untagged), so they are **excluded** from the rabbit-tagged sum — no
+  double-count (consistent with CON-M4-1). Other operating costs come from the
+  rabbit-tagged ledger.
+- **CON-M6-4 — All P&L/unit-economics are computed by a PURE engine**
+  (`rabbit_finance_engine`) from figures the service reads from recorded facts;
+  nothing is stored as a competing snapshot. Confirmed records (`recorded`) are
+  kept distinct from derivations (`calculated`); zero denominators → `unknown`.
+- **CON-M6-5 — Permissions reuse.** Sales write → `RABBIT_SALES_RECORD`; sales read
+  → `RABBIT_SALES_VIEW`; P&L read → `RABBIT_FINANCE_VIEW`; posting a cost to the
+  shared ledger reuses the platform **`FINANCE_RECORD`** permission (owner/manager)
+  — no new rabbit finance-write permission is introduced. Recording a sale for an
+  active rabbit transitions it to `sold` (the M2 `/sell` transact path remains).
+
+### Milestone 6 — Sales & Finance — ✅ DONE (local, unpushed)
+
+- **Spec sections:** Part 2 §16 (Sales), Part 3 §15 (Sale entity), Part 4 §12
+  (Sales & Finance logic), Part 7 §9 (Financial analytics).
+- **Migration `070`** (down_rev 069, single head): `rabbit_sale` (revenue fact;
+  live/breeding/pet/meat/fiber/manure). Round-trips cleanly. No finance/cost table.
+- **PURE `rabbit_finance_engine.py`**: `pnl_summary` (revenue/feed/operating cost
+  recorded; total cost, gross, margin, ROI calculated) and `unit_economics`
+  (cost/revenue/profit per rabbit, cost per kg sold, profit per litter/doe, feed &
+  vet cost %). Honesty-labelled; zero denominators → `unknown`.
+- **`rabbit_finance_service.py`**: `record_sale` (revenue fact; transitions an
+  active rabbit → sold), `list_sales`, `post_operational_expense` (SHARED ledger
+  via `finance_service.record_category_expense`, tagged `metadata.module='rabbit'`),
+  `finance_summary` (revenue = Σ sale facts; feed cost = Σ recorded feed-allocation;
+  operating cost = rabbit-tagged ledger; vet cost via category join).
+- **Endpoints** `rabbit_finance.py` = **4 routes** (73 rabbit routes total). Sales
+  write → `RABBIT_SALES_RECORD`; sales read → `RABBIT_SALES_VIEW`; cost posting →
+  platform `FINANCE_RECORD` (owner/manager); P&L read → `RABBIT_FINANCE_VIEW`.
+- **Finance reuse verification:** no Finance-platform change; costs post through
+  `finance_service` only; revenue never written to flock-scoped `revenue_records`
+  (DB-07); feed not double-counted (allocation vs stock-in expense). Confirmed by
+  green regression: finance flow/analytics + Aviculture-finance + BSF-finance.
+- **Tests:** 9 engine unit + 12 integration (sale→sold, product sale, unit-price
+  derivation, P&L tracing to recorded facts incl. vet_cost_pct, invalid category
+  404, RBAC: worker no cost-post, viewer read-only). Full rabbit + finance
+  regression = **176 pass**; ruff clean; app boots.
+
 ## Deviations / decisions
 
 - **DEC-1:** The `rabbit` species profile already existed (Migration 007 seeded it

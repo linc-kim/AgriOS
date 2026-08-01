@@ -52,6 +52,7 @@ from app.api.v1.endpoints import rabbit_housing
 from app.api.v1.endpoints import rabbit_breeding
 from app.api.v1.endpoints import rabbit_growth
 from app.api.v1.endpoints import rabbit_health
+from app.api.v1.endpoints import rabbit_finance
 
 api_router = APIRouter()
 
@@ -147,3 +148,4 @@ api_router.include_router(rabbit_housing.router)
 api_router.include_router(rabbit_breeding.router)
 api_router.include_router(rabbit_growth.router)
 api_router.include_router(rabbit_health.router)
+api_router.include_router(rabbit_finance.router)
