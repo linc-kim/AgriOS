@@ -583,3 +583,50 @@ class LitterResponse(TimestampedSchema):
 
 class LitterDetailResponse(LitterResponse):
     performance: dict
+
+
+# ── Growth & weight (Spec Part 3 §9, Part 4 §8) ────────────────────────────────
+
+class WeightCreate(AGRIOSSchema):
+    recorded_on: date
+    weight_g: Decimal = Field(..., gt=0)
+    notes: str | None = None
+
+
+class WeightResponse(TimestampedSchema):
+    farm_id: UUID
+    rabbit_id: UUID
+    recorded_on: date
+    weight_g: Decimal
+    age_days: int | None
+    notes: str | None
+
+
+# ── Feed (Spec Part 3 §10; reuses platform Inventory — ledger CON-M4-1) ─────────
+
+class FeedRecordCreate(AGRIOSSchema):
+    rabbit_id: UUID | None = None
+    cage_id: UUID | None = None
+    inventory_item_id: UUID | None = None
+    feed_type: str | None = Field(None, max_length=150)
+    quantity_kg: Decimal = Field(..., gt=0, decimal_places=3)
+    fed_on: date
+    cost: Decimal | None = Field(None, ge=0)
+    currency: str | None = Field(None, max_length=10)
+    supplier: str | None = Field(None, max_length=200)
+    notes: str | None = None
+
+
+class FeedRecordResponse(TimestampedSchema):
+    farm_id: UUID
+    rabbit_id: UUID | None
+    cage_id: UUID | None
+    inventory_item_id: UUID | None
+    inventory_movement_id: UUID | None
+    feed_type: str | None
+    quantity_kg: Decimal
+    fed_on: date
+    cost: Decimal | None
+    currency: str | None
+    supplier: str | None
+    notes: str | None

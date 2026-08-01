@@ -127,8 +127,10 @@ from app.models.rabbit import (
     RabbitCage,
     RabbitDocument,
     RabbitEvent,
+    RabbitFeedRecord,
     RabbitLitter,
     RabbitMedia,
+    RabbitWeight,
     RabbitRabbitry,
     RabbitRoom,
     RabbitRow,
@@ -289,6 +291,9 @@ __all__ = [
     # Rabbit Breeding & Litters (Module 17 Milestone 3, Migration 067)
     "RabbitBreeding",
     "RabbitLitter",
+    # Rabbit Growth, Weight & Feed (Module 17 Milestone 4, Migration 068)
+    "RabbitWeight",
+    "RabbitFeedRecord",
     # Growth Planner (Platform, Migration 065)
     "GrowthPlan",
     "GrowthGoal",

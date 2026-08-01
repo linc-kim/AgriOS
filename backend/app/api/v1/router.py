@@ -50,6 +50,7 @@ from app.api.v1.endpoints import bsf_aria
 from app.api.v1.endpoints import rabbit
 from app.api.v1.endpoints import rabbit_housing
 from app.api.v1.endpoints import rabbit_breeding
+from app.api.v1.endpoints import rabbit_growth
 
 api_router = APIRouter()
 
@@ -143,3 +144,4 @@ api_router.include_router(bsf_aria.router)
 api_router.include_router(rabbit.router)
 api_router.include_router(rabbit_housing.router)
 api_router.include_router(rabbit_breeding.router)
+api_router.include_router(rabbit_growth.router)

@@ -161,6 +161,56 @@ Architectural contracts fixed before implementation (GMIS §11.3):
   compatibility, reproduction summary, genetics, RBAC). Full rabbit suite + avi
   breeding/BSF/mission regression = **107 pass**; ruff clean; app boots (55 routes).
 
+### Milestone 4 — Growth, Weight & Feed — 🚧 CONTRACTS (recorded before coding)
+
+Verified Inventory contract (`inventory_service.record_movement`): a `consumption`
+movement decrements stock and costs the line at the item's weighted-average cost
+(`item.avg_cost`) and posts **no new expense** — the expense is booked once at
+`stock_in` (category "feed" → finance slug `feed_purchase`). Returns
+`(item, movement)`. Item categories include `feed`, `medication`, `vaccines`.
+
+- **CON-M4-1 — Feed reuses platform Inventory; no duplicate inventory.**
+  `rabbit_feed_record` is a **domain feeding log only** (who ate, when, how much).
+  When a feeding references an Inventory feed item, the service posts a
+  `consumption` movement (decrement; **no new expense** — feed was already
+  expensed at purchase, so this avoids double-counting, mirroring the BSF
+  harvest/adjustment contract). Links are **soft refs** `inventory_item_id` /
+  `inventory_movement_id` (no FK — module decoupling). The feed record's `cost` is
+  a snapshot allocation (`movement.total_cost` = qty × avg_cost), a RECORDED value
+  used for cost-per-rabbit analytics — never re-posted to the finance ledger.
+- **CON-M4-2 — Manual feeding allowed (hobby scale).** Feeding without an
+  Inventory item records quantity + optional manual cost as a fact; no movement.
+- **CON-M4-3 — Weight history is immutable** (Spec Part 3 §9). `rabbit.current_weight_g`
+  mirrors the latest recorded weight for display; the weight table is authoritative.
+  The Growth engine computes ADG / gain / percentile / deviation deterministically;
+  missing data → `unknown`, never fabricated.
+- **CON-M4-4 — Feed conversion (FCR)** is calculated only where both feed and
+  weight-gain data exist over the same window; otherwise `unavailable`. Expected
+  growth curves come from `rabbit_breed.profile` when present (else `unknown`).
+
+### Milestone 4 — Growth, Weight & Feed — ✅ DONE (local, unpushed)
+
+- **Migration `068`** (down_rev 067, single head): `rabbit_weight` (immutable
+  measurements + `age_days` snapshot) and `rabbit_feed_record` (feeding log with
+  soft Inventory refs). Round-trips cleanly.
+- **PURE `rabbit_growth_engine.py`**: ADG, growth series, breed-curve expected
+  weight (linear interpolation, unknown outside range), weight analysis
+  (gain/deviation), herd percentile. **PURE `rabbit_feed_engine.py`**: FCR
+  (unavailable without positive gain), feed summary (totals, cost/kg). Honesty-
+  labelled; missing data → unknown.
+- **`rabbit_growth_service.py`** (weights immutable; syncs `current_weight_g`;
+  growth analysis + same-breed peer percentile) and **`rabbit_feed_service.py`**
+  (Inventory reuse per CON-M4-1: `consumption` movement decrements stock, cost
+  snapshot, no re-expense; manual feeding supported; FCR via growth gain). Reuse
+  `rabbit_service` helpers + `inventory_service.record_movement`.
+- **Endpoints** `rabbit_growth.py` = **6 routes** (61 rabbit routes total).
+  Weight write → `RABBIT_WEIGHT_LOG`; feed write → `RABBIT_FEED_RECORD`; reads →
+  `RABBIT_VIEW` / `RABBIT_FEED_VIEW`.
+- **Tests:** 20 engine unit + 9 integration (weight sync, breed-curve deviation,
+  manual + Inventory-linked feeding [stock decrement + cost snapshot, no double-
+  count], FCR, RBAC). Ruff clean; app boots; regression green incl. Inventory +
+  Finance (39) and avi/bsf (120 in the combined rabbit+regression run).
+
 ## Deviations / decisions
 
 - **DEC-1:** The `rabbit` species profile already existed (Migration 007 seeded it

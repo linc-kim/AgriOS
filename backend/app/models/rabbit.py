@@ -118,6 +118,10 @@ LITTER_STATUS_VALUES = ("active", "weaned", "closed")
 # ``rabbit_breed.profile["gestation_days"]``.
 DEFAULT_GESTATION_DAYS = 31
 
+# Feed (Spec Part 3 §10). Feed items themselves live in the platform Inventory
+# module — these are the feeding-log's own attributes only (ledger CON-M4-1).
+FEED_UNIT_VALUES = ("kg", "g")
+
 
 # ── Catalog: Breed (Spec Part 3 §5) ───────────────────────────────────────────
 
@@ -631,3 +635,67 @@ class RabbitLitter(AGRIOSBase):
 
     def __repr__(self) -> str:
         return f"<RabbitLitter {self.litter_code} kits={self.total_kits} status={self.status}>"
+
+
+# ── Weight measurements (Spec Part 3 §9) ───────────────────────────────────────
+
+class RabbitWeight(AGRIOSBase):
+    """An immutable weight measurement for a rabbit (Spec Part 3 §9). Historical
+    records are never overwritten. Growth (ADG, percentiles, deviations) is
+    computed from these records by the deterministic engine — never stored."""
+
+    __tablename__ = "rabbit_weight"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    rabbit_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rabbit.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    recorded_on: Mapped[date] = mapped_column(Date, nullable=False)
+    weight_g: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    age_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<RabbitWeight rabbit={self.rabbit_id} {self.weight_g}g on {self.recorded_on}>"
+
+
+# ── Feeding log (reuses platform Inventory — Spec Part 3 §10) ───────────────────
+
+class RabbitFeedRecord(AGRIOSBase):
+    """A feeding event for a rabbit, cage or the farm (Spec Part 3 §10). Feed stock
+    and purchase costs live in the platform Inventory module; this row is the
+    domain feeding log. ``inventory_item_id`` / ``inventory_movement_id`` are SOFT
+    references into Inventory (no FK — modules stay decoupled, ledger CON-M4-1).
+    ``cost`` is a snapshot allocation, never re-posted to finance."""
+
+    __tablename__ = "rabbit_feed_record"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    rabbit_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rabbit.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    cage_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rabbit_cage.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    inventory_item_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    inventory_movement_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    feed_type: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    quantity_kg: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    fed_on: Mapped[date] = mapped_column(Date, nullable=False)
+    cost: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    currency: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    supplier: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<RabbitFeedRecord rabbit={self.rabbit_id} cage={self.cage_id} {self.quantity_kg}kg>"
