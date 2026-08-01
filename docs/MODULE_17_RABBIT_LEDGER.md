@@ -336,6 +336,69 @@ recorded fact — **exactly** the pattern reused here.
   404, RBAC: worker no cost-post, viewer read-only). Full rabbit + finance
   regression = **176 pass**; ruff clean; app boots.
 
+### Milestone 7 — Analytics, Reporting & Forecast — 🚧 CONTRACTS (recorded before coding)
+
+Verified reuse targets: `bsf_forecast_engine` (`project_flow`/`project_stock`,
+`forecast`-labelled with method/assumptions/confidence/limitations, `unknown`
+without a window), `bsf_bottleneck_engine.analyze` (ranked constraints citing
+evidence/impact/action/confidence; unsupplied metrics not evaluated), and the
+platform CSV `Response` export (`text/csv` + `Content-Disposition`). The M3–M6
+services already expose `reproduction_summary`, `health_summary`, `finance_summary`,
+`housing_summary`.
+
+- **CON-M7-1 — No migration.** Analytics/reporting/forecast are COMPUTED on demand
+  from recorded facts; nothing is stored as a competing snapshot (mirrors avi/bsf).
+- **CON-M7-2 — The reporting service composes, never re-implements.** The executive
+  dashboard calls the existing M3–M6 services (`reproduction_summary`,
+  `health_summary`, `finance_summary`, `housing_summary`) for their blocks; only the
+  population roll-up (counts by sex / stage / status) is a rabbit-specific recorded
+  aggregation. No module's math is duplicated.
+- **CON-M7-3 — PURE `rabbit_forecast_engine`** mirrors the platform forecast honesty
+  structure: herd (`project_stock`), feed / revenue / kits (`project_flow`) and a
+  capacity requirement helper. Every projection is `forecast`-labelled and never a
+  confirmed value; no window → `unknown`. This is the module short-range Forecast
+  engine (Spec Part 4 §4, Part 7 §16); the long-range strategic **Growth Planner**
+  stays separate (M8, reuses the platform `growth_planner_service`).
+- **CON-M7-4 — PURE `rabbit_bottleneck_engine`** (Spec Part 7 §11) detects ranked
+  operational constraints (fertility, mortality, weaning survival, housing capacity,
+  FCR, overdue vaccinations, negative margin) with evidence/impact/action/confidence.
+  Mission Control *orchestration* is M10; this engine supplies the deterministic
+  detection it will consume.
+- **CON-M7-5 — CSV export reuses the platform `Response` pattern** (no new export
+  framework). Reads → `RABBIT_REPORT_VIEW`; export → `RABBIT_REPORT_EXPORT`
+  (workers excluded — strategic views, Spec §8-9).
+
+### Milestone 7 — Analytics, Reporting & Forecast — ✅ DONE (local, unpushed)
+
+- **Spec sections:** Part 5 §3 (dashboard) & §12 (reporting), Part 7 §3 (executive
+  analytics), §7-9 (health/housing/financial analytics, composed), §11 (Mission
+  Control bottleneck detection — engine), §12 (reports), §13 (exports), §16 (forecasting).
+- **No migration** — all analytics/reporting/forecast are computed on demand (CON-M7-1).
+- **PURE `rabbit_forecast_engine.py`**: `project_flow` (kits/feed/revenue),
+  `project_stock` (herd size), `capacity_requirement` (housing). Every projection
+  `forecast`-labelled with method/assumptions/confidence/limitations; no window →
+  `unknown`.
+- **PURE `rabbit_bottleneck_engine.py`**: ranked constraints (reproduction,
+  mortality, weaning survival, housing overcrowding/capacity, feed efficiency,
+  vaccination compliance, profitability) with evidence/impact/action/confidence;
+  unsupplied metrics not evaluated; highest-severity first.
+- **`rabbit_reporting_service.py`** (composition only, CON-M7-2): `executive_dashboard`
+  (recorded population facts + reproduction/health/finance/housing summaries +
+  forecast bundle + bottlenecks), `forecast`, `bottlenecks`, `executive_summary`,
+  `export_herd_csv`. Calls the M3–M6 services — no re-implemented math.
+- **Endpoints** `rabbit_reports.py` = **5 routes** under `/rabbit/reports`
+  (dashboard, forecast, bottlenecks, executive-summary, herd.csv) — 78 rabbit
+  routes total. Reads → `RABBIT_REPORT_VIEW`; CSV → `RABBIT_REPORT_EXPORT`
+  (workers excluded).
+- **Platform reuse:** the forecast honesty structure and CSV `Response` export
+  patterns (from avi/bsf); the M3–M6 rabbit services for every analytic block. No
+  shared Finance/Reporting/Inventory/Growth-Planner/ARIA/Mission code modified.
+- **Tests:** 16 engine unit + 7 integration (dashboard composition + labelling,
+  forecast bundle, bottlenecks, executive summary, CSV export, RBAC:
+  worker-excluded / viewer-view-not-export). Verification run: **169 pass** (94
+  rabbit unit + 75 integration incl. Aviculture-finance/reports + BSF-reports
+  regression); ruff clean; app boots.
+
 ## Deviations / decisions
 
 - **DEC-1:** The `rabbit` species profile already existed (Migration 007 seeded it
