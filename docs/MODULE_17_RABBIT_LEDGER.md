@@ -211,6 +211,67 @@ movement decrements stock and costs the line at the item's weighted-average cost
   count], FCR, RBAC). Ruff clean; app boots; regression green incl. Inventory +
   Finance (39) and avi/bsf (120 in the combined rabbit+regression run).
 
+### Milestone 5 — Health, Vaccination & Mortality — 🚧 CONTRACTS (recorded before coding)
+
+Verified platform contracts: `Reminder` (app/models/automation.py) carries JSONB
+`metadata_`; Aviculture/BSF create reminders as `Reminder(farm_id, title, notes,
+due_at, next_fire_at, priority, created_by, metadata_={"module": <mod>, "kind":
+..., "dedup_key": ...})`, deduped by `dedup_key` among open reminders where
+`metadata_['module']==<mod>`; the platform scheduler's `run_reminders` fires them
+into the Notification engine. Timeline/audit are the shared `rabbit_event` +
+`audit_service`. Frozen **§4.4** excludes disease *diagnosis* (see
+[[greena-frozen-decisions]]).
+
+- **CON-M5-1 — Vaccinations reuse the platform Reminder engine.** Recording a
+  vaccination with `next_due_on` creates a `Reminder` (`metadata.module='rabbit'`,
+  `kind='vaccination'`, idempotent `dedup_key`), fired by the platform scheduler →
+  Notification engine. **No** rabbit reminder/notification table. The created
+  reminder's id is a **soft ref** on `rabbit_vaccination.reminder_id` (no FK).
+- **CON-M5-2 — Reuse shared timeline/audit.** Every health/vaccination/mortality
+  event appends a `rabbit_event` + `audit_service` entry — no duplicate log tables.
+- **CON-M5-3 — §4.4 diagnosis ban preserved.** `rabbit_health_record.diagnosis`
+  stores **only a recorded veterinary input** (a fact). The deterministic
+  `rabbit_health_engine` never infers a diagnosis — it emits *patterns* (mortality
+  / recovery rates, cause & condition frequencies, vaccination compliance) with a
+  "pattern, not a veterinary diagnosis" disclaimer; all honesty-labelled and
+  traceable to recorded facts.
+- **CON-M5-4 — Mortality is the authoritative clinical death record.** Recording
+  mortality (RABBIT_HEALTH_LOG) creates one immutable `rabbit_mortality` row and
+  transitions the rabbit to `deceased` + timeline `died`. The M2 `/death`
+  (RABBIT_TRANSACT) remains a lightweight status-only path. Mortality records are
+  immutable (Spec Part 3 §16).
+- **CON-M5-5 — Attachments reuse existing `rabbit_document`/`rabbit_media`** (no
+  new attachment tables) for vet/lab reports and postmortem photos.
+
+### Milestone 5 — Health, Vaccination & Mortality — ✅ DONE (local, unpushed)
+
+- **Spec sections:** Part 2 §10/§15, Part 3 §11-12/§16, Part 4 §9, Part 7 §7.
+- **Migration `069`** (down_rev 068, single head): `rabbit_health_record`
+  (chronological clinical events), `rabbit_vaccination` (+ soft `reminder_id`),
+  `rabbit_mortality` (immutable, unique per rabbit). Round-trips cleanly.
+- **PURE `rabbit_health_engine.py`**: mortality rate / by-cause / monthly trend,
+  recovery rate (excludes still-open events), condition frequency, vaccination
+  compliance, composite `health_summary` — every block honesty-labelled and
+  stamped with the "pattern, not a veterinary diagnosis" disclaimer (§4.4).
+- **`rabbit_health_service.py`**: health records, vaccinations, mortality. Reuses
+  the platform **Reminder** engine (`_upsert_reminder`, `metadata.module='rabbit'`,
+  idempotent `dedup_key`) for vaccination/follow-up due dates; reuses
+  `rabbit_service` timeline helpers + `audit_service`. Mortality transitions the
+  rabbit to `deceased` and is one-per-rabbit.
+- **Endpoints** `rabbit_health.py` = **8 routes** (69 rabbit routes total). Writes
+  → `RABBIT_HEALTH_LOG` (owner/manager/worker/vet); reads → `RABBIT_HEALTH_VIEW`.
+- **Platform reuse:** Reminder engine (vaccination due), Notification (via
+  scheduler), `rabbit_event` timeline, `audit_service`, `rabbit_document`/`_media`
+  attachments — no rabbit-specific replacements.
+- **Tests:** 12 engine unit + 15 integration (health history, vaccination Reminder
+  reuse [linked only when a next dose is due], mortality→deceased + immutability,
+  summary disclaimer, RBAC incl. vet-can-log). Full rabbit suite + Automation/
+  Reminders + Aviculture-automation + BSF regression = **138 pass**; ruff clean;
+  app boots.
+- **Decision:** two death paths kept intentionally — M2 `/death` (RABBIT_TRANSACT,
+  lightweight status) and M5 `/mortality` (RABBIT_HEALTH_LOG, authoritative
+  clinical record). No deviation from spec.
+
 ## Deviations / decisions
 
 - **DEC-1:** The `rabbit` species profile already existed (Migration 007 seeded it

@@ -128,8 +128,11 @@ from app.models.rabbit import (
     RabbitDocument,
     RabbitEvent,
     RabbitFeedRecord,
+    RabbitHealthRecord,
     RabbitLitter,
     RabbitMedia,
+    RabbitMortality,
+    RabbitVaccination,
     RabbitWeight,
     RabbitRabbitry,
     RabbitRoom,
@@ -294,6 +297,10 @@ __all__ = [
     # Rabbit Growth, Weight & Feed (Module 17 Milestone 4, Migration 068)
     "RabbitWeight",
     "RabbitFeedRecord",
+    # Rabbit Health, Vaccination & Mortality (Module 17 Milestone 5, Migration 069)
+    "RabbitHealthRecord",
+    "RabbitVaccination",
+    "RabbitMortality",
     # Growth Planner (Platform, Migration 065)
     "GrowthPlan",
     "GrowthGoal",

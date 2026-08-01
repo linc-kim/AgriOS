@@ -122,6 +122,20 @@ DEFAULT_GESTATION_DAYS = 31
 # module — these are the feeding-log's own attributes only (ledger CON-M4-1).
 FEED_UNIT_VALUES = ("kg", "g")
 
+# Health records (Spec Part 3 §11, Part 4 §9)
+HEALTH_EVENT_TYPE_VALUES = (
+    "observation", "exam", "illness", "injury", "treatment", "medication",
+    "deworming", "surgery", "vet_visit", "recovery", "quarantine", "note",
+)
+HEALTH_STATUS_VALUES = ("recorded", "open", "ongoing", "resolved")
+HEALTH_SEVERITY_VALUES = ("info", "mild", "moderate", "severe", "critical")
+
+# Mortality (Spec Part 3 §16)
+MORTALITY_CAUSE_VALUES = (
+    "disease", "injury", "predation", "environmental", "congenital", "digestive",
+    "respiratory", "heat_stress", "starvation", "unknown", "other",
+)
+
 
 # ── Catalog: Breed (Spec Part 3 §5) ───────────────────────────────────────────
 
@@ -699,3 +713,102 @@ class RabbitFeedRecord(AGRIOSBase):
 
     def __repr__(self) -> str:
         return f"<RabbitFeedRecord rabbit={self.rabbit_id} cage={self.cage_id} {self.quantity_kg}kg>"
+
+
+# ── Health records (Spec Part 3 §11) ────────────────────────────────────────────
+
+class RabbitHealthRecord(AGRIOSBase):
+    """A chronological clinical event for a rabbit (Spec Part 3 §11): illness,
+    injury, treatment, medication, surgery, vet visit, recovery, quarantine…
+    ``diagnosis`` holds a **recorded veterinary input only** — it is never
+    inferred by the platform (frozen §4.4). Records remain permanently attached
+    to the rabbit and are ordered chronologically."""
+
+    __tablename__ = "rabbit_health_record"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    rabbit_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rabbit.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    event_type: Mapped[str] = mapped_column(String(30), nullable=False, default="observation")
+    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="recorded")
+    severity: Mapped[str] = mapped_column(String(20), nullable=False, default="info")
+    symptoms: Mapped[str | None] = mapped_column(Text, nullable=True)
+    diagnosis: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    treatment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    medication: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    veterinarian: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    recovery_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    occurred_on: Mapped[date] = mapped_column(Date, nullable=False)
+    next_due_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<RabbitHealthRecord rabbit={self.rabbit_id} type={self.event_type} status={self.status}>"
+
+
+# ── Vaccinations (Spec Part 3 §12; reuses platform Reminder engine) ─────────────
+
+class RabbitVaccination(AGRIOSBase):
+    """A vaccination record (Spec Part 3 §12). Follow-ups reuse the platform
+    Reminder engine — ``reminder_id`` is a SOFT reference to the created reminder
+    (no FK; ledger CON-M5-1)."""
+
+    __tablename__ = "rabbit_vaccination"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    rabbit_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rabbit.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    vaccine: Mapped[str] = mapped_column(String(150), nullable=False)
+    batch_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    administered_on: Mapped[date] = mapped_column(Date, nullable=False)
+    next_due_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    administrator: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    reminder_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<RabbitVaccination rabbit={self.rabbit_id} {self.vaccine!r} on {self.administered_on}>"
+
+
+# ── Mortality (Spec Part 3 §16; immutable, one per rabbit) ──────────────────────
+
+class RabbitMortality(AGRIOSBase):
+    """An immutable death record (Spec Part 3 §16). Recording mortality transitions
+    the rabbit to ``deceased``. Mortality analytics (rates, trends, cause
+    breakdown) are computed by the deterministic engine — never stored."""
+
+    __tablename__ = "rabbit_mortality"
+    __table_args__ = (
+        UniqueConstraint("rabbit_id", name="uq_rabbit_mortality_rabbit"),
+    )
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    rabbit_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rabbit.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    occurred_on: Mapped[date] = mapped_column(Date, nullable=False)
+    age_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cause: Mapped[str] = mapped_column(String(30), nullable=False, default="unknown")
+    suspected_cause: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    postmortem_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<RabbitMortality rabbit={self.rabbit_id} cause={self.cause} on {self.occurred_on}>"

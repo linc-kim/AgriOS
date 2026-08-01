@@ -630,3 +630,87 @@ class FeedRecordResponse(TimestampedSchema):
     currency: str | None
     supplier: str | None
     notes: str | None
+
+
+# ── Health records (Spec Part 3 §11) ────────────────────────────────────────────
+
+class HealthRecordCreate(AGRIOSSchema):
+    event_type: str = Field("observation")
+    title: str | None = Field(None, max_length=255)
+    status: str = Field("recorded")
+    severity: str = Field("info")
+    symptoms: str | None = None
+    diagnosis: str | None = Field(None, max_length=255)
+    treatment: str | None = None
+    medication: str | None = Field(None, max_length=255)
+    veterinarian: str | None = Field(None, max_length=200)
+    recovery_status: str | None = Field(None, max_length=30)
+    occurred_on: date
+    next_due_on: date | None = None
+    notes: str | None = None
+
+    _et = field_validator("event_type")(_one_of("event_type", rb.HEALTH_EVENT_TYPE_VALUES))
+    _st = field_validator("status")(_one_of("status", rb.HEALTH_STATUS_VALUES))
+    _sv = field_validator("severity")(_one_of("severity", rb.HEALTH_SEVERITY_VALUES))
+
+
+class HealthRecordResponse(TimestampedSchema):
+    farm_id: UUID
+    rabbit_id: UUID
+    event_type: str
+    title: str | None
+    status: str
+    severity: str
+    symptoms: str | None
+    diagnosis: str | None
+    treatment: str | None
+    medication: str | None
+    veterinarian: str | None
+    recovery_status: str | None
+    occurred_on: date
+    next_due_on: date | None
+    notes: str | None
+
+
+# ── Vaccinations (Spec Part 3 §12) ──────────────────────────────────────────────
+
+class VaccinationCreate(AGRIOSSchema):
+    vaccine: str = Field(..., min_length=1, max_length=150)
+    batch_number: str | None = Field(None, max_length=100)
+    administered_on: date
+    next_due_on: date | None = None
+    administrator: str | None = Field(None, max_length=200)
+    notes: str | None = None
+
+
+class VaccinationResponse(TimestampedSchema):
+    farm_id: UUID
+    rabbit_id: UUID
+    vaccine: str
+    batch_number: str | None
+    administered_on: date
+    next_due_on: date | None
+    administrator: str | None
+    reminder_id: UUID | None
+    notes: str | None
+
+
+# ── Mortality (Spec Part 3 §16) ─────────────────────────────────────────────────
+
+class MortalityCreate(AGRIOSSchema):
+    occurred_on: date
+    cause: str = Field("unknown")
+    suspected_cause: str | None = Field(None, max_length=255)
+    postmortem_notes: str | None = None
+
+    _c = field_validator("cause")(_one_of("cause", rb.MORTALITY_CAUSE_VALUES))
+
+
+class MortalityResponse(TimestampedSchema):
+    farm_id: UUID
+    rabbit_id: UUID
+    occurred_on: date
+    age_days: int | None
+    cause: str
+    suspected_cause: str | None
+    postmortem_notes: str | None
