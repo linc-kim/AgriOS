@@ -3,6 +3,8 @@
 Canonical, per-milestone record of what was built, what was reused, and what was
 deferred. Maintained alongside implementation (GMIS §8; Spec Part 10 §15).
 
+> Architecture / API / integration reference: [`MODULE_17_RABBIT_HANDOFF.md`](./MODULE_17_RABBIT_HANDOFF.md).
+
 - **Spec:** `Rabbit_module_onlinenotepad.io.txt` (Parts 1–10), the business contract.
 - **Standard:** `GREENA_MODULE_IMPLEMENTATION_STANDARD.md` (GMIS).
 - **Aggregate root:** the individual **rabbit** (Spec Part 3 §4) — closest template
@@ -562,3 +564,34 @@ green; browser-verified end-to-end. Remaining: M12 docs/handoffs/audit.
   as an inactive "Future module"). Milestone 1 **activates** it in-place rather
   than inserting a new row — avoids a `species_key` unique-constraint violation
   and keeps the row owned by its originating migration.
+- **DEC-2:** Two death paths kept intentionally (see CON-M5-4) — not a deviation.
+- **DEC-3:** Front-end RBAC is backend-enforced only (403 + error states), matching
+  the Aviculture/BSF convention. See [`MODULE_17_RABBIT_HANDOFF.md`](./MODULE_17_RABBIT_HANDOFF.md) §13.
+
+### Milestone 12 — Documentation — ✅ DONE (local, unpushed)
+
+- This ledger finalized (per-milestone contracts, decisions, deviations).
+- **[`MODULE_17_RABBIT_HANDOFF.md`](./MODULE_17_RABBIT_HANDOFF.md)** created — the
+  canonical architectural handoff: architecture, migrations, models, engines,
+  services, endpoints, frontend structure, API inventory, integration contracts,
+  reusable platform capabilities, extension guide, known limitations, statistics,
+  verification summary. Both documents are cross-linked.
+
+## Final completion summary
+
+**Module 17 Rabbit Management — feature-complete (M1–M12), local on `phase-2-auth`, UNPUSHED.**
+
+- **Backend (M1–M10):** 5 migrations (066–070, head), 19 models, 10 pure engines
+  (+ reused pedigree/growth-planner/AI/mission engines), 10 services, 89 API
+  operations across 69 paths, 27 `RABBIT_*` permissions. **170 tests** (97 unit +
+  73 integration) pass; regression green (avi/bsf/mission/finance/inventory/
+  reminders); ruff clean; migrations round-trip.
+- **Frontend (M11):** 12 screens + 9 API modules; `type-check` + `vite build` clean;
+  every screen browser-verified end-to-end with zero console errors.
+- **Docs (M12):** ledger + handoff, cross-linked.
+- **Reuse-first:** no platform capability duplicated — Finance, Inventory, Reminders/
+  Notifications, Growth Planner, Pedigree engine, ARIA/AI router, Mission Control,
+  Audit/Timeline/Files all reused via documented contracts (§9 of the handoff).
+- **Honesty framework preserved** throughout; deterministic engines own all
+  calculations; ARIA/Mission are read-only and never diagnose.
+- **Not pushed, not deployed** — awaiting explicit deployment approval.
