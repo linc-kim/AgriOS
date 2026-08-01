@@ -476,6 +476,41 @@ template. Frozen decisions apply (see [[greena-frozen-decisions]]): **AR-01**
   context snapshot, RBAC: worker no AI_QUERY, viewer context-not-ask). 11 pass with
   BSF-ARIA/mission regression; full rabbit suite 164 pass; ruff clean; app boots.
 
+### Milestone 10 — Mission Control — 🚧 CONTRACTS (recorded before coding)
+
+Verified: Mission Control *orchestrates*, owns no domain logic. Each module ships a
+PURE `*_intelligence.build_briefing(dashboard, forecast, growth, bottlenecks)` that
+reads already-computed deterministic outputs into severity-ranked `Insight`s citing
+`Evidence`; `mission_control_data.<module>_briefing` gathers the inputs; the mission
+endpoint returns the shared `InsightOut`/`InsightEvidenceOut` schemas. BSF/avi template.
+
+- **CON-M10-1 — Reuse Mission Control; recompute nothing.** `rabbit_intelligence`
+  reads the M7 executive dashboard (which already composes the engines) + growth
+  progress + bottlenecks; no figure is recomputed. Same Evidence/Insight/Briefing
+  shape as bsf/avi so Mission Control consumes every module identically.
+- **CON-M10-2 — Orchestration in `mission_control_data.rabbit_briefing`**; endpoint
+  `GET /mission/rabbit/briefing` (`AI_INSIGHT_VIEW`) reusing `InsightOut`/
+  `InsightEvidenceOut`; new `RabbitBriefingOut` (same shape). No new engine math,
+  no migration. Health insights are patterns with a disclaimer (§4.4); growth
+  insights never mutate the plan.
+
+### Milestone 10 — Mission Control — ✅ DONE (local, unpushed) — BACKEND COMPLETE
+
+- **Spec sections:** Part 6 §13-15 (Mission Control), Part 7 §11 (bottleneck
+  prioritisation), Part 9 §14 (Mission Control verification).
+- **No migration.** PURE `rabbit_intelligence.build_briefing` (Evidence/Insight/
+  Briefing, same shape as bsf/avi) reads the M7 dashboard + growth + bottlenecks
+  into severity-ranked insights (risk/reproduction/health/finance/housing/growth);
+  recomputes nothing. Orchestration `mission_control_data.rabbit_briefing`.
+  Endpoint `GET /mission/rabbit/briefing` (`AI_INSIGHT_VIEW`) with new
+  `RabbitBriefingOut` reusing `InsightOut`/`InsightEvidenceOut`.
+- **Tests:** 3 engine unit + 3 integration (structure, viewer-read, worker-403).
+  16 pass with Aviculture-mission + BSF-ARIA/mission regression; ruff clean; boots.
+
+**★ RABBIT BACKEND COMPLETE (M1–M10):** migrations 066–070, 11 pure/domain engines
+(+ reused platform pedigree/growth-planner/AI/mission engines), 89 API routes,
+~285 rabbit tests + regression green. Remaining: M11 Frontend, M12 docs/audit.
+
 ## Deviations / decisions
 
 - **DEC-1:** The `rabbit` species profile already existed (Migration 007 seeded it

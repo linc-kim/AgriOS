@@ -46,6 +46,7 @@ from app.schemas.mission import (
     PhaseOut,
     PlanSectionOut,
     ProgressOut,
+    RabbitBriefingOut,
     ReplanOut,
     ReplanRequest,
     ReportOut,
@@ -179,6 +180,33 @@ async def bsf_briefing(
     farm, _m = access
     b = await mcd.bsf_briefing(db, farm)
     return SuccessResponse(data=BsfBriefingOut(
+        headline=b.headline, summaries=b.summaries, priorities=b.priorities, counts=b.counts,
+        insights=[
+            InsightOut(category=i.category, severity=i.severity, title=i.title, detail=i.detail,
+                       confidence=i.confidence, limitations=i.limitations,
+                       evidence=[InsightEvidenceOut(source=e.source, value=e.value, fact_type=e.fact_type)
+                                 for e in i.evidence])
+            for i in b.insights
+        ],
+    ))
+
+
+@router.get("/rabbit/briefing", response_model=SuccessResponse[RabbitBriefingOut],
+            summary="Strategic rabbit briefing — Mission Control over the deterministic engines")
+async def rabbit_briefing(
+    farm_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    access=Depends(require_farm_access(_READ)),
+    _: User = Depends(require_permission(Permission.AI_INSIGHT_VIEW)),
+):
+    """Mission Control orchestrates the rabbit reproduction/health/finance/housing/
+    forecast/bottleneck engines and the Growth Planner's recorded progress into one
+    strategic briefing — risks, financial issues and growth deviations — every
+    insight citing recorded/calculated evidence. It owns no business logic; the
+    deterministic engines and Growth Planner remain the sources of truth."""
+    farm, _m = access
+    b = await mcd.rabbit_briefing(db, farm)
+    return SuccessResponse(data=RabbitBriefingOut(
         headline=b.headline, summaries=b.summaries, priorities=b.priorities, counts=b.counts,
         insights=[
             InsightOut(category=i.category, severity=i.severity, title=i.title, detail=i.detail,

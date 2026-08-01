@@ -352,3 +352,14 @@ class BsfBriefingOut(AGRIOSSchema):
     insights: list[InsightOut]
     priorities: list[str]
     counts: dict
+
+
+class RabbitBriefingOut(AGRIOSSchema):
+    """Mission Control's strategic rabbit briefing — same shape as the aviculture/
+    BSF ones so Mission Control consumes every module's briefing identically."""
+
+    headline: str
+    summaries: dict
+    insights: list[InsightOut]
+    priorities: list[str]
+    counts: dict

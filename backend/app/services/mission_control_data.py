@@ -37,6 +37,8 @@ from app.services import (
     bsf_reporting_service,
     growth_planner_service,
     mission_control as mc,
+    rabbit_intelligence,
+    rabbit_reporting_service,
 )
 
 
@@ -435,6 +437,30 @@ async def bsf_briefing(db: AsyncSession, farm: Farm) -> bsf_intelligence.Briefin
         growth = await growth_planner_service.compute_progress(db, farm.id, "bsf", plan)
 
     return bsf_intelligence.build_briefing(
+        dashboard=dashboard, forecast=forecast, growth=growth, bottlenecks=bottlenecks)
+
+
+async def rabbit_briefing(db: AsyncSession, farm: Farm) -> rabbit_intelligence.Briefing:
+    """Mission Control's strategic briefing on rabbit management.
+
+    Mission Control *orchestrates* — it owns no rabbit business logic. It gathers
+    the rabbit domain's already-computed deterministic outputs (the executive
+    dashboard, which itself composes the reproduction/health/finance/housing
+    summaries plus the forecast and bottleneck engines) and the Growth Planner's
+    recorded progress, and hands them to the pure ``rabbit_intelligence`` engine.
+    No rabbit figure is recomputed; the deterministic engines and the Growth
+    Planner remain the sources of truth.
+    """
+    dashboard = await rabbit_reporting_service.executive_dashboard(db, farm.id)
+    forecast = dashboard.get("forecast", {})
+    bottlenecks = dashboard.get("bottlenecks", [])
+
+    growth = None
+    plan = await growth_planner_service.get_primary_plan(db, farm.id, "rabbit")
+    if plan is not None:
+        growth = await growth_planner_service.compute_progress(db, farm.id, "rabbit", plan)
+
+    return rabbit_intelligence.build_briefing(
         dashboard=dashboard, forecast=forecast, growth=growth, bottlenecks=bottlenecks)
 
 
