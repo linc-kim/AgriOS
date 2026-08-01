@@ -758,3 +758,22 @@ class OperationalExpenseCreate(AGRIOSSchema):
     amount: Decimal = Field(..., gt=0)
     description: str = Field(..., min_length=1, max_length=500)
     expense_date: date | None = None
+
+
+# ── ARIA (Spec Part 6) ──────────────────────────────────────────────────────────
+
+class AriaAsk(AGRIOSSchema):
+    question: str = Field(..., min_length=1, max_length=1000)
+
+
+class AriaAnswer(AGRIOSSchema):
+    """ARIA's answer — always honesty-labelled and source-referenced. ARIA
+    explains/recommends; it is never the source of truth and never edits plans."""
+
+    provider: str
+    engine: str
+    fact_type: str      # recorded | calculated | forecast | ai_suggestion | unavailable
+    answer: str
+    sources: list[str]
+    confidence: str
+    ai_enabled: bool

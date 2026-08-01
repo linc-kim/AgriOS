@@ -55,6 +55,7 @@ from app.api.v1.endpoints import rabbit_health
 from app.api.v1.endpoints import rabbit_finance
 from app.api.v1.endpoints import rabbit_reports
 from app.api.v1.endpoints import rabbit_growth_planner
+from app.api.v1.endpoints import rabbit_aria
 
 api_router = APIRouter()
 
@@ -153,3 +154,4 @@ api_router.include_router(rabbit_health.router)
 api_router.include_router(rabbit_finance.router)
 api_router.include_router(rabbit_reports.router)
 api_router.include_router(rabbit_growth_planner.router)
+api_router.include_router(rabbit_aria.router)

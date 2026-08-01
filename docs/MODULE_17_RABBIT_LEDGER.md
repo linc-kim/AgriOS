@@ -435,6 +435,47 @@ provider via `register_metric_provider(module, fn)` that returns the *actual* fo
   unknown, revision versioning, RBAC). 12 pass with BSF-growth regression; ruff
   clean; app boots. No change to the platform planner.
 
+### Milestone 9 — ARIA — 🚧 CONTRACTS (recorded before coding)
+
+Verified: ARIA reuses the platform AI router `ai_provider.complete` (offline-
+grounded) + `ai_settings_service` (enablement, usage log). BSF/Aviculture are the
+template. Frozen decisions apply (see [[greena-frozen-decisions]]): **AR-01**
+(LLM sees only a bounded context snapshot, never the DB), **AR-04** (≤150 words),
+**§4.4** (no disease diagnosis), **PD-07/08** (read-only Q&A).
+
+- **CON-M9-1 — Reuse the platform AI router; no parallel AI.** ARIA reuses
+  `ai_provider` + `ai_settings_service`. AI permissions reuse the platform
+  `AI_QUERY` (ask) / `AI_INSIGHT_VIEW` (context) — no rabbit-specific AI perms
+  (same as avi/bsf). The poultry `aria_router` / frozen system prompt (AR-05) are
+  untouched.
+- **CON-M9-2 — Deterministic-first.** Factual questions are answered directly from
+  recorded facts / deterministic engine outputs (the M7 dashboard + growth
+  progress) with **no LLM**; only open explanation routes to the provider, always
+  with a grounded offline fallback. `compile_context` is the AR-01 bounded snapshot
+  (composes existing engines, recomputes nothing). Every answer carries an honesty
+  `fact_type` and cites `sources`.
+- **CON-M9-3 — §4.4 + read-only.** ARIA never diagnoses (mortality/health answers
+  are patterns with a disclaimer) and never mutates a plan or record.
+
+### Milestone 9 — ARIA — ✅ DONE (local, unpushed)
+
+- **Spec sections:** Part 6 §4-8 (ARIA context, conversations, educational, what-if
+  framing), §16-17 (honesty framework, recommendation format).
+- **No migration.** Reuses the platform AI router (`ai_provider.complete`,
+  offline-grounded) + `ai_settings_service`; no parallel AI, no rabbit AI perms.
+- **`rabbit_aria_service.py`**: `compile_context` (AR-01 bounded snapshot composing
+  the M7 dashboard + growth progress; recomputes nothing), deterministic-first
+  `_factual_answer` (herd/does/bucks, litters, revenue, profit, mortality[pattern
+  +disclaimer], housing, bottleneck, forecast, growth) with NO LLM; open questions
+  route to `ai_provider` with a grounded offline fallback and usage logging.
+  Honesty `fact_type` + `sources` on every answer; ≤150-word prompt (AR-04).
+- **Endpoints** `rabbit_aria.py` = **2 routes** (`/aria/ask` `AI_QUERY`,
+  `/aria/context` `AI_INSIGHT_VIEW`); 88 rabbit routes total. Poultry `aria_router`
+  + frozen system prompt (AR-05) untouched.
+- **Tests:** 5 integration (deterministic herd answer, mortality-as-pattern,
+  context snapshot, RBAC: worker no AI_QUERY, viewer context-not-ask). 11 pass with
+  BSF-ARIA/mission regression; full rabbit suite 164 pass; ruff clean; app boots.
+
 ## Deviations / decisions
 
 - **DEC-1:** The `rabbit` species profile already existed (Migration 007 seeded it
