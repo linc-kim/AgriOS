@@ -67,6 +67,32 @@ deferred. Maintained alongside implementation (GMIS §8; Spec Part 10 §15).
   round-trips, single head 066. Ruff clean on changed files (pre-existing
   `permissions.py` F401 left untouched). Regression: rabbit+bsf foundation = 32 pass.
 
+### Milestone 2 — Registry & Housing (GMIS Milestone B/C) — ✅ DONE (local, unpushed)
+
+- **Pure engine** `app/services/rabbit_housing_engine.py` (Housing Capacity):
+  `compute_occupancy` (occupied recorded, available/utilization calculated,
+  unknown capacity → unknown never guessed), `is_overcrowded` (only vs recorded
+  capacity), `rollup` (hierarchy aggregate; excludes unknown-capacity children
+  from the total and counts them). Honesty-labelled throughout. 8 unit tests.
+- **Service** `app/services/rabbit_service.py` — catalog (breeds org-level,
+  bloodlines farm-level), rabbit register (auto `RB-#####`, duplicate ear-tag
+  guard), list (filters + pagination), detail (+ parent refs), update (self-parent
+  guard; full pedigree-cycle check deferred to the Breeding engine), move between
+  cages, archive/restore, transfer/sell/death (terminal guards), timeline, media,
+  documents. Every mutation appends a `rabbit_event` + audit-log entry.
+- **Service** `app/services/rabbit_housing_service.py` — CRUD for all 5 levels
+  with parent validation; cage occupancy derived on read via the engine;
+  `housing_summary` farm roll-up with overcrowded-cage list (single grouped
+  occupancy query — no N+1).
+- **Schemas** `app/schemas/rabbit.py`; **endpoints** `app/api/v1/endpoints/
+  rabbit.py` (registry+catalog) + `rabbit_housing.py` (hierarchy+occupancy+summary)
+  — **38 routes** under `/farms/{id}/rabbit` (registered in the API router).
+- **Tests:** 8 engine unit + 22 integration (registry lifecycle/RBAC/isolation +
+  housing hierarchy/occupancy/overcrowding/RBAC). Ruff clean; aviculture+BSF
+  regression green.
+- **Contract:** sale/transfer/death record herd facts + timeline only; revenue
+  posting to Finance is deferred to the Sales/Finance milestone (mirrors avi/bsf).
+
 ## Deviations / decisions
 
 - **DEC-1:** The `rabbit` species profile already existed (Migration 007 seeded it

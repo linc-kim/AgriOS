@@ -47,6 +47,8 @@ from app.api.v1.endpoints import bsf_finance
 from app.api.v1.endpoints import bsf_reports
 from app.api.v1.endpoints import bsf_growth
 from app.api.v1.endpoints import bsf_aria
+from app.api.v1.endpoints import rabbit
+from app.api.v1.endpoints import rabbit_housing
 
 api_router = APIRouter()
 
@@ -135,3 +137,7 @@ api_router.include_router(bsf_finance.router)
 api_router.include_router(bsf_reports.router)
 api_router.include_router(bsf_growth.router)
 api_router.include_router(bsf_aria.router)
+
+# ── Module 17 (Rabbit Management) ─────────────────────────────────────────────
+api_router.include_router(rabbit.router)
+api_router.include_router(rabbit_housing.router)
