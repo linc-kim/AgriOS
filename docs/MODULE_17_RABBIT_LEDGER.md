@@ -399,6 +399,42 @@ services already expose `reproduction_summary`, `health_summary`, `finance_summa
   rabbit unit + 75 integration incl. Aviculture-finance/reports + BSF-reports
   regression); ruff clean; app boots.
 
+### Milestone 8 — Growth Planner — 🚧 CONTRACTS (recorded before coding)
+
+Verified: the Growth Planner is a **platform-level, cross-module** capability
+(`growth_planner_service`, migration 065 tables `growth_plan/goal/milestone/
+plan_revision`). Modules do NOT build their own planner — they register a metric
+provider via `register_metric_provider(module, fn)` that returns the *actual* for a
+`metric_key` from recorded facts (unknown key → `None` → the engine reports
+`unknown`, never invented). BSF is the exact template.
+
+- **CON-M8-1 — Reuse the platform Growth Planner; no module planner, no migration.**
+  Register a `rabbit` metric provider (`rabbit_growth_provider`) reading recorded
+  facts only. No new engine/table — the planner engine + versioning are reused.
+- **CON-M8-2 — Endpoints reuse platform schemas** (`app.schemas.growth`) and the
+  `growth_planner_service` orchestration; gated `RABBIT_GROWTH_VIEW` /
+  `RABBIT_GROWTH_EDIT`. Route prefix `/rabbit/growth` (distinct from M4's
+  `/rabbits/{id}/growth` weight-analysis path).
+- **Metric keys (recorded actuals):** `herd_size` (active rabbits), `breeding_does`
+  (active does), `monthly_kits` / `total_kits` (live kits from litters),
+  `monthly_litters`, `monthly_revenue` / `total_revenue` (recorded sale facts).
+
+### Milestone 8 — Growth Planner — ✅ DONE (local, unpushed)
+
+- **Spec sections:** Part 1 §11/§14, Part 5 §13, Part 6 §9-12, Part 7 §10.
+- **No migration, no module planner, no new engine** — reuses the platform
+  `growth_planner_service` + migration-065 tables + the planner engine/versioning.
+- **`rabbit_growth_provider.py`**: registers a `rabbit` metric provider returning
+  actuals from recorded facts (herd_size, breeding_does, monthly/total kits,
+  monthly litters, monthly/total revenue); unknown key → `None` → planner reports
+  `unknown`.
+- **Endpoints** `rabbit_growth_planner.py` = **7 routes** under `/rabbit/growth`
+  (86 rabbit routes total), reusing `app.schemas.growth`; `RABBIT_GROWTH_VIEW` /
+  `RABBIT_GROWTH_EDIT`.
+- **Tests:** 7 integration (planned-vs-actual from recorded facts, unknown-key →
+  unknown, revision versioning, RBAC). 12 pass with BSF-growth regression; ruff
+  clean; app boots. No change to the platform planner.
+
 ## Deviations / decisions
 
 - **DEC-1:** The `rabbit` species profile already existed (Migration 007 seeded it
