@@ -405,6 +405,99 @@ async def release_scheduler_lock() -> None:
         _lock_conn = None
 
 
+# ── Operations Planner jobs (Platform Module 5) ───────────────────────────────
+# These extend the existing APScheduler registry (AD-13) — no new queue. They
+# recompute recurring work from routine definitions, so the day's tasks, the
+# operational calendar, compliance alerts and optimisation recommendations stay
+# current. All reuse the Operations Planner services and are fire-and-forget.
+
+async def _farms_with_active_routines(db):
+    """(farm, owner_user) for every farm that has at least one active routine."""
+    from sqlalchemy import select
+    from app.models.auth import User
+    from app.models.farm import Farm
+    from app.models.ops_planner import OpsRoutine
+
+    farm_ids = (await db.execute(select(OpsRoutine.farm_id).where(
+        OpsRoutine.is_active.is_(True), OpsRoutine.deleted_at.is_(None)).distinct())).scalars().all()
+    out = []
+    for fid in farm_ids:
+        farm = (await db.execute(select(Farm).where(
+            Farm.id == fid, Farm.deleted_at.is_(None)))).scalar_one_or_none()
+        if farm is None:
+            continue
+        owner = (await db.execute(select(User).where(User.id == farm.owner_id))).scalar_one_or_none()
+        if owner is not None:
+            out.append((farm, owner))
+    return out
+
+
+async def job_ops_materialize_tasks() -> None:
+    """05:00 EAT: materialise the next 7 days of routine occurrences as reminders
+    (idempotent) so today's/this week's operational tasks always exist."""
+    logger.info("SCHEDULER: Running ops_materialize_tasks job")
+    try:
+        from app.database import AsyncSessionLocal
+        from app.services import ops_scheduler_service
+
+        start = date.today()
+        end = start + timedelta(days=7)
+        total = 0
+        async with AsyncSessionLocal() as db:
+            for farm, owner in await _farms_with_active_routines(db):
+                res = await ops_scheduler_service.materialize_tasks(db, farm.id, None, start, end, owner)
+                total += res["created"]
+        logger.info("SCHEDULER: ops_materialize_tasks created %s reminders", total)
+    except Exception as e:
+        logger.error("SCHEDULER: ops_materialize_tasks failed: %s", e)
+
+
+async def job_ops_compliance_scan() -> None:
+    """07:00 EAT: scan recurring compliance requirements; notify the farm owner
+    when items are overdue (reuses the platform notification system)."""
+    logger.info("SCHEDULER: Running ops_compliance_scan job")
+    try:
+        from app.database import AsyncSessionLocal
+        from app.schemas.platform import NotificationCreate
+        from app.services import notification_service, ops_optimization_service
+
+        notified = 0
+        async with AsyncSessionLocal() as db:
+            for farm, owner in await _farms_with_active_routines(db):
+                report = await ops_optimization_service.compliance_report(db, farm.id)
+                overdue = [i for i in report["items"] if i["status"].get("value") == "overdue"]
+                if not overdue:
+                    continue
+                await notification_service.create_notification(db, NotificationCreate(
+                    farm_id=farm.id, user_id=owner.id, notification_type="ops_compliance",
+                    title=f"{len(overdue)} compliance task(s) overdue",
+                    body="; ".join(i.get("label") or i.get("key") for i in overdue[:5]),
+                    action_route="/operations/analytics", source="ops_planner"))
+                notified += 1
+        logger.info("SCHEDULER: ops_compliance_scan notified %s farm(s)", notified)
+    except Exception as e:
+        logger.error("SCHEDULER: ops_compliance_scan failed: %s", e)
+
+
+async def job_ops_optimization_analysis() -> None:
+    """Mondays 04:00 EAT: recompute advisory optimisation recommendations from
+    the week's recorded completion data (never auto-applied)."""
+    logger.info("SCHEDULER: Running ops_optimization_analysis job")
+    try:
+        from app.database import AsyncSessionLocal
+        from app.services import ops_optimization_service
+
+        created = 0
+        async with AsyncSessionLocal() as db:
+            for farm, owner in await _farms_with_active_routines(db):
+                recs = await ops_optimization_service.generate_recommendations(
+                    db, farm.id, None, owner, since=date.today() - timedelta(days=30))
+                created += len(recs)
+        logger.info("SCHEDULER: ops_optimization_analysis created %s recommendation(s)", created)
+    except Exception as e:
+        logger.error("SCHEDULER: ops_optimization_analysis failed: %s", e)
+
+
 def start_scheduler() -> AsyncIOScheduler:
     """
     Create, configure, and start the APScheduler instance.
@@ -475,8 +568,38 @@ def start_scheduler() -> AsyncIOScheduler:
         misfire_grace_time=3600,
     )
 
+    # 05:00 EAT — Operations Planner: materialise the next 7 days of routine tasks
+    scheduler.add_job(
+        job_ops_materialize_tasks,
+        CronTrigger(hour=5, minute=0, timezone="Africa/Nairobi"),
+        id="ops_materialize_tasks",
+        name="Operations Planner Task Materialisation",
+        replace_existing=True,
+        misfire_grace_time=1800,
+    )
+
+    # 07:00 EAT — Operations Planner: recurring-compliance overdue scan
+    scheduler.add_job(
+        job_ops_compliance_scan,
+        CronTrigger(hour=7, minute=0, timezone="Africa/Nairobi"),
+        id="ops_compliance_scan",
+        name="Operations Planner Compliance Scan",
+        replace_existing=True,
+        misfire_grace_time=1800,
+    )
+
+    # 04:00 EAT every Monday — Operations Planner: optimisation recommendations
+    scheduler.add_job(
+        job_ops_optimization_analysis,
+        CronTrigger(day_of_week="mon", hour=4, minute=0, timezone="Africa/Nairobi"),
+        id="ops_optimization_analysis",
+        name="Operations Planner Optimisation Analysis",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
     scheduler.start()
-    logger.info("APScheduler started — 6 jobs registered")
+    logger.info("APScheduler started — 9 jobs registered")
     return scheduler
 
 
