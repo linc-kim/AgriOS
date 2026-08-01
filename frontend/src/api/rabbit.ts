@@ -141,6 +141,12 @@ export async function getTimeline(farmId: string, rabbitId: string) {
   return data.data;
 }
 
+export async function moveRabbit(farmId: string, rabbitId: string, cageId: string | null, reason?: string) {
+  const { data } = await apiClient.post<APISuccess<Rabbit>>(
+    `${base(farmId)}/rabbits/${rabbitId}/move`, { cage_id: cageId, reason });
+  return data.data;
+}
+
 // ── Catalog & housing ─────────────────────────────────────────────────────────
 
 export async function listBreeds(farmId: string) {

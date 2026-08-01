@@ -91,6 +91,11 @@ const RabbitDashboardScreen = lazy(() => import("@/screens/rabbit/RabbitDashboar
 const RabbitReportsScreen = lazy(() => import("@/screens/rabbit/RabbitReportsScreen"));
 const RabbitAriaScreen = lazy(() => import("@/screens/rabbit/RabbitAriaScreen"));
 const RabbitMissionScreen = lazy(() => import("@/screens/rabbit/RabbitMissionScreen"));
+const RabbitBreedingScreen = lazy(() => import("@/screens/rabbit/RabbitBreedingScreen"));
+const RabbitHealthScreen = lazy(() => import("@/screens/rabbit/RabbitHealthScreen"));
+const RabbitHousingScreen = lazy(() => import("@/screens/rabbit/RabbitHousingScreen"));
+const RabbitGrowthScreen = lazy(() => import("@/screens/rabbit/RabbitGrowthScreen"));
+const RabbitGrowthPlannerScreen = lazy(() => import("@/screens/rabbit/RabbitGrowthPlannerScreen"));
 const AdminScreen = lazy(() => import("@/screens/admin/AdminScreen"));
 const ProductionScreen = lazy(() => import("@/screens/production/ProductionScreen"));
 
@@ -232,6 +237,11 @@ const router = createBrowserRouter([
           { path: "/bsf/mission", element: <BsfMissionScreen /> },
           { path: "/rabbit", element: <RabbitDirectoryScreen /> },
           { path: "/rabbit/dashboard", element: <RabbitDashboardScreen /> },
+          { path: "/rabbit/breeding", element: <RabbitBreedingScreen /> },
+          { path: "/rabbit/health", element: <RabbitHealthScreen /> },
+          { path: "/rabbit/housing", element: <RabbitHousingScreen /> },
+          { path: "/rabbit/growth", element: <RabbitGrowthScreen /> },
+          { path: "/rabbit/planner", element: <RabbitGrowthPlannerScreen /> },
           { path: "/rabbit/reports", element: <RabbitReportsScreen /> },
           { path: "/rabbit/aria", element: <RabbitAriaScreen /> },
           { path: "/rabbit/mission", element: <RabbitMissionScreen /> },

@@ -533,10 +533,28 @@ endpoint returns the shared `InsightOut`/`InsightEvidenceOut` schemas. BSF/avi t
   verified end-to-end (login demo@greenafarms.co → Directory empty state → register
   "Clover" → Profile → Dashboard live recorded facts → Mission briefing "operations
   on track"); zero console errors. Backend run with local PG (:5433) override.
-- **Remaining (increment 2):** write-heavy workspace screens — Breeding (cycle +
-  pedigree/compatibility), Health (records/vaccinations/mortality), Housing
-  (hierarchy + occupancy), Growth/Weight/Feed, Growth-Planner — plus their API
-  modules (`rabbitBreeding/Health/Finance/Growth` ts). Then M12 docs/handoffs/audit.
+- **Increment 2 (M11 COMPLETE) — workspace screens:**
+  - **API modules:** `rabbitBreeding.ts` (cycles/litters/pedigree/compatibility/
+    genetics), `rabbitHealth.ts` (health/vaccinations/mortality/summary),
+    `rabbitHousing.ts` (hierarchy/cages/occupancy/summary), `rabbitGrowth.ts`
+    (weights/growth analysis/feed/FCR), `rabbitGrowthPlanner.ts` (thin client over
+    the PLATFORM planner, module='rabbit'); `moveRabbit` added to `rabbit.ts`.
+  - **Screens** `src/screens/rabbit/*`: `RabbitBreedingScreen` (tabs: breedings
+    lifecycle, litters+weaning, compatibility checker, reproduction/genetics),
+    `RabbitHealthScreen` (summary + vaccinations + mortality + record modals),
+    `RabbitHousingScreen` (capacity roll-up + overcrowding + cages + add/move),
+    `RabbitGrowthScreen` (per-rabbit weight history + growth analysis + feed/FCR +
+    record), `RabbitGrowthPlannerScreen` (plans + planned-vs-actual progress).
+  - Subnav extended to all 10 sections; routes lazy-wired. Reuses shared
+    `FactBadge`/`LabelledValue`/`Button`/`Skeleton`/`Modal`; all calculations from
+    the backend; honesty labels rendered everywhere (verified UNKNOWN shows, not 0).
+  - **Verification:** `type-check` clean; `build` succeeds (built in 27s); browser-
+    verified every screen (login → Breeding/Health/Housing/Growth/Planner render;
+    Growth loads live "RB-00001 · Clover" with UNKNOWN honesty labels); **zero
+    console errors**. Backend unchanged this increment.
+
+**★ M11 FRONTEND COMPLETE:** 12 rabbit screens + 8 api modules; type-check + build
+green; browser-verified end-to-end. Remaining: M12 docs/handoffs/audit.
 
 ## Deviations / decisions
 

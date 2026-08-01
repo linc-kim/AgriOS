@@ -7,6 +7,11 @@ import { cn } from "@/lib/cn";
 const LINKS = [
   { to: "/rabbit", label: "Directory" },
   { to: "/rabbit/dashboard", label: "Dashboard" },
+  { to: "/rabbit/breeding", label: "Breeding" },
+  { to: "/rabbit/health", label: "Health" },
+  { to: "/rabbit/housing", label: "Housing" },
+  { to: "/rabbit/growth", label: "Growth" },
+  { to: "/rabbit/planner", label: "Planner" },
   { to: "/rabbit/reports", label: "Reports" },
   { to: "/rabbit/aria", label: "Ask ARIA" },
   { to: "/rabbit/mission", label: "Mission Control" },
