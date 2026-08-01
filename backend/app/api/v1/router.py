@@ -56,6 +56,7 @@ from app.api.v1.endpoints import rabbit_finance
 from app.api.v1.endpoints import rabbit_reports
 from app.api.v1.endpoints import rabbit_growth_planner
 from app.api.v1.endpoints import rabbit_aria
+from app.api.v1.endpoints import ops_planner
 
 api_router = APIRouter()
 
@@ -155,3 +156,5 @@ api_router.include_router(rabbit_finance.router)
 api_router.include_router(rabbit_reports.router)
 api_router.include_router(rabbit_growth_planner.router)
 api_router.include_router(rabbit_aria.router)
+# Operations Planner (Platform Module 5) — cross-module recurring-operations engine
+api_router.include_router(ops_planner.router)
