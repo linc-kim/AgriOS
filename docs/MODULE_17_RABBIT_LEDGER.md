@@ -511,6 +511,33 @@ endpoint returns the shared `InsightOut`/`InsightEvidenceOut` schemas. BSF/avi t
 (+ reused platform pedigree/growth-planner/AI/mission engines), 89 API routes,
 ~285 rabbit tests + regression green. Remaining: M11 Frontend, M12 docs/audit.
 
+### Milestone 11 — Frontend — 🚧 IN PROGRESS (increment 1 done, local, unpushed)
+
+- **Spec sections:** Part 5 (UX/workspaces), Part 9 §7-10 (accessibility/responsive/
+  theme). Built on the existing Greena frontend architecture; BSF screens as template.
+- **Increment 1 (this commit) — executive/registry/intelligence slice:**
+  - **API modules** (presentation-only, no recomputation): `src/api/rabbit.ts`
+    (registry/catalog/housing + honesty `Figure` type + enum vocab), `rabbitReports.ts`
+    (dashboard/forecast/bottlenecks/summary/CSV), `rabbitAria.ts`, `rabbitMission.ts`.
+  - **Screens** `src/screens/rabbit/*`: `RabbitSubnav`, `RabbitDirectoryScreen`
+    (list/filter/register modal), `RabbitProfileScreen` (identity + timeline),
+    `RabbitDashboardScreen` (population/reproduction/finance tiles + forecast),
+    `RabbitReportsScreen` (forecast cards + bottlenecks + CSV export),
+    `RabbitAriaScreen` (deterministic-first Q&A), `RabbitMissionScreen` (briefing).
+  - Reuses shared `FactBadge`/`LabelledValue`, `Button`/`Skeleton`/`Modal`,
+    `useWorkspace`, TanStack Query, axios `apiClient`. Honesty labels rendered via
+    `FactBadge` everywhere; forecasts shown with method/assumptions/confidence.
+  - Routes + lazy imports in `src/routes/index.tsx`; no client-side RBAC (backend
+    403 + error states). No backend logic duplicated.
+- **Verification:** `npm run type-check` clean; `npm run build` succeeds; browser-
+  verified end-to-end (login demo@greenafarms.co → Directory empty state → register
+  "Clover" → Profile → Dashboard live recorded facts → Mission briefing "operations
+  on track"); zero console errors. Backend run with local PG (:5433) override.
+- **Remaining (increment 2):** write-heavy workspace screens — Breeding (cycle +
+  pedigree/compatibility), Health (records/vaccinations/mortality), Housing
+  (hierarchy + occupancy), Growth/Weight/Feed, Growth-Planner — plus their API
+  modules (`rabbitBreeding/Health/Finance/Growth` ts). Then M12 docs/handoffs/audit.
+
 ## Deviations / decisions
 
 - **DEC-1:** The `rabbit` species profile already existed (Migration 007 seeded it
