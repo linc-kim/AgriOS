@@ -553,3 +553,82 @@ class SwineDocument(AGRIOSBase):
     )
 
     pig: Mapped["SwinePig"] = relationship(back_populates="documents", lazy="noload")
+
+
+# ── Breeding cycle (Swine Doc 2 §7, Doc 3 §7-9) — Milestone 3 ───────────────────
+# Natural mating and artificial insemination share ONE cycle table, distinguished
+# by ``method`` (the AI workspace is the ``method='artificial'`` slice). Pregnancy
+# confirmation, expected farrowing and risk are tracked inline on the same row — the
+# Pregnancy workspace is the ``status='pregnant'`` slice. Embryo transfer is
+# schema-ready but deferred. Mirrors the Small Ruminant single-cycle design.
+BREEDING_METHOD_VALUES = ("natural", "artificial", "embryo_transfer")
+BREEDING_STATUS_VALUES = (
+    "planned", "serviced", "pregnant", "not_pregnant", "farrowed", "failed", "closed", "cancelled",
+)
+PREGNANCY_RESULT_VALUES = ("unknown", "pregnant", "not_pregnant")
+# How a pregnancy was confirmed (Swine Doc 3 §9). ``non_return`` = no return to heat.
+PREGNANCY_CHECK_METHOD_VALUES = (
+    "palpation", "ultrasound", "blood_test", "non_return", "visual", "other",
+)
+PREGNANCY_RISK_VALUES = ("low", "moderate", "high", "unknown")
+BREEDING_OUTCOME_VALUES = ("successful", "failed", "aborted", "reabsorbed", "unknown")
+
+
+class SwineBreeding(AGRIOSBase):
+    """A single breeding cycle: service → pregnancy check → farrowing (Swine Doc 2 §7).
+
+    ``method`` distinguishes natural mating from artificial insemination; for AI the
+    on-farm ``sire_id`` may be NULL and the semen source/batch/technician are
+    recorded instead (traceable, Swine Doc 3 §8). Repeat services link back via
+    ``repeat_of_id``. Dam/sire use SET NULL so breeding history survives a pig's
+    soft-deletion. ``planned_farrowing_date`` is a FORECAST derived from the service
+    date and the species/breed gestation (~114d) — never a recorded fact. Pregnancy
+    confirmation is tracked inline (the Pregnancy workspace is the ``pregnant``
+    slice); the actual farrowing links here in Milestone 4.
+    """
+
+    __tablename__ = "swine_breeding"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    dam_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    sire_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    repeat_of_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_breeding.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    method: Mapped[str] = mapped_column(String(20), nullable=False, default="natural")
+    service_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    planned_farrowing_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Artificial insemination detail (traceable; used when method='artificial').
+    semen_source: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    semen_batch: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    technician: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    # Pregnancy confirmation (inline; the Pregnancy workspace reads this).
+    pregnancy_checked_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    pregnancy_check_method: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    pregnancy_result: Mapped[str] = mapped_column(String(20), nullable=False, default="unknown")
+    confirmed_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    risk_level: Mapped[str] = mapped_column(String(20), nullable=False, default="unknown")
+    actual_farrowing_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="planned")
+    outcome: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    dam: Mapped["SwinePig | None"] = relationship(foreign_keys=[dam_id], lazy="noload")
+    sire: Mapped["SwinePig | None"] = relationship(foreign_keys=[sire_id], lazy="noload")
+
+    @property
+    def is_open(self) -> bool:
+        """True while the cycle is unresolved (blocks a dam from being re-serviced)."""
+        return self.status in ("planned", "serviced", "pregnant")
+
+    def __repr__(self) -> str:
+        return f"<SwineBreeding dam={self.dam_id} sire={self.sire_id} method={self.method} status={self.status}>"

@@ -168,6 +168,7 @@ from app.models.small_ruminant import (
 from app.models.swine import (
     SwineBloodline,
     SwineBreed,
+    SwineBreeding,
     SwineDocument,
     SwineEvent,
     SwineGroup,
@@ -399,6 +400,8 @@ __all__ = [
     "SwineEvent",
     "SwineMedia",
     "SwineDocument",
+    # Swine Breeding, AI & Pregnancy (Module 20, Milestone 3, Migration 080)
+    "SwineBreeding",
     # Growth Planner (Platform, Migration 065)
     "GrowthPlan",
     "GrowthGoal",

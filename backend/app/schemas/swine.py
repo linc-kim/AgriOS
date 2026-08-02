@@ -479,3 +479,56 @@ class DocumentResponse(TimestampedSchema):
     size_bytes: int | None
     issued_on: date | None
     expires_on: date | None
+
+
+# ── Breeding cycle (Milestone 3) ───────────────────────────────────────────────
+
+class BreedingCreate(AGRIOSSchema):
+    dam_id: UUID
+    sire_id: UUID | None = None
+    method: str = Field("natural")
+    service_date: date | None = None
+    # Artificial insemination detail (required when method='artificial' with no sire).
+    semen_source: str | None = Field(None, max_length=200)
+    semen_batch: str | None = Field(None, max_length=100)
+    technician: str | None = Field(None, max_length=150)
+    notes: str | None = None
+
+    _m = field_validator("method")(_one_of("method", swm.BREEDING_METHOD_VALUES))
+
+
+class ServiceInput(AGRIOSSchema):
+    service_date: date
+
+
+class PregnancyCheckInput(AGRIOSSchema):
+    checked_on: date
+    result: str = Field("unknown")
+    method: str | None = Field(None, max_length=20)
+    risk_level: str | None = Field(None, max_length=20)
+
+    _r = field_validator("result")(_one_of("result", swm.PREGNANCY_RESULT_VALUES))
+    _cm = field_validator("method")(_one_of("method", swm.PREGNANCY_CHECK_METHOD_VALUES))
+    _rl = field_validator("risk_level")(_one_of("risk_level", swm.PREGNANCY_RISK_VALUES))
+
+
+class BreedingResponse(TimestampedSchema):
+    farm_id: UUID
+    dam_id: UUID | None
+    sire_id: UUID | None
+    repeat_of_id: UUID | None
+    method: str
+    service_date: date | None
+    planned_farrowing_date: date | None
+    semen_source: str | None
+    semen_batch: str | None
+    technician: str | None
+    pregnancy_checked_on: date | None
+    pregnancy_check_method: str | None
+    pregnancy_result: str
+    confirmed_on: date | None
+    risk_level: str
+    actual_farrowing_date: date | None
+    status: str
+    outcome: str | None
+    notes: str | None

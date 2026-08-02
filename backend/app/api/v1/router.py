@@ -71,6 +71,7 @@ from app.api.v1.endpoints import sr_aria
 
 from app.api.v1.endpoints import swine_animals
 from app.api.v1.endpoints import swine_housing
+from app.api.v1.endpoints import swine_breeding
 
 api_router = APIRouter()
 
@@ -187,3 +188,4 @@ api_router.include_router(sr_aria.router)
 
 api_router.include_router(swine_animals.router)
 api_router.include_router(swine_housing.router)
+api_router.include_router(swine_breeding.router)
