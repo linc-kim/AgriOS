@@ -69,6 +69,9 @@ from app.api.v1.endpoints import sr_reports
 from app.api.v1.endpoints import sr_growth_planner
 from app.api.v1.endpoints import sr_aria
 
+from app.api.v1.endpoints import swine_animals
+from app.api.v1.endpoints import swine_housing
+
 api_router = APIRouter()
 
 # ── Sprint 0 ──────────────────────────────────────────────────────────────────
@@ -181,3 +184,6 @@ api_router.include_router(sr_finance.router)
 api_router.include_router(sr_reports.router)
 api_router.include_router(sr_growth_planner.router)
 api_router.include_router(sr_aria.router)
+
+api_router.include_router(swine_animals.router)
+api_router.include_router(swine_housing.router)
