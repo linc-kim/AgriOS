@@ -195,12 +195,15 @@ async def market_readiness(db, farm_id, pig_id, *, target_weight_kg=None, target
 
 # ── Cohort analytics (historical) ──────────────────────────────────────────────
 
-async def _cohort_members(db, farm_id, *, group_id=None, litter_id=None, production_stage=None, breed_id=None) -> dict:
+async def _cohort_members(db, farm_id, *, group_id=None, litter_id=None, pen_id=None,
+                          production_stage=None, breed_id=None) -> dict:
     conds = [SwinePig.farm_id == farm_id, SwinePig.status == "active", SwinePig.deleted_at.is_(None)]
     if group_id:
         conds.append(SwinePig.group_id == group_id)
     if litter_id:
         conds.append(SwinePig.litter_id == litter_id)
+    if pen_id:
+        conds.append(SwinePig.pen_id == pen_id)
     if production_stage:
         conds.append(SwinePig.production_stage == production_stage)
     if breed_id:
@@ -219,11 +222,13 @@ async def _cohort_members(db, farm_id, *, group_id=None, litter_id=None, product
     return eng.cohort_summary(members)
 
 
-async def cohort_growth(db, farm_id, *, group_id=None, litter_id=None, production_stage=None, breed_id=None) -> dict:
+async def cohort_growth(db, farm_id, *, group_id=None, litter_id=None, pen_id=None,
+                        production_stage=None, breed_id=None) -> dict:
     scope = {"group_id": str(group_id) if group_id else None,
              "litter_id": str(litter_id) if litter_id else None,
+             "pen_id": str(pen_id) if pen_id else None,
              "production_stage": production_stage, "breed_id": str(breed_id) if breed_id else None}
-    summary = await _cohort_members(db, farm_id, group_id=group_id, litter_id=litter_id,
+    summary = await _cohort_members(db, farm_id, group_id=group_id, litter_id=litter_id, pen_id=pen_id,
                                     production_stage=production_stage, breed_id=breed_id)
     return {"scope": scope, "summary": summary}
 
