@@ -822,3 +822,58 @@ class MortalityResponse(TimestampedSchema):
     cause: str
     suspected_cause: str | None
     postmortem_notes: str | None
+
+
+# ── Dairy — lactation & milk (Milestone 6) ─────────────────────────────────────
+
+class LactationStartInput(AGRIOSSchema):
+    freshening_date: date
+    lactation_number: int | None = Field(None, ge=1)
+    birth_id: UUID | None = None
+    milking_frequency: int = Field(2, ge=1, le=4)
+    notes: str | None = None
+
+
+class LactationDryOffInput(AGRIOSSchema):
+    dry_off_date: date
+
+
+class LactationResponse(TimestampedSchema):
+    species: str
+    farm_id: UUID
+    animal_id: UUID
+    birth_id: UUID | None
+    lactation_number: int
+    freshening_date: date
+    expected_dry_off_date: date | None
+    dry_off_date: date | None
+    milking_frequency: int
+    status: str
+    notes: str | None
+
+
+class MilkRecordCreate(AGRIOSSchema):
+    recorded_on: date
+    session: str = Field("total")
+    quantity_liters: Decimal = Field(..., ge=0)
+    lactation_id: UUID | None = None
+    fat_pct: Decimal | None = Field(None, ge=0, le=100)
+    protein_pct: Decimal | None = Field(None, ge=0, le=100)
+    somatic_cell_count: int | None = Field(None, ge=0)
+    notes: str | None = None
+
+    _s = field_validator("session")(_one_of("session", srm.MILK_SESSION_VALUES))
+
+
+class MilkRecordResponse(TimestampedSchema):
+    species: str
+    farm_id: UUID
+    animal_id: UUID
+    lactation_id: UUID | None
+    recorded_on: date
+    session: str
+    quantity_liters: Decimal
+    fat_pct: Decimal | None
+    protein_pct: Decimal | None
+    somatic_cell_count: int | None
+    notes: str | None

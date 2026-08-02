@@ -188,6 +188,11 @@ MORTALITY_CAUSE_VALUES = (
     "unknown", "other",
 )
 
+# Dairy — lactation & milk (Goat Doc 2 §10) — Milestone 6. Gated by the species
+# ``produces_milk`` capability (goats primarily; dairy sheep also supported).
+LACTATION_STATUS_VALUES = ("active", "dry", "completed")
+MILK_SESSION_VALUES = ("am", "pm", "midday", "total", "once")
+
 
 # ── Catalog: Breed (Goat Doc 2 §7) ─────────────────────────────────────────────
 
@@ -969,3 +974,75 @@ class SmallRuminantMortality(AGRIOSBase):
 
     def __repr__(self) -> str:
         return f"<SmallRuminantMortality animal={self.animal_id} cause={self.cause} on {self.occurred_on}>"
+
+
+# ── Dairy: lactation & milk (Goat Doc 2 §10) — Milestone 6 ──────────────────────
+
+class SmallRuminantLactation(AGRIOSBase):
+    """A lactation cycle for a dairy female (Goat Doc 2 §10). Begins at freshening
+    (parturition) and ends at dry-off. Production trends are retained permanently;
+    yields (total, peak, 305-day projection) are computed by the deterministic
+    engine from the milk records — never stored. ``expected_dry_off_date`` is a
+    forecast. Linked to the birth that freshened her when known."""
+
+    __tablename__ = "sr_lactation"
+
+    species: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    animal_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_animal.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    birth_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_birth.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    lactation_number: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    freshening_date: Mapped[date] = mapped_column(Date, nullable=False)
+    expected_dry_off_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    dry_off_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    milking_frequency: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
+    status: Mapped[str] = mapped_column(String(15), nullable=False, default="active")
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    @property
+    def is_active(self) -> bool:
+        return self.status == "active"
+
+    def __repr__(self) -> str:
+        return f"<SmallRuminantLactation animal={self.animal_id} #{self.lactation_number} status={self.status}>"
+
+
+class SmallRuminantMilkRecord(AGRIOSBase):
+    """A milk-yield measurement (Goat Doc 2 §10). One row per milking session (or a
+    daily total). Quantities in litres. Quality metrics (fat/protein) are optional
+    recorded facts; somatic cell count is future-ready. Never overwritten."""
+
+    __tablename__ = "sr_milk_record"
+
+    species: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    animal_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_animal.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    lactation_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_lactation.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    recorded_on: Mapped[date] = mapped_column(Date, nullable=False)
+    session: Mapped[str] = mapped_column(String(10), nullable=False, default="total")
+    quantity_liters: Mapped[Decimal] = mapped_column(Numeric(8, 3), nullable=False)
+    fat_pct: Mapped[Decimal | None] = mapped_column(Numeric(4, 2), nullable=True)
+    protein_pct: Mapped[Decimal | None] = mapped_column(Numeric(4, 2), nullable=True)
+    somatic_cell_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SmallRuminantMilkRecord animal={self.animal_id} {self.quantity_liters}L {self.session} on {self.recorded_on}>"

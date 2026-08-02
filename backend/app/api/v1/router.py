@@ -62,6 +62,7 @@ from app.api.v1.endpoints import sr_housing
 from app.api.v1.endpoints import sr_breeding
 from app.api.v1.endpoints import sr_growth
 from app.api.v1.endpoints import sr_health
+from app.api.v1.endpoints import sr_dairy
 
 api_router = APIRouter()
 
@@ -169,3 +170,4 @@ api_router.include_router(sr_housing.router)
 api_router.include_router(sr_breeding.router)
 api_router.include_router(sr_growth.router)
 api_router.include_router(sr_health.router)
+api_router.include_router(sr_dairy.router)
