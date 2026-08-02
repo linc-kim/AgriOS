@@ -149,10 +149,15 @@ from app.models.small_ruminant import (
     SmallRuminantEvent,
     SmallRuminantGroup,
     SmallRuminantHerd,
+    SmallRuminantDeworming,
     SmallRuminantFeedRecord,
+    SmallRuminantHealthRecord,
+    SmallRuminantHoofCare,
     SmallRuminantMedia,
+    SmallRuminantMortality,
     SmallRuminantPasture,
     SmallRuminantPen,
+    SmallRuminantVaccination,
     SmallRuminantWeight,
 )
 from app.models.growth import (
@@ -354,6 +359,12 @@ __all__ = [
     # Small Ruminant Growth & Feed (Milestone 4, Migration 074)
     "SmallRuminantWeight",
     "SmallRuminantFeedRecord",
+    # Small Ruminant Health (Milestone 5, Migration 075)
+    "SmallRuminantHealthRecord",
+    "SmallRuminantVaccination",
+    "SmallRuminantDeworming",
+    "SmallRuminantHoofCare",
+    "SmallRuminantMortality",
     # Growth Planner (Platform, Migration 065)
     "GrowthPlan",
     "GrowthGoal",

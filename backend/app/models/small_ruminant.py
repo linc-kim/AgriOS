@@ -166,6 +166,28 @@ BODY_CONDITION_MIN = 1  # BCS 1–5 scale for small ruminants (Goat Doc 2 §11)
 BODY_CONDITION_MAX = 5
 FEED_UNIT_VALUES = ("kg", "g", "bale", "flake")
 
+# Health, vaccination, deworming, hoof care & mortality (Goat Doc 2 §12/§15/§16) — M5
+HEALTH_EVENT_TYPE_VALUES = (
+    "observation", "exam", "illness", "injury", "treatment", "medication",
+    "surgery", "vet_visit", "recovery", "quarantine", "isolation", "lab_result", "note",
+)
+HEALTH_STATUS_VALUES = ("recorded", "open", "ongoing", "resolved")
+HEALTH_SEVERITY_VALUES = ("info", "mild", "moderate", "severe", "critical")
+# Deworming (Goat Doc 1 §12, Doc 2 §12) — parasite control is first-class for
+# small ruminants; FAMACHA is a recorded anaemia score (1–5), never inferred.
+DEWORMING_METHOD_VALUES = ("oral_drench", "injectable", "pour_on", "bolus", "feed_additive", "other")
+FAMACHA_MIN = 1
+FAMACHA_MAX = 5
+# Hoof care (Goat Doc 2 §15). Lameness is a recorded score (0–5), never inferred.
+HOOF_ACTION_VALUES = ("inspection", "trimming", "treatment", "foot_bath", "other")
+HOOF_CONDITION_VALUES = ("healthy", "overgrown", "foot_rot", "foot_scald", "abscess", "injury", "other", "unknown")
+# Mortality (Goat Doc 2 §16)
+MORTALITY_CAUSE_VALUES = (
+    "disease", "parasites", "injury", "predation", "environmental", "congenital",
+    "digestive", "respiratory", "dystocia", "poisoning", "heat_stress", "starvation",
+    "unknown", "other",
+)
+
 
 # ── Catalog: Breed (Goat Doc 2 §7) ─────────────────────────────────────────────
 
@@ -785,3 +807,165 @@ class SmallRuminantFeedRecord(AGRIOSBase):
 
     def __repr__(self) -> str:
         return f"<SmallRuminantFeedRecord animal={self.animal_id} group={self.group_id} {self.quantity_kg}kg>"
+
+
+# ── Health, vaccination, deworming, hoof care & mortality (Goat Doc 2 §12/§15/§16) M5
+
+class SmallRuminantHealthRecord(AGRIOSBase):
+    """A chronological clinical event for an animal (Goat Doc 2 §12): illness,
+    injury, treatment, medication, surgery, vet visit, recovery, quarantine…
+    ``diagnosis`` holds a **recorded veterinary input only** — it is never inferred
+    by the platform (frozen §4.4). Records remain permanently attached, ordered
+    chronologically."""
+
+    __tablename__ = "sr_health_record"
+
+    species: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    animal_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_animal.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    event_type: Mapped[str] = mapped_column(String(30), nullable=False, default="observation")
+    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="recorded")
+    severity: Mapped[str] = mapped_column(String(20), nullable=False, default="info")
+    symptoms: Mapped[str | None] = mapped_column(Text, nullable=True)
+    diagnosis: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    treatment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    medication: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    withdrawal_until: Mapped[date | None] = mapped_column(Date, nullable=True)
+    veterinarian: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    recovery_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    occurred_on: Mapped[date] = mapped_column(Date, nullable=False)
+    next_due_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    reminder_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SmallRuminantHealthRecord animal={self.animal_id} type={self.event_type} status={self.status}>"
+
+
+class SmallRuminantVaccination(AGRIOSBase):
+    """A vaccination record (Goat Doc 2 §12). Follow-ups reuse the platform Reminder
+    engine — ``reminder_id`` is a SOFT reference to the created reminder (no FK)."""
+
+    __tablename__ = "sr_vaccination"
+
+    species: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    animal_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_animal.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    vaccine: Mapped[str] = mapped_column(String(150), nullable=False)
+    batch_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    administered_on: Mapped[date] = mapped_column(Date, nullable=False)
+    next_due_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    administrator: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    reminder_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SmallRuminantVaccination animal={self.animal_id} {self.vaccine!r} on {self.administered_on}>"
+
+
+class SmallRuminantDeworming(AGRIOSBase):
+    """A deworming / anthelmintic treatment (Goat Doc 1 §12, Doc 2 §12). Parasite
+    control is first-class for small ruminants. ``famacha_score`` is a recorded
+    anaemia assessment (1–5), never inferred. Follow-ups reuse the platform Reminder
+    engine via the soft ``reminder_id``. Withdrawal period is a recorded fact."""
+
+    __tablename__ = "sr_deworming"
+
+    species: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    animal_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_animal.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    product: Mapped[str] = mapped_column(String(150), nullable=False)
+    method: Mapped[str] = mapped_column(String(20), nullable=False, default="oral_drench")
+    dose: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    famacha_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    administered_on: Mapped[date] = mapped_column(Date, nullable=False)
+    next_due_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    withdrawal_until: Mapped[date | None] = mapped_column(Date, nullable=True)
+    administrator: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    reminder_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SmallRuminantDeworming animal={self.animal_id} {self.product!r} on {self.administered_on}>"
+
+
+class SmallRuminantHoofCare(AGRIOSBase):
+    """A hoof inspection / trimming / treatment (Goat Doc 2 §15). ``lameness_score``
+    is a recorded assessment (0–5), never inferred. The Operations Planner schedules
+    recurring hoof care; follow-ups reuse the platform Reminder engine."""
+
+    __tablename__ = "sr_hoof_care"
+
+    species: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    animal_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_animal.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    action: Mapped[str] = mapped_column(String(20), nullable=False, default="inspection")
+    condition: Mapped[str] = mapped_column(String(20), nullable=False, default="unknown")
+    lameness_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    treatment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    performed_on: Mapped[date] = mapped_column(Date, nullable=False)
+    next_due_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    reminder_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SmallRuminantHoofCare animal={self.animal_id} action={self.action} condition={self.condition}>"
+
+
+class SmallRuminantMortality(AGRIOSBase):
+    """An immutable death record (Goat Doc 2 §16). Recording mortality transitions
+    the animal to ``deceased``. Mortality analytics (rates, trends, cause breakdown)
+    are computed by the deterministic engine — never stored. One per animal."""
+
+    __tablename__ = "sr_mortality"
+    __table_args__ = (
+        UniqueConstraint("animal_id", name="uq_sr_mortality_animal"),
+    )
+
+    species: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    animal_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_animal.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    occurred_on: Mapped[date] = mapped_column(Date, nullable=False)
+    age_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cause: Mapped[str] = mapped_column(String(30), nullable=False, default="unknown")
+    suspected_cause: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    postmortem_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SmallRuminantMortality animal={self.animal_id} cause={self.cause} on {self.occurred_on}>"

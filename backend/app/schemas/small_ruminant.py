@@ -679,3 +679,146 @@ class FeedRecordResponse(TimestampedSchema):
     currency: str | None
     supplier: str | None
     notes: str | None
+
+
+# ── Health, vaccination, deworming, hoof care & mortality (Milestone 5) ────────
+
+class HealthRecordCreate(AGRIOSSchema):
+    event_type: str = Field("observation")
+    title: str | None = Field(None, max_length=255)
+    status: str = Field("recorded")
+    severity: str = Field("info")
+    symptoms: str | None = None
+    diagnosis: str | None = Field(None, max_length=255)
+    treatment: str | None = None
+    medication: str | None = Field(None, max_length=255)
+    withdrawal_until: date | None = None
+    veterinarian: str | None = Field(None, max_length=200)
+    recovery_status: str | None = Field(None, max_length=30)
+    occurred_on: date
+    next_due_on: date | None = None
+    notes: str | None = None
+
+    _et = field_validator("event_type")(_one_of("event_type", srm.HEALTH_EVENT_TYPE_VALUES))
+    _st = field_validator("status")(_one_of("status", srm.HEALTH_STATUS_VALUES))
+    _sv = field_validator("severity")(_one_of("severity", srm.HEALTH_SEVERITY_VALUES))
+
+
+class HealthRecordResponse(TimestampedSchema):
+    species: str
+    farm_id: UUID
+    animal_id: UUID
+    event_type: str
+    title: str | None
+    status: str
+    severity: str
+    symptoms: str | None
+    diagnosis: str | None
+    treatment: str | None
+    medication: str | None
+    withdrawal_until: date | None
+    veterinarian: str | None
+    recovery_status: str | None
+    occurred_on: date
+    next_due_on: date | None
+    reminder_id: UUID | None
+    notes: str | None
+
+
+class VaccinationCreate(AGRIOSSchema):
+    vaccine: str = Field(..., min_length=1, max_length=150)
+    batch_number: str | None = Field(None, max_length=100)
+    administered_on: date
+    next_due_on: date | None = None
+    administrator: str | None = Field(None, max_length=200)
+    notes: str | None = None
+
+
+class VaccinationResponse(TimestampedSchema):
+    species: str
+    farm_id: UUID
+    animal_id: UUID
+    vaccine: str
+    batch_number: str | None
+    administered_on: date
+    next_due_on: date | None
+    administrator: str | None
+    reminder_id: UUID | None
+    notes: str | None
+
+
+class DewormingCreate(AGRIOSSchema):
+    product: str = Field(..., min_length=1, max_length=150)
+    method: str = Field("oral_drench")
+    dose: str | None = Field(None, max_length=100)
+    famacha_score: int | None = Field(None, ge=1, le=5)
+    administered_on: date
+    next_due_on: date | None = None
+    withdrawal_until: date | None = None
+    administrator: str | None = Field(None, max_length=200)
+    notes: str | None = None
+
+    _m = field_validator("method")(_one_of("method", srm.DEWORMING_METHOD_VALUES))
+
+
+class DewormingResponse(TimestampedSchema):
+    species: str
+    farm_id: UUID
+    animal_id: UUID
+    product: str
+    method: str
+    dose: str | None
+    famacha_score: int | None
+    administered_on: date
+    next_due_on: date | None
+    withdrawal_until: date | None
+    administrator: str | None
+    reminder_id: UUID | None
+    notes: str | None
+
+
+class HoofCareCreate(AGRIOSSchema):
+    action: str = Field("inspection")
+    condition: str = Field("unknown")
+    lameness_score: int | None = Field(None, ge=0, le=5)
+    treatment: str | None = None
+    performed_on: date
+    next_due_on: date | None = None
+    notes: str | None = None
+
+    _a = field_validator("action")(_one_of("action", srm.HOOF_ACTION_VALUES))
+    _c = field_validator("condition")(_one_of("condition", srm.HOOF_CONDITION_VALUES))
+
+
+class HoofCareResponse(TimestampedSchema):
+    species: str
+    farm_id: UUID
+    animal_id: UUID
+    action: str
+    condition: str
+    lameness_score: int | None
+    treatment: str | None
+    performed_on: date
+    next_due_on: date | None
+    reminder_id: UUID | None
+    notes: str | None
+
+
+class MortalityCreate(AGRIOSSchema):
+    occurred_on: date
+    cause: str = Field("unknown")
+    suspected_cause: str | None = Field(None, max_length=255)
+    postmortem_notes: str | None = None
+
+    _c = field_validator("cause")(_one_of("cause", srm.MORTALITY_CAUSE_VALUES))
+
+
+class MortalityResponse(TimestampedSchema):
+    species: str
+    farm_id: UUID
+    animal_id: UUID
+    occurred_on: date
+    age_days: int | None
+    cause: str
+    suspected_cause: str | None
+    postmortem_notes: str | None
