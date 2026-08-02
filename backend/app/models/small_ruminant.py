@@ -199,6 +199,12 @@ SHEARING_METHOD_VALUES = ("machine", "blade", "hand", "other")
 WOOL_GRADE_VALUES = ("superfine", "fine", "medium", "strong", "carpet", "unclassed", "unknown")
 FLEECE_CONDITION_VALUES = ("excellent", "good", "fair", "poor", "unknown")
 
+# Sales (Goat Doc 2 §16) — Milestone 8. Covers animal + product sales. Revenue is a
+# RECORDED FACT on sr_sale (never posted to the flock-scoped revenue ledger, DB-07).
+SALE_TYPE_VALUES = (
+    "live", "breeding", "meat", "milk", "wool", "fiber", "manure", "cull", "other",
+)
+
 
 # ── Catalog: Breed (Goat Doc 2 §7) ─────────────────────────────────────────────
 
@@ -1115,3 +1121,43 @@ class SmallRuminantFleece(AGRIOSBase):
 
     def __repr__(self) -> str:
         return f"<SmallRuminantFleece animal={self.animal_id} {self.greasy_weight_kg}kg grade={self.grade}>"
+
+
+# ── Sales (Goat Doc 2 §16) — Milestone 8 ────────────────────────────────────────
+
+class SmallRuminantSale(AGRIOSBase):
+    """A sale of an animal or a product (meat/milk/wool/fiber/manure). ``total_price``
+    is the RECORDED revenue fact — never posted to the flock-scoped platform revenue
+    ledger (frozen DB-07). ``animal_id`` is NULL for product sales not tied to one
+    animal. P&L is computed on demand by the deterministic finance engine from these
+    recorded facts (Goat Doc 2 §16, Doc 3 §12.10)."""
+
+    __tablename__ = "sr_sale"
+
+    species: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    animal_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_animal.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    sale_type: Mapped[str] = mapped_column(String(15), nullable=False, default="live")
+    buyer_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    buyer_contact: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    sale_date: Mapped[date] = mapped_column(Date, nullable=False)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False, default=1)
+    unit: Mapped[str | None] = mapped_column(String(15), nullable=True)
+    weight_kg: Mapped[Decimal | None] = mapped_column(Numeric(12, 3), nullable=True)
+    unit_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    total_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    currency: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    invoice_reference: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    animal: Mapped["SmallRuminant | None"] = relationship(foreign_keys=[animal_id], lazy="noload")
+
+    def __repr__(self) -> str:
+        return f"<SmallRuminantSale {self.species} {self.sale_type} total={self.total_price} on {self.sale_date}>"

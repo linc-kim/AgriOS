@@ -929,3 +929,48 @@ class FleeceResponse(TimestampedSchema):
     grade: str
     condition: str
     notes: str | None
+
+
+# ── Sales & Finance (Milestone 8) ──────────────────────────────────────────────
+
+class SaleCreate(AGRIOSSchema):
+    sale_type: str = Field("live")
+    animal_id: UUID | None = None
+    buyer_name: str | None = Field(None, max_length=200)
+    buyer_contact: str | None = Field(None, max_length=200)
+    sale_date: date
+    quantity: Decimal = Field(Decimal("1"), gt=0)
+    unit: str | None = Field(None, max_length=15)
+    weight_kg: Decimal | None = Field(None, ge=0)
+    unit_price: Decimal | None = Field(None, ge=0)
+    total_price: Decimal | None = Field(None, ge=0)
+    currency: str | None = Field(None, max_length=10)
+    invoice_reference: str | None = Field(None, max_length=150)
+    notes: str | None = None
+
+    _st = field_validator("sale_type")(_one_of("sale_type", srm.SALE_TYPE_VALUES))
+
+
+class SaleResponse(TimestampedSchema):
+    species: str
+    farm_id: UUID
+    animal_id: UUID | None
+    sale_type: str
+    buyer_name: str | None
+    buyer_contact: str | None
+    sale_date: date
+    quantity: Decimal
+    unit: str | None
+    weight_kg: Decimal | None
+    unit_price: Decimal | None
+    total_price: Decimal
+    currency: str | None
+    invoice_reference: str | None
+    notes: str | None
+
+
+class OperationalExpenseCreate(AGRIOSSchema):
+    category_slug: str = Field(..., min_length=1, max_length=50)
+    amount: Decimal = Field(..., gt=0)
+    description: str | None = Field(None, max_length=500)
+    expense_date: date

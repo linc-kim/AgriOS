@@ -160,6 +160,7 @@ from app.models.small_ruminant import (
     SmallRuminantMortality,
     SmallRuminantPasture,
     SmallRuminantPen,
+    SmallRuminantSale,
     SmallRuminantShearing,
     SmallRuminantVaccination,
     SmallRuminantWeight,
@@ -375,6 +376,8 @@ __all__ = [
     # Small Ruminant Wool — sheep shearing/fleece (Milestone 7, Migration 077)
     "SmallRuminantShearing",
     "SmallRuminantFleece",
+    # Small Ruminant Sales (Milestone 8, Migration 078)
+    "SmallRuminantSale",
     # Growth Planner (Platform, Migration 065)
     "GrowthPlan",
     "GrowthGoal",
