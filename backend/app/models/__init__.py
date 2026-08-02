@@ -165,6 +165,17 @@ from app.models.small_ruminant import (
     SmallRuminantVaccination,
     SmallRuminantWeight,
 )
+from app.models.swine import (
+    SwineBloodline,
+    SwineBreed,
+    SwineDocument,
+    SwineEvent,
+    SwineGroup,
+    SwineHerd,
+    SwineMedia,
+    SwinePen,
+    SwinePig,
+)
 from app.models.growth import (
     GrowthGoal,
     GrowthMilestone,
@@ -378,6 +389,16 @@ __all__ = [
     "SmallRuminantFleece",
     # Small Ruminant Sales (Milestone 8, Migration 078)
     "SmallRuminantSale",
+    # Swine — Pig Framework (Module 20, Milestone 1, Migration 079)
+    "SwineBreed",
+    "SwineBloodline",
+    "SwineHerd",
+    "SwineGroup",
+    "SwinePen",
+    "SwinePig",
+    "SwineEvent",
+    "SwineMedia",
+    "SwineDocument",
     # Growth Planner (Platform, Migration 065)
     "GrowthPlan",
     "GrowthGoal",

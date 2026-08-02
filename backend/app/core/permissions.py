@@ -231,6 +231,40 @@ class Permission(StrEnum):
     OPSPLAN_ANALYTICS_VIEW = "opsplan:analytics:view"  # Read performance / compliance / optimisation analytics
     OPSPLAN_SETTINGS_MANAGE = "opsplan:settings:manage"  # Manage Operations Planner settings & automation rules
 
+    # ── Swine — Pig Framework (Module 20) ─────────────────────────────────────
+    # Complete pig production: breeding/AI/pregnancy/farrowing/piglets/weaning,
+    # nursery→grower→finisher production, feed, health/biosecurity, growth, sales
+    # and finance (Swine Doc 3 §22, Doc 5 §15). One shared set for the module.
+    SWINE_CREATE = "swine:create"                        # Register pigs
+    SWINE_EDIT = "swine:edit"                            # Edit identity / details, move between groups/pens
+    SWINE_ARCHIVE = "swine:archive"                      # Archive / restore pigs (no hard delete)
+    SWINE_TRANSACT = "swine:transact"                    # Ownership events: sale, transfer, death, culling
+    SWINE_VIEW = "swine:view"                            # Read pigs, timeline, media, documents
+    SWINE_HOUSING_MANAGE = "swine:housing:manage"        # Write herds / groups / pens
+    SWINE_HOUSING_VIEW = "swine:housing:view"            # Read housing/grouping hierarchy & occupancy
+    SWINE_CATALOG_MANAGE = "swine:catalog:manage"        # Write custom breeds / bloodlines
+    SWINE_CATALOG_VIEW = "swine:catalog:view"            # Read breed / bloodline catalog
+    SWINE_BREEDING_MANAGE = "swine:breeding:manage"      # Write mating, AI, pregnancy, farrowing, weaning
+    SWINE_BREEDING_VIEW = "swine:breeding:view"          # Read breeding / AI / pregnancy / farrowing records
+    SWINE_PEDIGREE_EDIT = "swine:pedigree:edit"          # Edit pedigree links (authorised correction)
+    SWINE_PEDIGREE_VIEW = "swine:pedigree:view"          # Read pedigrees / genetics
+    SWINE_HEALTH_LOG = "swine:health:log"                # Write health, vaccination, treatment, mortality, biosecurity
+    SWINE_HEALTH_VIEW = "swine:health:view"              # Read health & mortality records
+    SWINE_WEIGHT_LOG = "swine:weight:log"                # Record weights / growth measurements
+    SWINE_FEED_RECORD = "swine:feed:record"              # Record feeding / consumption
+    SWINE_FEED_VIEW = "swine:feed:view"                  # Read feeding history
+    SWINE_PRODUCTION_MANAGE = "swine:production:manage"  # Manage nursery / grower / finisher production groups
+    SWINE_PRODUCTION_VIEW = "swine:production:view"      # Read production-group performance
+    SWINE_SALES_RECORD = "swine:sales:record"            # Record sales
+    SWINE_SALES_VIEW = "swine:sales:view"                # Read sales history
+    SWINE_FINANCE_VIEW = "swine:finance:view"            # Read finance summary & analytics
+    SWINE_REPORT_VIEW = "swine:report:view"              # Read reports & dashboards
+    SWINE_REPORT_EXPORT = "swine:report:export"          # Export reports (PDF / Excel / CSV)
+    SWINE_GROWTH_VIEW = "swine:growth:view"              # Read growth plan / roadmap / progress
+    SWINE_GROWTH_EDIT = "swine:growth:edit"              # Create / edit growth goals & roadmaps
+    SWINE_AUTOMATION_MANAGE = "swine:automation:manage"  # Generate reminders, drive workflows
+    SWINE_AUTOMATION_VIEW = "swine:automation:view"      # Read tasks, reminders, workflows
+
 
 # ── Role → Permission Mapping ─────────────────────────────────────────────────
 # Derived from Engineering Constitution Section 5 RBAC matrix.
@@ -701,6 +735,69 @@ ROLE_PERMISSIONS["farm_worker"] |= {
 }
 for _ops_reader in ("vet_consultant", "viewer"):
     ROLE_PERMISSIONS[_ops_reader] |= _OPSPLAN_VIEW
+
+
+# ── Swine — Pig Framework (Module 20) RBAC ────────────────────────────────────
+# Swine Doc 11 §11 / Doc 5 §15: owner/manager hold full control; workers operate
+# the daily rhythm but cannot archive, transact, manage catalog/housing or see
+# strategic finance/reports/growth views; vets get clinical write; viewers are
+# read-only. Mirrors the Small Ruminant matrix (no dairy/wool; adds production-group
+# management for the nursery/grower/finisher milestones).
+_SWINE_VIEW = {
+    Permission.SWINE_VIEW,
+    Permission.SWINE_HOUSING_VIEW,
+    Permission.SWINE_CATALOG_VIEW,
+    Permission.SWINE_BREEDING_VIEW,
+    Permission.SWINE_PEDIGREE_VIEW,
+    Permission.SWINE_HEALTH_VIEW,
+    Permission.SWINE_FEED_VIEW,
+    Permission.SWINE_PRODUCTION_VIEW,
+    Permission.SWINE_SALES_VIEW,
+    Permission.SWINE_FINANCE_VIEW,
+    Permission.SWINE_REPORT_VIEW,
+    Permission.SWINE_GROWTH_VIEW,
+    Permission.SWINE_AUTOMATION_VIEW,
+}
+_SWINE_FULL = _SWINE_VIEW | {
+    Permission.SWINE_CREATE,
+    Permission.SWINE_EDIT,
+    Permission.SWINE_ARCHIVE,
+    Permission.SWINE_TRANSACT,
+    Permission.SWINE_HOUSING_MANAGE,
+    Permission.SWINE_CATALOG_MANAGE,
+    Permission.SWINE_BREEDING_MANAGE,
+    Permission.SWINE_PEDIGREE_EDIT,
+    Permission.SWINE_HEALTH_LOG,
+    Permission.SWINE_WEIGHT_LOG,
+    Permission.SWINE_FEED_RECORD,
+    Permission.SWINE_PRODUCTION_MANAGE,
+    Permission.SWINE_SALES_RECORD,
+    Permission.SWINE_REPORT_EXPORT,
+    Permission.SWINE_GROWTH_EDIT,
+    Permission.SWINE_AUTOMATION_MANAGE,
+}
+for _swine_full in ("enterprise_owner", "farm_owner", "farm_manager"):
+    ROLE_PERMISSIONS[_swine_full] |= _SWINE_FULL
+
+# Workers do the daily operational work but not strategic/transactional actions.
+_SWINE_WORKER_VIEW = _SWINE_VIEW - {
+    Permission.SWINE_SALES_VIEW,
+    Permission.SWINE_FINANCE_VIEW,
+    Permission.SWINE_REPORT_VIEW,
+    Permission.SWINE_GROWTH_VIEW,
+}
+ROLE_PERMISSIONS["farm_worker"] |= _SWINE_WORKER_VIEW | {
+    Permission.SWINE_CREATE,
+    Permission.SWINE_EDIT,
+    Permission.SWINE_BREEDING_MANAGE,
+    Permission.SWINE_HEALTH_LOG,
+    Permission.SWINE_WEIGHT_LOG,
+    Permission.SWINE_FEED_RECORD,
+    Permission.SWINE_PRODUCTION_MANAGE,
+    Permission.SWINE_AUTOMATION_MANAGE,
+}
+ROLE_PERMISSIONS["vet_consultant"] |= _SWINE_VIEW | {Permission.SWINE_HEALTH_LOG}
+ROLE_PERMISSIONS["viewer"] |= _SWINE_VIEW
 
 
 def get_user_permissions(role_name: str) -> set[Permission]:
