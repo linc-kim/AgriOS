@@ -1437,3 +1437,92 @@ class SwineBiosecurityRecord(AGRIOSBase):
 
     def __repr__(self) -> str:
         return f"<SwineBiosecurityRecord {self.record_type} on={self.occurred_on}>"
+
+
+# ── Growth & production (Swine Doc 2 §4, Doc 3 §16, Doc 6 §9) — Milestone 7 ─────
+# Weights are IMMUTABLE events; the pig's ``current_weight_kg`` is a fast-display
+# mirror of the latest one (derived, never the source of truth). Growth metrics
+# (ADG, gain, FCR, curves) are CALCULATED by the engine from these records, never
+# stored. Production-stage changes are preserved as a transition HISTORY. Body
+# condition is scored independently of weight.
+WEIGHT_METHOD_VALUES = ("scale", "tape", "estimate", "visual", "unknown")
+STAGE_TRANSITION_SOURCE_VALUES = (
+    "manual", "weaning", "market", "breeding_assignment", "cull", "system",
+)
+
+
+class SwineWeight(AGRIOSBase):
+    """An immutable weight measurement for a pig (Swine Doc 2 §4). Historical records
+    are never overwritten. Weights are in kilograms. Growth (ADG, gain, FCR, curve)
+    is computed from these records by the deterministic engine — never stored."""
+
+    __tablename__ = "swine_weight"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    pig_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    recorded_on: Mapped[date] = mapped_column(Date, nullable=False)
+    weight_kg: Mapped[Decimal] = mapped_column(Numeric(8, 3), nullable=False)
+    method: Mapped[str] = mapped_column(String(15), nullable=False, default="scale")
+    age_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SwineWeight pig={self.pig_id} {self.weight_kg}kg on={self.recorded_on}>"
+
+
+class SwineStageTransition(AGRIOSBase):
+    """An append-only production-stage change (Swine Doc 1 §5-6). Preserves the
+    previous and new stage, when, why and who — so stage history is auditable and
+    feeds performance analysis. Never overwrites; the pig's ``production_stage`` is
+    the latest transition's ``new_stage``."""
+
+    __tablename__ = "swine_stage_transition"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    pig_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    previous_stage: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    new_stage: Mapped[str] = mapped_column(String(20), nullable=False)
+    transition_date: Mapped[date] = mapped_column(Date, nullable=False)
+    reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    source: Mapped[str] = mapped_column(String(20), nullable=False, default="manual")
+    changed_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SwineStageTransition pig={self.pig_id} {self.previous_stage}→{self.new_stage}>"
+
+
+class SwineBodyCondition(AGRIOSBase):
+    """A body-condition score assessment (Swine Doc 2 §4), independent of weight so
+    management decisions are not made on weight alone. BCS 1 (emaciated) … 5 (obese)."""
+
+    __tablename__ = "swine_body_condition"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    pig_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    assessed_on: Mapped[date] = mapped_column(Date, nullable=False)
+    score: Mapped[Decimal] = mapped_column(Numeric(3, 1), nullable=False)
+    assessor: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SwineBodyCondition pig={self.pig_id} score={self.score} on={self.assessed_on}>"

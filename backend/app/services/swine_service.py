@@ -45,6 +45,7 @@ from app.models.swine import (
     SwineMovement,
     SwinePen,
     SwinePig,
+    SwineStageTransition,
     TERMINAL_STATUSES,
 )
 from app.schemas.swine import (
@@ -116,6 +117,29 @@ async def _append_event(
     db.add(event)
     await db.flush()
     return event
+
+
+async def record_stage_transition(
+    db: AsyncSession, farm_id: uuid.UUID, pig: SwinePig, new_stage: str, *,
+    reason: str | None, source: str, user: User | None, on: date | None = None,
+) -> SwineStageTransition | None:
+    """Append a production-stage transition (history) and set the pig's current stage.
+
+    Preserves the previous stage, when, why and who (Swine Doc 1 §5-6) so stage
+    history is auditable. No-op when the stage is unchanged. Flushes but does not
+    commit — the caller owns the transaction."""
+    previous = pig.production_stage
+    if previous == new_stage:
+        return None
+    transition = SwineStageTransition(
+        id=uuid.uuid4(), farm_id=farm_id, pig_id=pig.id, previous_stage=previous,
+        new_stage=new_stage, transition_date=on or date.today(), reason=reason,
+        source=source, changed_by=user.id if user else None,
+    )
+    db.add(transition)
+    pig.production_stage = new_stage
+    await db.flush()
+    return transition
 
 
 def _guard_not_terminal(p: SwinePig, action: str) -> None:
@@ -452,13 +476,16 @@ async def update_pig(
         raise ValidationException(
             f"sex {fields['sex']!r} is not valid; expected one of {cfg.SEX_VALUES}."
         )
-    # Production stage may not regress along the linear market path (Swine Doc 3 §4).
+    # Production stage may not regress along the linear market path (Swine Doc 3 §4);
+    # a change is recorded as a transition-history row, never a silent overwrite.
+    stage_change = None
     if "production_stage" in fields and fields["production_stage"] != p.production_stage:
         if not cfg.is_forward_stage_transition(p.production_stage, fields["production_stage"]):
             raise ValidationException(
                 f"Invalid production-stage transition {p.production_stage!r} → "
                 f"{fields['production_stage']!r}: a pig may not regress along the market path."
             )
+        stage_change = fields.pop("production_stage")
     await _validate_location(db, farm_id, herd_id=fields.get("herd_id"), group_id=fields.get("group_id"))
     await _validate_parents(db, farm_id, pig_id, sire_id=fields.get("sire_id"), dam_id=fields.get("dam_id"))
 
@@ -478,6 +505,11 @@ async def update_pig(
         if old != value:
             changes[field] = {"from": _jsonable(old), "to": _jsonable(value)}
             setattr(p, field, value)
+
+    if stage_change is not None:
+        changes["production_stage"] = {"from": p.production_stage, "to": stage_change}
+        await record_stage_transition(db, farm_id, p, stage_change,
+                                      reason="edit", source="manual", user=user)
 
     if not changes:
         return p

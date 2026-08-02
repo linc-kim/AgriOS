@@ -105,6 +105,50 @@ _BRANCH_STAGES: tuple[str, ...] = (
 # Used only as the forecast default when a breed carries no override.
 DEFAULT_GESTATION_DAYS = 114
 
+# ── Growth / market targets (Swine Doc 3 §16, Doc 6 §9) — Milestone 7 ──────────
+# Documented defaults for the market-readiness assessment, ALWAYS overridable per
+# breed via ``swine_breed.profile`` (``target_market_weight_kg`` /
+# ``target_market_age_days``) or per call — never hardcoded thresholds. A typical
+# finisher markets around 100–120 kg at roughly 24–26 weeks.
+DEFAULT_MARKET_WEIGHT_KG = 110.0
+DEFAULT_MARKET_AGE_DAYS = 180
+# Fraction of target weight at/above which a pig is "approaching" market.
+MARKET_APPROACHING_FRACTION = 0.9
+# Body condition score scale for pigs (1 emaciated … 5 obese).
+BODY_CONDITION_MIN = 1
+BODY_CONDITION_MAX = 5
+
+
+def market_targets(breed_profile: dict[str, Any] | None = None,
+                   *, target_weight_kg: float | None = None,
+                   target_age_days: int | None = None) -> dict[str, Any]:
+    """Resolve market-readiness targets: explicit call value → breed profile →
+    documented species default. Returns ``{"target_weight_kg", "target_age_days",
+    "source"}`` so the assessment can state where each threshold came from."""
+    weight_source = "default"
+    age_source = "default"
+    weight = DEFAULT_MARKET_WEIGHT_KG
+    age = DEFAULT_MARKET_AGE_DAYS
+    if breed_profile:
+        bw = breed_profile.get("target_market_weight_kg")
+        ba = breed_profile.get("target_market_age_days")
+        try:
+            if bw is not None and float(bw) > 0:
+                weight, weight_source = float(bw), "breed"
+        except (TypeError, ValueError):
+            pass
+        try:
+            if ba is not None and int(ba) > 0:
+                age, age_source = int(ba), "breed"
+        except (TypeError, ValueError):
+            pass
+    if target_weight_kg is not None and target_weight_kg > 0:
+        weight, weight_source = float(target_weight_kg), "override"
+    if target_age_days is not None and target_age_days > 0:
+        age, age_source = int(target_age_days), "override"
+    return {"target_weight_kg": weight, "target_age_days": age,
+            "weight_source": weight_source, "age_source": age_source}
+
 # Domain nouns for natural-reading records/UX (kept here so services/engines and
 # reports never hardcode them).
 OFFSPRING_TERM = "piglet"

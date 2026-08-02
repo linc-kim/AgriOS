@@ -38,6 +38,7 @@ from app.services.swine_service import (
     _generate_internal_ref,
     _get_pig_or_404,
     record_movement,
+    record_stage_transition,
 )
 
 
@@ -333,7 +334,8 @@ async def record_weaning(db, farm: Farm, litter_id, data: WeaningInput, user: Us
         SwinePig.production_stage == "piglet", SwinePig.deleted_at.is_(None)))
     advanced = 0
     for pig in r.scalars().all():
-        pig.production_stage = "weaner"
+        await record_stage_transition(db, farm.id, pig, "weaner",
+                                      reason="weaning", source="weaning", user=user, on=data.weaning_date)
         if data.nursery_group_id is not None:
             before_group = pig.group_id
             pig.group_id = data.nursery_group_id

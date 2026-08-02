@@ -194,8 +194,8 @@ async def list_feeding(db, farm_id, *, pig_id=None, group_id=None, limit=100, of
 
 
 async def feed_summary(db, farm_id, *, pig_id=None, group_id=None) -> dict:
-    """Deterministic feed summary + FCR (FCR unavailable until weight is recorded in
-    the Growth milestone)."""
+    """Deterministic feed summary + FCR. For a pig, FCR is wired to its recorded
+    weight gain (Growth milestone); otherwise it is honestly unknown."""
     conds = [SwineFeedRecord.farm_id == farm_id, SwineFeedRecord.deleted_at.is_(None)]
     if pig_id:
         await _get_pig_or_404(db, farm_id, pig_id)
@@ -204,8 +204,14 @@ async def feed_summary(db, farm_id, *, pig_id=None, group_id=None) -> dict:
         conds.append(SwineFeedRecord.group_id == group_id)
     rows = await db.execute(select(SwineFeedRecord.quantity_kg, SwineFeedRecord.cost).where(*conds))
     records = [{"quantity_kg": r[0], "cost": r[1]} for r in rows]
+
+    weight_gain = None
+    if pig_id:
+        from app.services import swine_growth_service
+        weight_gain = await swine_growth_service.weight_gain_kg(db, farm_id, pig_id)
+
     return {
         "pig_id": str(pig_id) if pig_id else None,
         "group_id": str(group_id) if group_id else None,
-        "summary": eng.feed_summary(records),
+        "summary": eng.feed_summary(records, weight_gain_kg=weight_gain),
     }

@@ -1174,3 +1174,61 @@ class BiosecurityRecordResponse(TimestampedSchema):
     detail: str | None
     reminder_id: UUID | None
     notes: str | None
+
+
+# ── Growth & production (Milestone 7) ──────────────────────────────────────────
+
+class WeightCreate(AGRIOSSchema):
+    recorded_on: date
+    weight_kg: Decimal = Field(..., gt=0)
+    method: str = Field("scale")
+    age_days: int | None = Field(None, ge=0)
+    notes: str | None = None
+
+    _m = field_validator("method")(_one_of("method", swm.WEIGHT_METHOD_VALUES))
+
+
+class WeightResponse(TimestampedSchema):
+    farm_id: UUID
+    pig_id: UUID
+    recorded_on: date
+    weight_kg: Decimal
+    method: str
+    age_days: int | None
+    notes: str | None
+
+
+class BodyConditionCreate(AGRIOSSchema):
+    assessed_on: date
+    score: Decimal = Field(..., ge=1, le=5)
+    assessor: str | None = Field(None, max_length=200)
+    notes: str | None = None
+
+
+class BodyConditionResponse(TimestampedSchema):
+    farm_id: UUID
+    pig_id: UUID
+    assessed_on: date
+    score: Decimal
+    assessor: str | None
+    notes: str | None
+
+
+class StageTransitionInput(AGRIOSSchema):
+    new_stage: str
+    transition_date: date
+    reason: str | None = Field(None, max_length=255)
+    source: str = Field("manual")
+
+    _ns = field_validator("new_stage")(_one_of("new_stage", swm.PRODUCTION_STAGE_VALUES))
+    _sr = field_validator("source")(_one_of("source", swm.STAGE_TRANSITION_SOURCE_VALUES))
+
+
+class StageTransitionResponse(TimestampedSchema):
+    farm_id: UUID
+    pig_id: UUID
+    previous_stage: str | None
+    new_stage: str
+    transition_date: date
+    reason: str | None
+    source: str
