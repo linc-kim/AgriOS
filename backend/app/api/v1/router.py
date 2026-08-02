@@ -66,6 +66,8 @@ from app.api.v1.endpoints import sr_dairy
 from app.api.v1.endpoints import sr_wool
 from app.api.v1.endpoints import sr_finance
 from app.api.v1.endpoints import sr_reports
+from app.api.v1.endpoints import sr_growth_planner
+from app.api.v1.endpoints import sr_aria
 
 api_router = APIRouter()
 
@@ -177,3 +179,5 @@ api_router.include_router(sr_dairy.router)
 api_router.include_router(sr_wool.router)
 api_router.include_router(sr_finance.router)
 api_router.include_router(sr_reports.router)
+api_router.include_router(sr_growth_planner.router)
+api_router.include_router(sr_aria.router)

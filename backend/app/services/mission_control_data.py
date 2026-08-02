@@ -39,6 +39,8 @@ from app.services import (
     mission_control as mc,
     rabbit_intelligence,
     rabbit_reporting_service,
+    small_ruminant_intelligence,
+    small_ruminant_reporting_service,
 )
 
 
@@ -462,6 +464,28 @@ async def rabbit_briefing(db: AsyncSession, farm: Farm) -> rabbit_intelligence.B
 
     return rabbit_intelligence.build_briefing(
         dashboard=dashboard, forecast=forecast, growth=growth, bottlenecks=bottlenecks)
+
+
+async def small_ruminant_briefing(db: AsyncSession, farm: Farm, species: str):
+    """Mission Control's strategic briefing on a goat or sheep workspace.
+
+    Mission Control *orchestrates* — it owns no small-ruminant business logic. It
+    gathers the domain's already-computed deterministic outputs (the executive
+    dashboard, which composes the reproduction/health/finance/housing/dairy/wool
+    summaries plus the forecast and bottleneck engines) and the Growth Planner's
+    recorded progress, and hands them to the pure ``small_ruminant_intelligence``
+    engine. No figure is recomputed."""
+    dashboard = await small_ruminant_reporting_service.executive_dashboard(db, farm.id, species)
+    forecast = dashboard.get("forecast", {})
+    bottlenecks = dashboard.get("bottlenecks", [])
+
+    growth = None
+    plan = await growth_planner_service.get_primary_plan(db, farm.id, species)
+    if plan is not None:
+        growth = await growth_planner_service.compute_progress(db, farm.id, species, plan)
+
+    return small_ruminant_intelligence.build_briefing(
+        species=species, dashboard=dashboard, forecast=forecast, growth=growth, bottlenecks=bottlenecks)
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────

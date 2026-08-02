@@ -49,6 +49,7 @@ from app.schemas.mission import (
     RabbitBriefingOut,
     ReplanOut,
     ReplanRequest,
+    SmallRuminantBriefingOut,
     ReportOut,
     RevisionCreate,
     RevisionOut,
@@ -207,6 +208,38 @@ async def rabbit_briefing(
     farm, _m = access
     b = await mcd.rabbit_briefing(db, farm)
     return SuccessResponse(data=RabbitBriefingOut(
+        headline=b.headline, summaries=b.summaries, priorities=b.priorities, counts=b.counts,
+        insights=[
+            InsightOut(category=i.category, severity=i.severity, title=i.title, detail=i.detail,
+                       confidence=i.confidence, limitations=i.limitations,
+                       evidence=[InsightEvidenceOut(source=e.source, value=e.value, fact_type=e.fact_type)
+                                 for e in i.evidence])
+            for i in b.insights
+        ],
+    ))
+
+
+@router.get("/small-ruminant/{species}/briefing", response_model=SuccessResponse[SmallRuminantBriefingOut],
+            summary="Strategic goat/sheep briefing — Mission Control over the deterministic engines")
+async def small_ruminant_briefing(
+    farm_id: uuid.UUID,
+    species: str,
+    db: AsyncSession = Depends(get_db),
+    access=Depends(require_farm_access(_READ)),
+    _: User = Depends(require_permission(Permission.AI_INSIGHT_VIEW)),
+):
+    """Mission Control orchestrates the goat/sheep reproduction/health/finance/
+    housing/dairy/wool/forecast/bottleneck engines and the Growth Planner's recorded
+    progress into one strategic briefing — every insight citing recorded/calculated
+    evidence. It owns no business logic; the deterministic engines and Growth
+    Planner remain the sources of truth."""
+    from app.services import small_ruminant_species_config as _cfg
+    if not _cfg.is_supported(species):
+        from app.exceptions import NotFoundException
+        raise NotFoundException(f"No small-ruminant workspace for {species!r}.")
+    farm, _m = access
+    b = await mcd.small_ruminant_briefing(db, farm, species)
+    return SuccessResponse(data=SmallRuminantBriefingOut(
         headline=b.headline, summaries=b.summaries, priorities=b.priorities, counts=b.counts,
         insights=[
             InsightOut(category=i.category, severity=i.severity, title=i.title, detail=i.detail,
