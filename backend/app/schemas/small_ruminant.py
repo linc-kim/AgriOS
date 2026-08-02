@@ -526,3 +526,95 @@ class DocumentResponse(TimestampedSchema):
     size_bytes: int | None
     issued_on: date | None
     expires_on: date | None
+
+
+# ── Breeding cycle (Milestone 3) ───────────────────────────────────────────────
+
+class BreedingCreate(AGRIOSSchema):
+    dam_id: UUID
+    sire_id: UUID
+    method: str = Field("natural")
+    service_date: date | None = None
+    notes: str | None = None
+
+    _m = field_validator("method")(_one_of("method", srm.BREEDING_METHOD_VALUES))
+
+
+class ServiceInput(AGRIOSSchema):
+    service_date: date
+
+
+class PregnancyCheckInput(AGRIOSSchema):
+    checked_on: date
+    result: str = Field("unknown")
+
+    _r = field_validator("result")(_one_of("result", srm.PREGNANCY_RESULT_VALUES))
+
+
+class BirthRecordInput(AGRIOSSchema):
+    birth_date: date
+    birth_type: str = Field("unknown")
+    total_born: int = Field(0, ge=0)
+    live_born: int = Field(0, ge=0)
+    stillborn: int = Field(0, ge=0)
+    avg_birth_weight_kg: Decimal | None = Field(None, ge=0)
+    assistance_required: bool = False
+    complications: str | None = None
+    colostrum_status: str = Field("unknown")
+    location: str | None = Field(None, max_length=200)
+    notes: str | None = None
+    # Offspring auto-creation (Goat Doc 6 §6): create minimal animal rows with
+    # sire/dam/birth pedigree links.
+    create_offspring: bool = False
+    offspring_herd_id: UUID | None = None
+    offspring_group_id: UUID | None = None
+
+    _bt = field_validator("birth_type")(_one_of("birth_type", srm.BIRTH_TYPE_VALUES))
+    _cs = field_validator("colostrum_status")(_one_of("colostrum_status", srm.COLOSTRUM_STATUS_VALUES))
+
+
+class WeaningInput(AGRIOSSchema):
+    weaned: int = Field(..., ge=0)
+    weaning_date: date
+
+
+class BreedingResponse(TimestampedSchema):
+    species: str
+    farm_id: UUID
+    dam_id: UUID | None
+    sire_id: UUID | None
+    repeat_of_id: UUID | None
+    method: str
+    service_date: date | None
+    planned_birth_date: date | None
+    pregnancy_checked_on: date | None
+    pregnancy_result: str
+    prep_started_on: date | None
+    actual_birth_date: date | None
+    status: str
+    outcome: str | None
+    notes: str | None
+
+
+class BirthResponse(TimestampedSchema):
+    species: str
+    farm_id: UUID
+    breeding_id: UUID | None
+    dam_id: UUID | None
+    sire_id: UUID | None
+    birth_code: str
+    birth_date: date
+    birth_type: str
+    total_born: int
+    live_born: int
+    stillborn: int
+    weaned: int
+    mortality: int
+    avg_birth_weight_kg: Decimal | None
+    weaning_date: date | None
+    assistance_required: bool
+    complications: str | None
+    colostrum_status: str
+    status: str
+    location: str | None
+    notes: str | None

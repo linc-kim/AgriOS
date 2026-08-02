@@ -147,6 +147,19 @@ DOCUMENT_TYPE_VALUES = (
     "invoice", "other",
 )
 
+# ── Breeding cycle (Goat Doc 2 §8, Doc 3 §7) — Milestone 3 ─────────────────────
+# Embryo transfer is schema-ready but deferred (Goat Doc 2 §8 "future-ready").
+BREEDING_METHOD_VALUES = ("natural", "artificial", "embryo_transfer")
+BREEDING_STATUS_VALUES = (
+    "planned", "serviced", "pregnant", "not_pregnant", "birthed", "failed", "closed", "cancelled",
+)
+PREGNANCY_RESULT_VALUES = ("unknown", "pregnant", "not_pregnant")
+BREEDING_OUTCOME_VALUES = ("successful", "failed", "aborted", "reabsorbed", "unknown")
+
+# Birth (kidding / lambing) record (Goat Doc 2 §9). One row per parturition.
+BIRTH_STATUS_VALUES = ("active", "weaned", "closed")
+COLOSTRUM_STATUS_VALUES = ("received", "partial", "not_received", "unknown")
+
 
 # ── Catalog: Breed (Goat Doc 2 §7) ─────────────────────────────────────────────
 
@@ -412,6 +425,13 @@ class SmallRuminant(AGRIOSBase):
         UUID(as_uuid=True), ForeignKey("sr_pasture.id", ondelete="SET NULL"),
         nullable=True, index=True,
     )
+    # Birth event this animal was born in (Goat Doc 2 §9; added in Migration 073).
+    # Offspring keep this link permanently. SET NULL preserves the animal if the
+    # birth record is ever removed.
+    birth_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_birth.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
 
     # Identity (Goat Doc 1 §6, Doc 2 §5)
     internal_ref: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -576,3 +596,111 @@ class SmallRuminantDocument(AGRIOSBase):
     )
 
     animal: Mapped["SmallRuminant"] = relationship(back_populates="documents", lazy="noload")
+
+
+# ── Breeding cycle (Goat Doc 2 §8, Doc 3 §7) — Milestone 3 ──────────────────────
+
+class SmallRuminantBreeding(AGRIOSBase):
+    """A single mating cycle: service → pregnancy check → birth (Goat Doc 2 §8).
+
+    One shared model for goats and sheep. Repeat services link back via
+    ``repeat_of_id``. Dam/sire use SET NULL so breeding history survives an animal's
+    soft-deletion. ``planned_birth_date`` is a FORECAST derived from the service
+    date and the species/breed gestation — never a recorded fact. The engine
+    validates dam=female-of-species and sire=male-of-species via the species config
+    (goat doe×buck, sheep ewe×ram), so no breeding logic is forked per species.
+    """
+
+    __tablename__ = "sr_breeding"
+
+    species: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    dam_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_animal.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    sire_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_animal.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    repeat_of_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_breeding.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    method: Mapped[str] = mapped_column(String(20), nullable=False, default="natural")
+    service_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    planned_birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    pregnancy_checked_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    pregnancy_result: Mapped[str] = mapped_column(String(20), nullable=False, default="unknown")
+    prep_started_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    actual_birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="planned")
+    outcome: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    dam: Mapped["SmallRuminant | None"] = relationship(foreign_keys=[dam_id], lazy="noload")
+    sire: Mapped["SmallRuminant | None"] = relationship(foreign_keys=[sire_id], lazy="noload")
+
+    @property
+    def is_open(self) -> bool:
+        """True while the cycle is unresolved (blocks a dam from being re-serviced)."""
+        return self.status in ("planned", "serviced", "pregnant")
+
+    def __repr__(self) -> str:
+        return f"<SmallRuminantBreeding {self.species} dam={self.dam_id} sire={self.sire_id} status={self.status}>"
+
+
+class SmallRuminantBirth(AGRIOSBase):
+    """A birth event — a kidding (goat) or lambing (sheep) (Goat Doc 2 §9).
+
+    Birth statistics are recorded facts; performance (live-birth rate, weaning
+    survival) is calculated by the deterministic engine, never stored. Offspring
+    reference this row via ``sr_animal.birth_id`` and remain linked permanently.
+    The event verb (kidding/lambing) is derived from the species config.
+    """
+
+    __tablename__ = "sr_birth"
+    __table_args__ = (
+        UniqueConstraint("farm_id", "birth_code", name="uq_sr_birth_farm_code"),
+    )
+
+    species: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    breeding_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_breeding.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    dam_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_animal.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    sire_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_animal.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    birth_code: Mapped[str] = mapped_column(String(50), nullable=False)
+    birth_date: Mapped[date] = mapped_column(Date, nullable=False)
+    birth_type: Mapped[str] = mapped_column(String(15), nullable=False, default="unknown")
+    total_born: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    live_born: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    stillborn: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    weaned: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    mortality: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    avg_birth_weight_kg: Mapped[Decimal | None] = mapped_column(Numeric(8, 3), nullable=True)
+    weaning_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    assistance_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    complications: Mapped[str | None] = mapped_column(Text, nullable=True)
+    colostrum_status: Mapped[str] = mapped_column(String(20), nullable=False, default="unknown")
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    location: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    dam: Mapped["SmallRuminant | None"] = relationship(foreign_keys=[dam_id], lazy="noload")
+    sire: Mapped["SmallRuminant | None"] = relationship(foreign_keys=[sire_id], lazy="noload")
+
+    def __repr__(self) -> str:
+        return f"<SmallRuminantBirth {self.birth_code} {self.species} born={self.total_born} status={self.status}>"

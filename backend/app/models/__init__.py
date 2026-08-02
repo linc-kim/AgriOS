@@ -141,8 +141,10 @@ from app.models.rabbit import (
 )
 from app.models.small_ruminant import (
     SmallRuminant,
+    SmallRuminantBirth,
     SmallRuminantBloodline,
     SmallRuminantBreed,
+    SmallRuminantBreeding,
     SmallRuminantDocument,
     SmallRuminantEvent,
     SmallRuminantGroup,
@@ -344,6 +346,9 @@ __all__ = [
     "SmallRuminantEvent",
     "SmallRuminantMedia",
     "SmallRuminantDocument",
+    # Small Ruminant Breeding & Birth (Milestone 3, Migration 073)
+    "SmallRuminantBreeding",
+    "SmallRuminantBirth",
     # Growth Planner (Platform, Migration 065)
     "GrowthPlan",
     "GrowthGoal",
