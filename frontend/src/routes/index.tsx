@@ -96,6 +96,14 @@ const RabbitHealthScreen = lazy(() => import("@/screens/rabbit/RabbitHealthScree
 const RabbitHousingScreen = lazy(() => import("@/screens/rabbit/RabbitHousingScreen"));
 const RabbitGrowthScreen = lazy(() => import("@/screens/rabbit/RabbitGrowthScreen"));
 const RabbitGrowthPlannerScreen = lazy(() => import("@/screens/rabbit/RabbitGrowthPlannerScreen"));
+// Small Ruminant (Modules 18/19) — one shared screen set for goat & sheep.
+const SrDirectoryScreen = lazy(() => import("@/screens/smallRuminant/SrDirectoryScreen"));
+const SrProfileScreen = lazy(() => import("@/screens/smallRuminant/SrProfileScreen"));
+const SrDashboardScreen = lazy(() => import("@/screens/smallRuminant/SrDashboardScreen"));
+const SrProductionScreen = lazy(() => import("@/screens/smallRuminant/SrProductionScreen"));
+const SrReportsScreen = lazy(() => import("@/screens/smallRuminant/SrReportsScreen"));
+const SrAriaScreen = lazy(() => import("@/screens/smallRuminant/SrAriaScreen"));
+const SrMissionScreen = lazy(() => import("@/screens/smallRuminant/SrMissionScreen"));
 const AdminScreen = lazy(() => import("@/screens/admin/AdminScreen"));
 const ProductionScreen = lazy(() => import("@/screens/production/ProductionScreen"));
 
@@ -246,6 +254,22 @@ const router = createBrowserRouter([
           { path: "/rabbit/aria", element: <RabbitAriaScreen /> },
           { path: "/rabbit/mission", element: <RabbitMissionScreen /> },
           { path: "/rabbit/:rabbitId", element: <RabbitProfileScreen /> },
+          // ── Small Ruminant — Goat workspace (Module 18) ──────────────────
+          { path: "/goat", element: <SrDirectoryScreen species="goat" /> },
+          { path: "/goat/dashboard", element: <SrDashboardScreen species="goat" /> },
+          { path: "/goat/dairy", element: <SrProductionScreen species="goat" /> },
+          { path: "/goat/reports", element: <SrReportsScreen species="goat" /> },
+          { path: "/goat/aria", element: <SrAriaScreen species="goat" /> },
+          { path: "/goat/mission", element: <SrMissionScreen species="goat" /> },
+          { path: "/goat/:animalId", element: <SrProfileScreen species="goat" /> },
+          // ── Small Ruminant — Sheep workspace (Module 19) ─────────────────
+          { path: "/sheep", element: <SrDirectoryScreen species="sheep" /> },
+          { path: "/sheep/dashboard", element: <SrDashboardScreen species="sheep" /> },
+          { path: "/sheep/wool", element: <SrProductionScreen species="sheep" /> },
+          { path: "/sheep/reports", element: <SrReportsScreen species="sheep" /> },
+          { path: "/sheep/aria", element: <SrAriaScreen species="sheep" /> },
+          { path: "/sheep/mission", element: <SrMissionScreen species="sheep" /> },
+          { path: "/sheep/:animalId", element: <SrProfileScreen species="sheep" /> },
           { path: "/admin", element: <AdminScreen /> },
           { path: "/production", element: <ProductionScreen /> },
           ...moduleRoutes,
