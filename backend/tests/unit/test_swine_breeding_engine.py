@@ -98,3 +98,38 @@ class TestRates:
         s = eng.reproduction_summary([])
         assert s["conception_rate_pct"]["label"] == eng.UNKNOWN
         assert s["conception_rate_pct"]["value"] is None
+
+
+class TestFarrowingPerformance:
+    def test_live_birth_rate_and_survival(self):
+        # Not yet weaned → survival unavailable.
+        nursing = eng.farrowing_performance(
+            {"total_born": 12, "born_alive": 10, "stillborn": 1, "mummified": 1,
+             "weaned": 0, "status": "active"})
+        assert nursing["live_birth_rate_pct"]["value"] == round(10 / 12 * 100, 1)
+        assert nursing["pre_wean_survival_pct"]["label"] == eng.UNAVAILABLE
+        # Weaned → survival = weaned / born_alive.
+        weaned = eng.farrowing_performance(
+            {"total_born": 12, "born_alive": 10, "weaned": 9, "status": "weaned"})
+        assert weaned["pre_wean_survival_pct"]["value"] == 90.0
+
+    def test_litter_summary_aggregates(self):
+        litters = [
+            {"total_born": 12, "born_alive": 10, "stillborn": 2, "mummified": 0,
+             "weaned": 9, "status": "weaned"},
+            {"total_born": 14, "born_alive": 13, "stillborn": 1, "mummified": 0,
+             "weaned": 0, "status": "active"},
+        ]
+        s = eng.litter_summary(litters, services=3)
+        assert s["total_farrowings"]["value"] == 2
+        assert s["avg_litter_size"]["value"] == 13.0   # (12+14)/2
+        assert s["live_birth_rate_pct"]["value"] == round(23 / 26 * 100, 1)
+        # Pre-wean survival only over weaned litters (9 weaned / 10 born alive).
+        assert s["pre_wean_survival_pct"]["value"] == 90.0
+        # Farrowing rate = farrowings / services = 2/3.
+        assert s["farrowing_rate_pct"]["value"] == round(2 / 3 * 100, 1)
+
+    def test_litter_summary_empty_is_unknown(self):
+        s = eng.litter_summary([], services=0)
+        assert s["avg_litter_size"]["label"] == eng.UNKNOWN
+        assert s["farrowing_rate_pct"]["label"] == eng.UNKNOWN

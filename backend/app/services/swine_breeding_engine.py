@@ -175,3 +175,76 @@ def reproduction_summary(breedings: list[dict]) -> dict:
         "conception_rate_pct": _rate(pregnancies, checked, "pregnancies ÷ checked services × 100."),
         "pregnancy_rate_pct": _rate(pregnancies, services, "pregnancies ÷ services × 100."),
     }
+
+
+# ── Farrowing & litter performance (Swine Doc 3 §11, Doc 6 §8) — Milestone 4 ────
+
+def farrowing_performance(litter: dict) -> dict:
+    """Deterministic performance for one litter from recorded counts.
+
+    ``litter``: {"total_born","born_alive","stillborn","mummified","weaned",
+    "mortality","avg_birth_weight_kg","status"}. Pre-wean survival is only meaningful
+    once the litter is weaned — otherwise it is honestly unavailable (still nursing).
+    """
+    total = int(litter.get("total_born") or 0)
+    alive = int(litter.get("born_alive") or 0)
+    stillborn = int(litter.get("stillborn") or 0)
+    mummified = int(litter.get("mummified") or 0)
+    weaned = int(litter.get("weaned") or 0)
+    status = litter.get("status")
+
+    if status in ("weaned", "closed"):
+        survival = _rate(weaned, alive, "weaned ÷ born_alive × 100.")
+    else:
+        survival = _lab(UNAVAILABLE, None, "Litter not yet weaned.")
+
+    return {
+        "total_born": _lab(RECORDED, total),
+        "born_alive": _lab(RECORDED, alive),
+        "stillborn": _lab(RECORDED, stillborn),
+        "mummified": _lab(RECORDED, mummified),
+        "weaned": _lab(RECORDED, weaned),
+        "pre_wean_mortality": _lab(RECORDED, int(litter.get("mortality") or 0)),
+        "live_birth_rate_pct": _rate(alive, total, "born_alive ÷ total_born × 100."),
+        "stillborn_rate_pct": _rate(stillborn, total, "stillborn ÷ total_born × 100."),
+        "mummified_rate_pct": _rate(mummified, total, "mummified ÷ total_born × 100."),
+        "pre_wean_survival_pct": survival,
+    }
+
+
+def litter_summary(litters: list[dict], services: int = 0) -> dict:
+    """Herd-level litter/farrowing analytics (Swine Doc 6 §8).
+
+    ``litters`` each a litter dict; ``services`` the count of recorded breeding
+    services (for the farrowing rate). Rates never fabricate a denominator.
+    """
+    farrowings = len(litters)
+    total_born = sum(int(x.get("total_born") or 0) for x in litters)
+    born_alive = sum(int(x.get("born_alive") or 0) for x in litters)
+    stillborn = sum(int(x.get("stillborn") or 0) for x in litters)
+    mummified = sum(int(x.get("mummified") or 0) for x in litters)
+    weaned = sum(int(x.get("weaned") or 0) for x in litters)
+    weaned_litters = [x for x in litters if x.get("status") in ("weaned", "closed")]
+    weaned_alive = sum(int(x.get("born_alive") or 0) for x in weaned_litters)
+
+    return {
+        "total_farrowings": _lab(RECORDED, farrowings),
+        "total_born": _lab(RECORDED, total_born),
+        "total_born_alive": _lab(RECORDED, born_alive),
+        "total_stillborn": _lab(RECORDED, stillborn),
+        "total_mummified": _lab(RECORDED, mummified),
+        "total_weaned": _lab(RECORDED, weaned),
+        "avg_litter_size": (
+            _lab(CALCULATED, round(total_born / farrowings, 2), "total_born ÷ farrowings.")
+            if farrowings else _lab(UNKNOWN, None, "No farrowings recorded.")
+        ),
+        "avg_born_alive": (
+            _lab(CALCULATED, round(born_alive / farrowings, 2), "born_alive ÷ farrowings.")
+            if farrowings else _lab(UNKNOWN, None, "No farrowings recorded.")
+        ),
+        "live_birth_rate_pct": _rate(born_alive, total_born, "Σborn_alive ÷ Σtotal_born × 100."),
+        "stillborn_rate_pct": _rate(stillborn, total_born, "Σstillborn ÷ Σtotal_born × 100."),
+        "mummified_rate_pct": _rate(mummified, total_born, "Σmummified ÷ Σtotal_born × 100."),
+        "pre_wean_survival_pct": _rate(weaned, weaned_alive, "Σweaned ÷ Σborn_alive (weaned litters) × 100."),
+        "farrowing_rate_pct": _rate(farrowings, services, "farrowings ÷ services × 100."),
+    }

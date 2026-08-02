@@ -327,6 +327,8 @@ class PigResponse(TimestampedSchema):
     herd_id: UUID | None
     group_id: UUID | None
     pen_id: UUID | None
+    litter_id: UUID | None
+    nurse_dam_id: UUID | None
     internal_ref: str
     name: str | None
     ear_tag: str | None
@@ -339,6 +341,7 @@ class PigResponse(TimestampedSchema):
     line: str | None
     color: str | None
     sex: str
+    birth_sex: str
     purpose: str
     purposes: list
     registration_status: str
@@ -577,3 +580,121 @@ class PregnancyResponse(TimestampedSchema):
     loss_date: date | None
     actual_farrowing_date: date | None
     notes: str | None
+
+
+# ── Farrowing, litters & fostering (Milestone 4) ───────────────────────────────
+
+class PigletAddInput(AGRIOSSchema):
+    """One individual piglet to register against a litter (optional individualisation)."""
+
+    internal_ref: str | None = Field(None, max_length=50)
+    name: str | None = Field(None, max_length=150)
+    ear_notch: str | None = Field(None, max_length=100)
+    birth_sex: str = Field("unknown")
+    birth_weight_kg: Decimal | None = Field(None, ge=0)
+
+    _bs = field_validator("birth_sex")(_one_of("birth_sex", swm.BIRTH_SEX_VALUES))
+
+
+class FarrowingRecordInput(AGRIOSSchema):
+    """Record a farrowing + its litter. Provide the pregnancy or breeding it resolves
+    (or an explicit dam). ``total_born`` is derived as born_alive+stillborn+mummified."""
+
+    breeding_id: UUID | None = None
+    pregnancy_id: UUID | None = None
+    dam_id: UUID | None = None
+    sire_id: UUID | None = None
+    farrowing_date: date
+    born_alive: int = Field(0, ge=0)
+    stillborn: int = Field(0, ge=0)
+    mummified: int = Field(0, ge=0)
+    avg_birth_weight_kg: Decimal | None = Field(None, ge=0)
+    litter_birth_weight_kg: Decimal | None = Field(None, ge=0)
+    parity: int | None = Field(None, ge=0)
+    assistance_required: bool = False
+    complications: str | None = None
+    colostrum_status: str = Field("unknown")
+    location: str | None = Field(None, max_length=200)
+    notes: str | None = None
+    create_individuals: list[PigletAddInput] = Field(default_factory=list)
+
+    _cs = field_validator("colostrum_status")(_one_of("colostrum_status", swm.COLOSTRUM_STATUS_VALUES))
+
+
+class FarrowingResponse(TimestampedSchema):
+    farm_id: UUID
+    breeding_id: UUID | None
+    pregnancy_id: UUID | None
+    dam_id: UUID | None
+    sire_id: UUID | None
+    farrowing_code: str
+    farrowing_date: date
+    parity: int | None
+    assistance_required: bool
+    complications: str | None
+    colostrum_status: str
+    status: str
+    location: str | None
+    notes: str | None
+
+
+class LitterResponse(TimestampedSchema):
+    farm_id: UUID
+    farrowing_id: UUID | None
+    dam_id: UUID | None
+    sire_id: UUID | None
+    nurse_dam_id: UUID | None
+    litter_code: str
+    total_born: int
+    born_alive: int
+    stillborn: int
+    mummified: int
+    weaned: int
+    mortality: int
+    fostered_in: int
+    fostered_out: int
+    avg_birth_weight_kg: Decimal | None
+    litter_birth_weight_kg: Decimal | None
+    weaning_date: date | None
+    avg_weaning_weight_kg: Decimal | None
+    status: str
+    notes: str | None
+
+
+class LitterMortalityInput(AGRIOSSchema):
+    count: int = Field(1, ge=1)
+    cause: str | None = Field(None, max_length=20)
+    pig_id: UUID | None = None
+    occurred_on: date | None = None
+
+    _c = field_validator("cause")(_one_of("cause", swm.PIGLET_DEATH_CAUSE_VALUES))
+
+
+class FosterTransferInput(AGRIOSSchema):
+    source_litter_id: UUID
+    dest_litter_id: UUID
+    piglet_count: int = Field(0, ge=0)
+    pig_ids: list[UUID] = Field(default_factory=list)
+    transfer_date: date
+    reason: str | None = Field(None, max_length=255)
+    notes: str | None = None
+
+
+class FosterTransferResponse(TimestampedSchema):
+    farm_id: UUID
+    source_litter_id: UUID | None
+    dest_litter_id: UUID | None
+    source_dam_id: UUID | None
+    dest_dam_id: UUID | None
+    piglet_count: int
+    pig_ids: list
+    transfer_date: date
+    reason: str | None
+    notes: str | None
+
+
+class WeaningInput(AGRIOSSchema):
+    weaned: int = Field(..., ge=0)
+    weaning_date: date
+    avg_weaning_weight_kg: Decimal | None = Field(None, ge=0)
+    nursery_group_id: UUID | None = None

@@ -72,12 +72,12 @@ _MANAGER_ROLES = {"farm_owner", "farm_manager"}
 def _pig_response(p, names) -> PigResponse:
     payload = {k: getattr(p, k) for k in (
         "id", "created_at", "updated_at", "farm_id", "breed_id", "bloodline_id",
-        "herd_id", "group_id", "pen_id", "internal_ref", "name", "ear_tag", "ear_notch",
-        "tattoo", "qr_code", "rfid", "visual_id", "registration_number", "line", "color",
-        "sex", "purpose", "purposes", "registration_status", "date_of_birth", "dob_estimated",
-        "birth_weight_kg", "current_weight_kg", "production_stage", "status", "reproductive_status",
-        "fertility_status", "market_status", "parity", "acquisition_type", "acquired_on",
-        "sire_id", "dam_id", "tags", "notes",
+        "herd_id", "group_id", "pen_id", "litter_id", "nurse_dam_id", "internal_ref", "name",
+        "ear_tag", "ear_notch", "tattoo", "qr_code", "rfid", "visual_id", "registration_number",
+        "line", "color", "sex", "birth_sex", "purpose", "purposes", "registration_status",
+        "date_of_birth", "dob_estimated", "birth_weight_kg", "current_weight_kg", "production_stage",
+        "status", "reproductive_status", "fertility_status", "market_status", "parity",
+        "acquisition_type", "acquired_on", "sire_id", "dam_id", "tags", "notes",
     )}
     return PigResponse(
         **payload,

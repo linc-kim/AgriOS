@@ -106,6 +106,8 @@ BIOSECURITY_STATUS_VALUES = (
 # boar/sow/gilt/barrow validated against swine_config; horn status is irrelevant to
 # pigs (dropped vs the small-ruminant model).
 SEX_VALUES = ("boar", "sow", "gilt", "barrow", "unknown")
+# Biological birth sex of a piglet, recorded at birth before class assignment.
+BIRTH_SEX_VALUES = ("male", "female", "unknown")
 PURPOSE_VALUES = (
     "meat", "breeding", "replacement", "show", "genetic_improvement", "mixed", "unknown",
 )
@@ -382,6 +384,19 @@ class SwinePig(AGRIOSBase):
         UUID(as_uuid=True), ForeignKey("swine_pen.id", ondelete="SET NULL"),
         nullable=True, index=True,
     )
+    # The birth litter this pig belongs to (added in Migration 082, Milestone 4).
+    # Individual (individualized) management links each young pig to its litter;
+    # litter-level-only farms simply leave this NULL and track the cohort on
+    # ``swine_litter``. ``nurse_dam_id`` records a foster (nursing) sow different from
+    # the birth dam. Both SET NULL so a pig survives the litter/sow being removed.
+    litter_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_litter.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
+    nurse_dam_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
 
     # Identity (Swine Doc 2 §4). Ear notch is the traditional litter/pig marking.
     internal_ref: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -397,7 +412,11 @@ class SwinePig(AGRIOSBase):
     # Classification (Swine Doc 2 §4)
     line: Mapped[str | None] = mapped_column(String(100), nullable=True)
     color: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # ``sex`` is the management class (boar/sow/gilt/barrow), assigned at/after
+    # weaning; ``birth_sex`` (male/female) is the biological sex recorded at birth for
+    # a piglet before it is classified.
     sex: Mapped[str] = mapped_column(String(10), nullable=False, default="unknown")
+    birth_sex: Mapped[str] = mapped_column(String(10), nullable=False, default="unknown")
     purpose: Mapped[str] = mapped_column(String(30), nullable=False, default="unknown")
     purposes: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     registration_status: Mapped[str] = mapped_column(String(20), nullable=False, default="unknown")
@@ -735,3 +754,168 @@ class SwinePregnancy(AGRIOSBase):
 
     def __repr__(self) -> str:
         return f"<SwinePregnancy dam={self.dam_id} status={self.status} due={self.expected_farrowing_date}>"
+
+
+# ── Farrowing, litters & fostering (Swine Doc 2 §8-10, Doc 3 §10-12) — M4 ───────
+# The farrowing is the birthing EVENT (assistance, complications); the litter is the
+# resulting offspring COHORT (counts, weaning). Litters carry aggregate figures so a
+# smallholder can manage at litter level; a commercial farm additionally creates
+# individual ``swine_pig`` rows linked via ``swine_pig.litter_id`` (both workflows
+# supported — neither forced). Fostering moves piglets (one, several, or a whole
+# litter) between nursing sows while preserving birth-litter traceability.
+FARROWING_STATUS_VALUES = ("recorded", "active", "closed")
+COLOSTRUM_STATUS_VALUES = ("received", "partial", "not_received", "unknown")
+LITTER_STATUS_VALUES = ("active", "weaned", "closed")
+PIGLET_DEATH_CAUSE_VALUES = (
+    "stillborn", "crushed", "starvation", "chilled", "scours", "disease",
+    "savaging", "congenital", "low_viability", "unknown", "other",
+)
+
+
+class SwineFarrowing(AGRIOSBase):
+    """A farrowing — one sow's birthing event (Swine Doc 2 §8, Doc 3 §10).
+
+    Records the event circumstances (assistance, complications, colostrum) and links
+    to the pregnancy/breeding it resolves. The offspring counts live on the
+    associated :class:`SwineLitter` (1:1). ``parity`` is the sow's litter number.
+    """
+
+    __tablename__ = "swine_farrowing"
+    __table_args__ = (
+        UniqueConstraint("farm_id", "farrowing_code", name="uq_swine_farrowing_farm_code"),
+    )
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    breeding_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_breeding.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    pregnancy_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pregnancy.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    dam_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    sire_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    farrowing_code: Mapped[str] = mapped_column(String(50), nullable=False)
+    farrowing_date: Mapped[date] = mapped_column(Date, nullable=False)
+    parity: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    assistance_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    complications: Mapped[str | None] = mapped_column(Text, nullable=True)
+    colostrum_status: Mapped[str] = mapped_column(String(20), nullable=False, default="unknown")
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="recorded")
+    location: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    dam: Mapped["SwinePig | None"] = relationship(foreign_keys=[dam_id], lazy="noload")
+    sire: Mapped["SwinePig | None"] = relationship(foreign_keys=[sire_id], lazy="noload")
+
+    def __repr__(self) -> str:
+        return f"<SwineFarrowing {self.farrowing_code} dam={self.dam_id} date={self.farrowing_date}>"
+
+
+class SwineLitter(AGRIOSBase):
+    """The offspring cohort of a farrowing (Swine Doc 2 §9, Doc 3 §11).
+
+    Holds the recorded birth statistics (born alive / stillborn / mummified) and the
+    weaning outcome. Performance (live-birth rate, pre-wean survival) is calculated
+    by the deterministic engine, never stored. Individual pigs, when tracked, link
+    here via ``swine_pig.litter_id``. ``nurse_dam_id`` is the current nursing sow,
+    which may differ from the birth ``dam_id`` after fostering.
+    """
+
+    __tablename__ = "swine_litter"
+    __table_args__ = (
+        UniqueConstraint("farm_id", "litter_code", name="uq_swine_litter_farm_code"),
+    )
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    farrowing_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_farrowing.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    dam_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    sire_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    nurse_dam_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    litter_code: Mapped[str] = mapped_column(String(50), nullable=False)
+    total_born: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    born_alive: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    stillborn: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    mummified: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    weaned: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    mortality: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    fostered_in: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    fostered_out: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    avg_birth_weight_kg: Mapped[Decimal | None] = mapped_column(Numeric(8, 3), nullable=True)
+    litter_birth_weight_kg: Mapped[Decimal | None] = mapped_column(Numeric(9, 3), nullable=True)
+    weaning_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    avg_weaning_weight_kg: Mapped[Decimal | None] = mapped_column(Numeric(8, 3), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    dam: Mapped["SwinePig | None"] = relationship(foreign_keys=[dam_id], lazy="noload")
+
+    @property
+    def nursed_count(self) -> int:
+        """Piglets currently nursing on this litter's sow (born alive − out + in)."""
+        return max(self.born_alive - self.fostered_out + self.fostered_in, 0)
+
+    def __repr__(self) -> str:
+        return f"<SwineLitter {self.litter_code} alive={self.born_alive} weaned={self.weaned}>"
+
+
+class SwineFosterTransfer(AGRIOSBase):
+    """A cross-fostering event — piglets moved from one nursing sow to another
+    (Swine Doc 2 §10, Doc 3 §12).
+
+    Operates at the individual-piglet grain: ``piglet_count`` is always recorded, and
+    ``pig_ids`` lists the specific ``swine_pig`` rows moved when the farm tracks
+    individuals (one, several, or a whole litter). A permanent fact on both litters;
+    each moved pig keeps its birth litter and gains a ``nurse_dam_id`` for full
+    birth-sow → foster-sow traceability.
+    """
+
+    __tablename__ = "swine_foster_transfer"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    source_litter_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_litter.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    dest_litter_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_litter.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    source_dam_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    dest_dam_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    piglet_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    pig_ids: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    transfer_date: Mapped[date] = mapped_column(Date, nullable=False)
+    reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SwineFosterTransfer {self.source_litter_id}→{self.dest_litter_id} n={self.piglet_count}>"
