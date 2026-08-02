@@ -160,6 +160,12 @@ BREEDING_OUTCOME_VALUES = ("successful", "failed", "aborted", "reabsorbed", "unk
 BIRTH_STATUS_VALUES = ("active", "weaned", "closed")
 COLOSTRUM_STATUS_VALUES = ("received", "partial", "not_received", "unknown")
 
+# Growth & feed (Goat Doc 2 §11, §13) — Milestone 4. Weights in kilograms.
+WEIGHT_METHOD_VALUES = ("scale", "tape", "estimate", "unknown")
+BODY_CONDITION_MIN = 1  # BCS 1–5 scale for small ruminants (Goat Doc 2 §11)
+BODY_CONDITION_MAX = 5
+FEED_UNIT_VALUES = ("kg", "g", "bale", "flake")
+
 
 # ── Catalog: Breed (Goat Doc 2 §7) ─────────────────────────────────────────────
 
@@ -704,3 +710,78 @@ class SmallRuminantBirth(AGRIOSBase):
 
     def __repr__(self) -> str:
         return f"<SmallRuminantBirth {self.birth_code} {self.species} born={self.total_born} status={self.status}>"
+
+
+# ── Growth: weight measurements (Goat Doc 2 §11) — Milestone 4 ──────────────────
+
+class SmallRuminantWeight(AGRIOSBase):
+    """An immutable weight measurement for an animal (Goat Doc 2 §11). Historical
+    records are never overwritten. Weights are in kilograms (small-ruminant scale).
+    Growth (ADG, percentiles, deviations) is computed from these records by the
+    deterministic engine — never stored. Body condition score (1–5) is an optional
+    recorded assessment."""
+
+    __tablename__ = "sr_weight"
+
+    species: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    animal_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_animal.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    recorded_on: Mapped[date] = mapped_column(Date, nullable=False)
+    weight_kg: Mapped[Decimal] = mapped_column(Numeric(8, 3), nullable=False)
+    method: Mapped[str] = mapped_column(String(15), nullable=False, default="scale")
+    body_condition_score: Mapped[Decimal | None] = mapped_column(Numeric(3, 1), nullable=True)
+    heart_girth_cm: Mapped[Decimal | None] = mapped_column(Numeric(6, 1), nullable=True)
+    height_cm: Mapped[Decimal | None] = mapped_column(Numeric(6, 1), nullable=True)
+    body_length_cm: Mapped[Decimal | None] = mapped_column(Numeric(6, 1), nullable=True)
+    age_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SmallRuminantWeight animal={self.animal_id} {self.weight_kg}kg on {self.recorded_on}>"
+
+
+# ── Feed: feeding log (reuses platform Inventory — Goat Doc 2 §13) ──────────────
+
+class SmallRuminantFeedRecord(AGRIOSBase):
+    """A feeding event for an animal, group or the farm (Goat Doc 2 §13). Feed stock
+    and purchase costs live in the platform Inventory module; this row is the domain
+    feeding log. ``inventory_item_id`` / ``inventory_movement_id`` are SOFT
+    references into Inventory (no FK — modules stay decoupled). ``cost`` is a
+    snapshot allocation, never re-posted to finance (feed is expensed once at
+    Inventory stock-in)."""
+
+    __tablename__ = "sr_feed_record"
+
+    species: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    animal_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_animal.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    group_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_group.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    inventory_item_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    inventory_movement_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    feed_type: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    quantity_kg: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    fed_on: Mapped[date] = mapped_column(Date, nullable=False)
+    is_mineral: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    cost: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    currency: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    supplier: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SmallRuminantFeedRecord animal={self.animal_id} group={self.group_id} {self.quantity_kg}kg>"

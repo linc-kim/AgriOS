@@ -149,9 +149,11 @@ from app.models.small_ruminant import (
     SmallRuminantEvent,
     SmallRuminantGroup,
     SmallRuminantHerd,
+    SmallRuminantFeedRecord,
     SmallRuminantMedia,
     SmallRuminantPasture,
     SmallRuminantPen,
+    SmallRuminantWeight,
 )
 from app.models.growth import (
     GrowthGoal,
@@ -349,6 +351,9 @@ __all__ = [
     # Small Ruminant Breeding & Birth (Milestone 3, Migration 073)
     "SmallRuminantBreeding",
     "SmallRuminantBirth",
+    # Small Ruminant Growth & Feed (Milestone 4, Migration 074)
+    "SmallRuminantWeight",
+    "SmallRuminantFeedRecord",
     # Growth Planner (Platform, Migration 065)
     "GrowthPlan",
     "GrowthGoal",

@@ -618,3 +618,64 @@ class BirthResponse(TimestampedSchema):
     status: str
     location: str | None
     notes: str | None
+
+
+# ── Growth & feed (Milestone 4) — weights in kilograms ─────────────────────────
+
+class WeightCreate(AGRIOSSchema):
+    recorded_on: date
+    weight_kg: Decimal = Field(..., gt=0)
+    method: str = Field("scale")
+    body_condition_score: Decimal | None = Field(None, ge=1, le=5)
+    heart_girth_cm: Decimal | None = Field(None, ge=0)
+    height_cm: Decimal | None = Field(None, ge=0)
+    body_length_cm: Decimal | None = Field(None, ge=0)
+    notes: str | None = None
+
+    _m = field_validator("method")(_one_of("method", srm.WEIGHT_METHOD_VALUES))
+
+
+class WeightResponse(TimestampedSchema):
+    species: str
+    farm_id: UUID
+    animal_id: UUID
+    recorded_on: date
+    weight_kg: Decimal
+    method: str
+    body_condition_score: Decimal | None
+    heart_girth_cm: Decimal | None
+    height_cm: Decimal | None
+    body_length_cm: Decimal | None
+    age_days: int | None
+    notes: str | None
+
+
+class FeedRecordCreate(AGRIOSSchema):
+    animal_id: UUID | None = None
+    group_id: UUID | None = None
+    inventory_item_id: UUID | None = None
+    feed_type: str | None = Field(None, max_length=150)
+    quantity_kg: Decimal = Field(..., gt=0)
+    fed_on: date
+    is_mineral: bool = False
+    cost: Decimal | None = Field(None, ge=0)
+    currency: str | None = Field(None, max_length=10)
+    supplier: str | None = Field(None, max_length=200)
+    notes: str | None = None
+
+
+class FeedRecordResponse(TimestampedSchema):
+    species: str
+    farm_id: UUID
+    animal_id: UUID | None
+    group_id: UUID | None
+    inventory_item_id: UUID | None
+    inventory_movement_id: UUID | None
+    feed_type: str | None
+    quantity_kg: Decimal
+    fed_on: date
+    is_mineral: bool
+    cost: Decimal | None
+    currency: str | None
+    supplier: str | None
+    notes: str | None
