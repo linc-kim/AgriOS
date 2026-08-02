@@ -151,6 +151,7 @@ from app.models.small_ruminant import (
     SmallRuminantHerd,
     SmallRuminantDeworming,
     SmallRuminantFeedRecord,
+    SmallRuminantFleece,
     SmallRuminantHealthRecord,
     SmallRuminantHoofCare,
     SmallRuminantLactation,
@@ -159,6 +160,7 @@ from app.models.small_ruminant import (
     SmallRuminantMortality,
     SmallRuminantPasture,
     SmallRuminantPen,
+    SmallRuminantShearing,
     SmallRuminantVaccination,
     SmallRuminantWeight,
 )
@@ -370,6 +372,9 @@ __all__ = [
     # Small Ruminant Dairy — goat milk/lactation (Milestone 6, Migration 076)
     "SmallRuminantLactation",
     "SmallRuminantMilkRecord",
+    # Small Ruminant Wool — sheep shearing/fleece (Milestone 7, Migration 077)
+    "SmallRuminantShearing",
+    "SmallRuminantFleece",
     # Growth Planner (Platform, Migration 065)
     "GrowthPlan",
     "GrowthGoal",

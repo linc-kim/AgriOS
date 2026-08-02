@@ -877,3 +877,55 @@ class MilkRecordResponse(TimestampedSchema):
     protein_pct: Decimal | None
     somatic_cell_count: int | None
     notes: str | None
+
+
+# ── Wool — shearing & fleece (Milestone 7) ─────────────────────────────────────
+
+class FleeceCreate(AGRIOSSchema):
+    animal_id: UUID
+    greasy_weight_kg: Decimal = Field(..., gt=0)
+    clean_yield_pct: Decimal | None = Field(None, ge=0, le=100)
+    staple_length_cm: Decimal | None = Field(None, ge=0)
+    micron: Decimal | None = Field(None, gt=0)
+    grade: str = Field("unknown")
+    condition: str = Field("unknown")
+    notes: str | None = None
+
+    _g = field_validator("grade")(_one_of("grade", srm.WOOL_GRADE_VALUES))
+    _c = field_validator("condition")(_one_of("condition", srm.FLEECE_CONDITION_VALUES))
+
+
+class ShearingCreate(AGRIOSSchema):
+    shearing_date: date
+    method: str = Field("machine")
+    shearer: str | None = Field(None, max_length=200)
+    group_id: UUID | None = None
+    fleeces: list[FleeceCreate] = Field(default_factory=list)
+    notes: str | None = None
+
+    _m = field_validator("method")(_one_of("method", srm.SHEARING_METHOD_VALUES))
+
+
+class ShearingResponse(TimestampedSchema):
+    species: str
+    farm_id: UUID
+    group_id: UUID | None
+    shearing_date: date
+    method: str
+    shearer: str | None
+    notes: str | None
+
+
+class FleeceResponse(TimestampedSchema):
+    species: str
+    farm_id: UUID
+    shearing_id: UUID | None
+    animal_id: UUID
+    shorn_on: date
+    greasy_weight_kg: Decimal
+    clean_yield_pct: Decimal | None
+    staple_length_cm: Decimal | None
+    micron: Decimal | None
+    grade: str
+    condition: str
+    notes: str | None

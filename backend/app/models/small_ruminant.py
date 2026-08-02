@@ -193,6 +193,12 @@ MORTALITY_CAUSE_VALUES = (
 LACTATION_STATUS_VALUES = ("active", "dry", "completed")
 MILK_SESSION_VALUES = ("am", "pm", "midday", "total", "once")
 
+# Wool — shearing & fleece (Sheep Doc §8) — Milestone 7. Gated by the species
+# ``produces_wool`` capability (sheep only; goats are rejected from this workspace).
+SHEARING_METHOD_VALUES = ("machine", "blade", "hand", "other")
+WOOL_GRADE_VALUES = ("superfine", "fine", "medium", "strong", "carpet", "unclassed", "unknown")
+FLEECE_CONDITION_VALUES = ("excellent", "good", "fair", "poor", "unknown")
+
 
 # ── Catalog: Breed (Goat Doc 2 §7) ─────────────────────────────────────────────
 
@@ -1046,3 +1052,66 @@ class SmallRuminantMilkRecord(AGRIOSBase):
 
     def __repr__(self) -> str:
         return f"<SmallRuminantMilkRecord animal={self.animal_id} {self.quantity_liters}L {self.session} on {self.recorded_on}>"
+
+
+# ── Wool: shearing & fleece (Sheep Doc §8) — Milestone 7 ────────────────────────
+
+class SmallRuminantShearing(AGRIOSBase):
+    """A shearing session (Sheep Doc §8). May cover one animal or a whole group;
+    per-animal fleece detail lives in ``sr_fleece``. Sheep-specific — gated by the
+    species ``produces_wool`` capability."""
+
+    __tablename__ = "sr_shearing"
+
+    species: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    group_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_group.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    shearing_date: Mapped[date] = mapped_column(Date, nullable=False)
+    method: Mapped[str] = mapped_column(String(15), nullable=False, default="machine")
+    shearer: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SmallRuminantShearing {self.species} on {self.shearing_date} method={self.method}>"
+
+
+class SmallRuminantFleece(AGRIOSBase):
+    """A per-animal fleece record from a shearing (Sheep Doc §8). Greasy weight is a
+    recorded fact; clean weight and value are computed by the deterministic engine
+    (clean yield %, price/kg) — never stored. Staple length and micron are recorded
+    measurements; the quality grade is a recorded classification (never inferred by
+    the platform beyond the deterministic micron banding the engine offers)."""
+
+    __tablename__ = "sr_fleece"
+
+    species: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    shearing_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_shearing.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    animal_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sr_animal.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    shorn_on: Mapped[date] = mapped_column(Date, nullable=False)
+    greasy_weight_kg: Mapped[Decimal] = mapped_column(Numeric(8, 3), nullable=False)
+    clean_yield_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    staple_length_cm: Mapped[Decimal | None] = mapped_column(Numeric(6, 2), nullable=True)
+    micron: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    grade: Mapped[str] = mapped_column(String(15), nullable=False, default="unknown")
+    condition: Mapped[str] = mapped_column(String(15), nullable=False, default="unknown")
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SmallRuminantFleece animal={self.animal_id} {self.greasy_weight_kg}kg grade={self.grade}>"
