@@ -429,6 +429,20 @@ class PigEventResponse(TimestampedSchema):
     operator_id: UUID | None
 
 
+class MovementResponse(TimestampedSchema):
+    farm_id: UUID
+    pig_id: UUID
+    movement_type: str
+    from_pen_id: UUID | None
+    to_pen_id: UUID | None
+    from_group_id: UUID | None
+    to_group_id: UUID | None
+    moved_on: date
+    reason: str | None
+    notes: str | None
+    moved_by: UUID | None
+
+
 class MediaCreate(AGRIOSSchema):
     media_type: str = Field("photo")
     title: str | None = Field(None, max_length=255)
@@ -501,17 +515,6 @@ class ServiceInput(AGRIOSSchema):
     service_date: date
 
 
-class PregnancyCheckInput(AGRIOSSchema):
-    checked_on: date
-    result: str = Field("unknown")
-    method: str | None = Field(None, max_length=20)
-    risk_level: str | None = Field(None, max_length=20)
-
-    _r = field_validator("result")(_one_of("result", swm.PREGNANCY_RESULT_VALUES))
-    _cm = field_validator("method")(_one_of("method", swm.PREGNANCY_CHECK_METHOD_VALUES))
-    _rl = field_validator("risk_level")(_one_of("risk_level", swm.PREGNANCY_RISK_VALUES))
-
-
 class BreedingResponse(TimestampedSchema):
     farm_id: UUID
     dam_id: UUID | None
@@ -523,12 +526,54 @@ class BreedingResponse(TimestampedSchema):
     semen_source: str | None
     semen_batch: str | None
     technician: str | None
-    pregnancy_checked_on: date | None
-    pregnancy_check_method: str | None
-    pregnancy_result: str
-    confirmed_on: date | None
-    risk_level: str
-    actual_farrowing_date: date | None
     status: str
-    outcome: str | None
+    outcome: str
+    notes: str | None
+
+
+# ── Pregnancy (Milestone 3) — a lifecycle stage, separate from the breeding ─────
+
+class PregnancyCheckInput(AGRIOSSchema):
+    """Record a pregnancy check on a breeding. A positive result confirms a
+    pregnancy; a negative result resolves the breeding as not-pregnant."""
+
+    checked_on: date
+    result: str = Field("unknown")
+    method: str | None = Field(None, max_length=20)
+    risk_level: str | None = Field(None, max_length=20)
+
+    _r = field_validator("result")(_one_of("result", swm.PREGNANCY_RESULT_VALUES))
+    _cm = field_validator("method")(_one_of("method", swm.PREGNANCY_CHECK_METHOD_VALUES))
+    _rl = field_validator("risk_level")(_one_of("risk_level", swm.PREGNANCY_RISK_VALUES))
+
+
+class PregnancyRecheckInput(AGRIOSSchema):
+    risk_level: str | None = Field(None, max_length=20)
+    expected_farrowing_date: date | None = None
+    notes: str | None = None
+
+    _rl = field_validator("risk_level")(_one_of("risk_level", swm.PREGNANCY_RISK_VALUES))
+
+
+class PregnancyLossInput(AGRIOSSchema):
+    loss_reason: str | None = Field(None, max_length=20)
+    loss_date: date | None = None
+    false_pregnancy: bool = False
+    notes: str | None = None
+
+    _lr = field_validator("loss_reason")(_one_of("loss_reason", swm.PREGNANCY_LOSS_REASON_VALUES))
+
+
+class PregnancyResponse(TimestampedSchema):
+    farm_id: UUID
+    breeding_id: UUID | None
+    dam_id: UUID | None
+    status: str
+    confirmation_date: date | None
+    confirmation_method: str | None
+    expected_farrowing_date: date | None
+    risk_level: str
+    loss_reason: str | None
+    loss_date: date | None
+    actual_farrowing_date: date | None
     notes: str | None

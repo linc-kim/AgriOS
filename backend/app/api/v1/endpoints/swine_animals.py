@@ -50,6 +50,7 @@ from app.schemas.swine import (
     DocumentResponse,
     MediaCreate,
     MediaResponse,
+    MovementResponse,
     MoveInput,
     PigCreate,
     PigDetailResponse,
@@ -318,6 +319,18 @@ async def list_timeline(
     farm, _ = access
     events = await svc.list_events(db, farm.id, pig_id, limit=limit, offset=offset)
     return SuccessResponse(data=[PigEventResponse.model_validate(e) for e in events])
+
+
+@router.get("/pigs/{pig_id}/movements", response_model=SuccessResponse[list[MovementResponse]])
+async def list_movements(
+    farm_id: str, pig_id: UUID, db: DBSession, current_user: CurrentUser,
+    limit: int = Query(100, ge=1, le=500), offset: int = Query(0, ge=0),
+    access: tuple = Depends(require_farm_access()),
+    _perm=Depends(require_permission(Permission.SWINE_VIEW)),
+):
+    farm, _ = access
+    rows = await svc.list_movements(db, farm.id, pig_id, limit=limit, offset=offset)
+    return SuccessResponse(data=[MovementResponse.model_validate(r) for r in rows])
 
 
 @router.get("/pigs/{pig_id}/media", response_model=SuccessResponse[list[MediaResponse]])

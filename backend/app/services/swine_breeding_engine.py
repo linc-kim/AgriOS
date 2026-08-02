@@ -119,10 +119,14 @@ def gestation_progress(
 # ── Sire fertility (Swine Doc 6 §7) ────────────────────────────────────────────
 
 def sire_fertility(breedings: list[dict]) -> dict:
-    """Per-boar fertility from recorded services and their pregnancy results."""
+    """Per-boar fertility from recorded services and their resolved outcomes.
+
+    ``breedings`` each carry ``outcome`` — the breeding's resolved result, set from
+    the pregnancy lifecycle (``pending`` until checked, then ``pregnant`` /
+    ``not_pregnant`` / ``failed``)."""
     services = sum(1 for b in breedings if b.get("service_date") is not None)
-    checked = sum(1 for b in breedings if b.get("pregnancy_result") in ("pregnant", "not_pregnant"))
-    pregnancies = sum(1 for b in breedings if b.get("pregnancy_result") == "pregnant")
+    checked = sum(1 for b in breedings if b.get("outcome") in ("pregnant", "not_pregnant"))
+    pregnancies = sum(1 for b in breedings if b.get("outcome") == "pregnant")
     return {
         "services": _lab(RECORDED, services),
         "confirmed_pregnancies": _lab(RECORDED, pregnancies),
@@ -138,8 +142,8 @@ def dam_service_history(breedings: list[dict]) -> dict:
     productivity (litter size, piglet survival, farrowing interval) is added in
     Milestone 4 once farrowing records exist."""
     services = sum(1 for b in breedings if b.get("service_date") is not None)
-    checked = sum(1 for b in breedings if b.get("pregnancy_result") in ("pregnant", "not_pregnant"))
-    pregnancies = sum(1 for b in breedings if b.get("pregnancy_result") == "pregnant")
+    checked = sum(1 for b in breedings if b.get("outcome") in ("pregnant", "not_pregnant"))
+    pregnancies = sum(1 for b in breedings if b.get("outcome") == "pregnant")
     return {
         "services": _lab(RECORDED, services),
         "confirmed_pregnancies": _lab(RECORDED, pregnancies),
@@ -158,8 +162,8 @@ def reproduction_summary(breedings: list[dict]) -> dict:
     survival require farrowing records and are added in Milestone 4.
     """
     services = sum(1 for b in breedings if b.get("service_date") is not None)
-    checked = sum(1 for b in breedings if b.get("pregnancy_result") in ("pregnant", "not_pregnant"))
-    pregnancies = sum(1 for b in breedings if b.get("pregnancy_result") == "pregnant")
+    checked = sum(1 for b in breedings if b.get("outcome") in ("pregnant", "not_pregnant"))
+    pregnancies = sum(1 for b in breedings if b.get("outcome") == "pregnant")
     ai = sum(1 for b in breedings if b.get("method") == "artificial")
     natural = sum(1 for b in breedings if b.get("method") == "natural")
     return {

@@ -174,8 +174,10 @@ from app.models.swine import (
     SwineGroup,
     SwineHerd,
     SwineMedia,
+    SwineMovement,
     SwinePen,
     SwinePig,
+    SwinePregnancy,
 )
 from app.models.growth import (
     GrowthGoal,
@@ -402,6 +404,9 @@ __all__ = [
     "SwineDocument",
     # Swine Breeding, AI & Pregnancy (Module 20, Milestone 3, Migration 080)
     "SwineBreeding",
+    "SwinePregnancy",
+    # Swine Movement History (Module 20, Migration 081)
+    "SwineMovement",
     # Growth Planner (Platform, Migration 065)
     "GrowthPlan",
     "GrowthGoal",

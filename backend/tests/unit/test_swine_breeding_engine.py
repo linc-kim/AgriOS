@@ -79,10 +79,12 @@ class TestGestation:
 
 class TestRates:
     def test_conception_rate_over_checked_services(self):
+        # The breeding's resolved 'outcome' drives the rates (set from the pregnancy
+        # lifecycle): pending until checked, then pregnant / not_pregnant.
         breedings = [
-            {"service_date": date(2026, 1, 1), "pregnancy_result": "pregnant", "method": "natural"},
-            {"service_date": date(2026, 1, 2), "pregnancy_result": "not_pregnant", "method": "artificial"},
-            {"service_date": date(2026, 1, 3), "pregnancy_result": "unknown", "method": "natural"},
+            {"service_date": date(2026, 1, 1), "outcome": "pregnant", "method": "natural"},
+            {"service_date": date(2026, 1, 2), "outcome": "not_pregnant", "method": "artificial"},
+            {"service_date": date(2026, 1, 3), "outcome": "pending", "method": "natural"},
         ]
         s = eng.reproduction_summary(breedings)
         assert s["total_services"]["value"] == 3

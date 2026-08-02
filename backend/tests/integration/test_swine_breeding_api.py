@@ -47,19 +47,25 @@ class TestBreeding:
         assert b["status"] == "serviced"
         # Planned farrowing = service + ~114d gestation (forecast).
         assert b["planned_farrowing_date"] == "2026-04-25"
-        # Pregnancy check confirms and forecasts.
+        # Pregnancy check confirms — creating a pregnancy (its own table) and
+        # resolving the breeding.
         chk = await async_client.post(
             f"{_sw(fid)}/breeding/{b['id']}/pregnancy-check",
             json={"checked_on": "2026-01-25", "result": "pregnant", "method": "ultrasound"},
             headers=h,
         )
-        assert chk.status_code == 200 and chk.json()["data"]["status"] == "pregnant"
+        assert chk.status_code == 200, chk.text
+        data = chk.json()["data"]
+        assert data["breeding"]["outcome"] == "pregnant"
+        assert data["pregnancy"] is not None
+        assert data["pregnancy"]["status"] == "confirmed"
+        assert data["pregnancy"]["expected_farrowing_date"] == "2026-04-25"
         # Dam now reads as pregnant.
         dam = await async_client.get(f"{_sw(fid)}/pigs/{sow['id']}", headers=h)
         assert dam.json()["data"]["reproductive_status"] == "pregnant"
         # Pregnancy workspace lists it.
-        preg = await async_client.get(f"{_sw(fid)}/breeding/pregnancies", headers=h)
-        assert any(p["id"] == b["id"] for p in preg.json()["data"])
+        preg = await async_client.get(f"{_sw(fid)}/pregnancy", headers=h)
+        assert any(p["id"] == data["pregnancy"]["id"] for p in preg.json()["data"])
 
     async def test_barrow_is_never_a_valid_sire(self, async_client, workspace, auth_headers_owner):
         fid = workspace.farm.id

@@ -30,9 +30,11 @@ from app.schemas.swine import (
     BreedingCreate,
     BreedingResponse,
     PregnancyCheckInput,
+    PregnancyResponse,
     ServiceInput,
 )
 from app.services import swine_breeding_service as bsvc
+from app.services import swine_pregnancy_service as psvc
 
 router = APIRouter(prefix="/farms/{farm_id}/swine/breeding", tags=["Swine Breeding"])
 
@@ -72,26 +74,22 @@ async def record_service(
     return SuccessResponse(data=BreedingResponse.model_validate(b))
 
 
-@router.post("/{breeding_id}/pregnancy-check", response_model=SuccessResponse[BreedingResponse])
+@router.post("/{breeding_id}/pregnancy-check", response_model=SuccessResponse[dict])
 async def record_pregnancy_check(
     farm_id: str, breeding_id: UUID, body: PregnancyCheckInput, db: DBSession, current_user: CurrentUser,
     access: tuple = Depends(require_farm_access()),
     _perm=Depends(require_permission(Permission.SWINE_BREEDING_MANAGE)),
 ):
+    """Record a pregnancy check. A positive result creates a confirmed pregnancy
+    (its own lifecycle in the Pregnancy workspace); a negative result resolves the
+    breeding as not-pregnant."""
     farm, _ = access
-    b = await bsvc.record_pregnancy_check(db, farm.id, breeding_id, body, current_user)
-    return SuccessResponse(data=BreedingResponse.model_validate(b))
-
-
-@router.get("/pregnancies", response_model=SuccessResponse[list[BreedingResponse]])
-async def list_pregnancies(
-    farm_id: str, db: DBSession, current_user: CurrentUser, risk_level: str | None = None,
-    access: tuple = Depends(require_farm_access()),
-    _perm=Depends(require_permission(Permission.SWINE_BREEDING_VIEW)),
-):
-    farm, _ = access
-    rows = await bsvc.list_pregnancies(db, farm.id, risk_level=risk_level)
-    return SuccessResponse(data=[BreedingResponse.model_validate(r) for r in rows])
+    b, pregnancy = await psvc.record_pregnancy_check(db, farm, breeding_id, body, current_user)
+    return SuccessResponse(data={
+        "breeding": BreedingResponse.model_validate(b).model_dump(mode="json"),
+        "pregnancy": (PregnancyResponse.model_validate(pregnancy).model_dump(mode="json")
+                      if pregnancy else None),
+    })
 
 
 @router.get("/summary", response_model=SuccessResponse[dict])

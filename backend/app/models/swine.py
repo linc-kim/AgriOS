@@ -555,36 +555,98 @@ class SwineDocument(AGRIOSBase):
     pig: Mapped["SwinePig"] = relationship(back_populates="documents", lazy="noload")
 
 
-# ── Breeding cycle (Swine Doc 2 §7, Doc 3 §7-9) — Milestone 3 ───────────────────
-# Natural mating and artificial insemination share ONE cycle table, distinguished
-# by ``method`` (the AI workspace is the ``method='artificial'`` slice). Pregnancy
-# confirmation, expected farrowing and risk are tracked inline on the same row — the
-# Pregnancy workspace is the ``status='pregnant'`` slice. Embryo transfer is
-# schema-ready but deferred. Mirrors the Small Ruminant single-cycle design.
-BREEDING_METHOD_VALUES = ("natural", "artificial", "embryo_transfer")
-BREEDING_STATUS_VALUES = (
-    "planned", "serviced", "pregnant", "not_pregnant", "farrowed", "failed", "closed", "cancelled",
+# ── Movement history (Swine Doc 2 §16, Doc 3 §19) — dedicated audit trail ──────
+# A pig's current pen/group lives on ``swine_pig``; this table is the permanent,
+# append-only record of every move — never overwritten. It underpins disease
+# tracing, biosecurity investigations, welfare monitoring and audit history
+# (a current-assignment field can never replace this trail).
+MOVEMENT_TYPE_VALUES = (
+    "arrival", "pen_transfer", "group_change", "stage_transition", "isolation",
+    "farrowing_move", "weaning_move", "hospital", "loading", "farm_transfer",
+    "departure", "other",
 )
+
+
+class SwineMovement(AGRIOSBase):
+    """One recorded movement of a pig between pens and/or groups (Swine Doc 2 §16).
+
+    Captures the previous and new location, who moved it, when and why. Location FKs
+    use SET NULL so the movement history survives a pen/group being removed. This is
+    the source of truth for movement history; the pig's timeline may also note it.
+    """
+
+    __tablename__ = "swine_movement"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    pig_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    movement_type: Mapped[str] = mapped_column(String(20), nullable=False, default="pen_transfer")
+    from_pen_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pen.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    to_pen_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pen.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    from_group_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_group.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    to_group_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_group.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    moved_on: Mapped[date] = mapped_column(Date, nullable=False)
+    reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    moved_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SwineMovement pig={self.pig_id} type={self.movement_type} on={self.moved_on}>"
+
+
+# ── Breeding & pregnancy (Swine Doc 2 §7, Doc 3 §7-9) — Milestone 3 ─────────────
+# ONE breeding table covers natural mating AND artificial insemination, distinguished
+# by ``method`` (the AI workspace is the ``method='artificial'`` slice). Pregnancy is
+# a distinct LIFECYCLE STAGE, not a breeding event, so it lives in its own
+# ``swine_pregnancy`` table linked to the breeding — this cleanly supports
+# confirmation, rechecks, loss, false pregnancy and farrowing linkage. Embryo
+# transfer is schema-ready but deferred.
+BREEDING_METHOD_VALUES = ("natural", "artificial", "embryo_transfer")
+# Service-cycle status only (the pregnancy has its own lifecycle below).
+BREEDING_STATUS_VALUES = ("planned", "serviced", "closed", "cancelled")
+BREEDING_OUTCOME_VALUES = ("pending", "pregnant", "not_pregnant", "failed", "unknown")
+
+# Pregnancy lifecycle (Swine Doc 3 §9). A pregnancy is confirmed from a breeding,
+# may be rechecked, and resolves to farrowed or lost (incl. abortion/resorption) —
+# or is found to be a false pregnancy (pseudopregnancy).
+PREGNANCY_STATUS_VALUES = ("unconfirmed", "confirmed", "lost", "farrowed", "false_pregnancy")
 PREGNANCY_RESULT_VALUES = ("unknown", "pregnant", "not_pregnant")
-# How a pregnancy was confirmed (Swine Doc 3 §9). ``non_return`` = no return to heat.
+# How a pregnancy was confirmed. ``non_return`` = no return to heat.
 PREGNANCY_CHECK_METHOD_VALUES = (
     "palpation", "ultrasound", "blood_test", "non_return", "visual", "other",
 )
 PREGNANCY_RISK_VALUES = ("low", "moderate", "high", "unknown")
-BREEDING_OUTCOME_VALUES = ("successful", "failed", "aborted", "reabsorbed", "unknown")
+PREGNANCY_LOSS_REASON_VALUES = (
+    "abortion", "resorption", "mummification", "stillbirth", "disease",
+    "injury", "unknown", "other",
+)
 
 
 class SwineBreeding(AGRIOSBase):
-    """A single breeding cycle: service → pregnancy check → farrowing (Swine Doc 2 §7).
+    """A single breeding service — natural mating or artificial insemination
+    (Swine Doc 2 §7).
 
-    ``method`` distinguishes natural mating from artificial insemination; for AI the
-    on-farm ``sire_id`` may be NULL and the semen source/batch/technician are
-    recorded instead (traceable, Swine Doc 3 §8). Repeat services link back via
-    ``repeat_of_id``. Dam/sire use SET NULL so breeding history survives a pig's
-    soft-deletion. ``planned_farrowing_date`` is a FORECAST derived from the service
-    date and the species/breed gestation (~114d) — never a recorded fact. Pregnancy
-    confirmation is tracked inline (the Pregnancy workspace is the ``pregnant``
-    slice); the actual farrowing links here in Milestone 4.
+    ``method`` distinguishes natural mating from AI; for AI the on-farm ``sire_id``
+    may be NULL and the semen source/batch/technician are recorded instead
+    (traceable, Swine Doc 3 §8). Repeat services link back via ``repeat_of_id``.
+    Dam/sire use SET NULL so breeding history survives a pig's soft-deletion.
+    ``planned_farrowing_date`` is a FORECAST derived from the service date and the
+    species/breed gestation (~114d) — never a recorded fact. Whether the service
+    resulted in pregnancy is a distinct lifecycle stage in :class:`SwinePregnancy`;
+    ``outcome`` mirrors the resolved result for quick reporting.
     """
 
     __tablename__ = "swine_breeding"
@@ -608,15 +670,8 @@ class SwineBreeding(AGRIOSBase):
     semen_source: Mapped[str | None] = mapped_column(String(200), nullable=True)
     semen_batch: Mapped[str | None] = mapped_column(String(100), nullable=True)
     technician: Mapped[str | None] = mapped_column(String(150), nullable=True)
-    # Pregnancy confirmation (inline; the Pregnancy workspace reads this).
-    pregnancy_checked_on: Mapped[date | None] = mapped_column(Date, nullable=True)
-    pregnancy_check_method: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    pregnancy_result: Mapped[str] = mapped_column(String(20), nullable=False, default="unknown")
-    confirmed_on: Mapped[date | None] = mapped_column(Date, nullable=True)
-    risk_level: Mapped[str] = mapped_column(String(20), nullable=False, default="unknown")
-    actual_farrowing_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="planned")
-    outcome: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    outcome: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
@@ -627,8 +682,56 @@ class SwineBreeding(AGRIOSBase):
 
     @property
     def is_open(self) -> bool:
-        """True while the cycle is unresolved (blocks a dam from being re-serviced)."""
-        return self.status in ("planned", "serviced", "pregnant")
+        """True while the service cycle is unresolved (blocks a dam from re-service)."""
+        return self.status in ("planned", "serviced")
 
     def __repr__(self) -> str:
         return f"<SwineBreeding dam={self.dam_id} sire={self.sire_id} method={self.method} status={self.status}>"
+
+
+class SwinePregnancy(AGRIOSBase):
+    """A pregnancy — a lifecycle stage confirmed from a breeding service (Swine Doc 3 §9).
+
+    Kept separate from the breeding event so confirmation, rechecks, pregnancy loss
+    (abortion / resorption), false pregnancy and farrowing linkage each have a clear
+    home. ``expected_farrowing_date`` is a forecast (service date + gestation);
+    ``actual_farrowing_date`` is set when the farrowing is recorded (Milestone 4).
+    ``dam_id`` is denormalised from the breeding for fast querying of a sow's
+    pregnancies. Only one active (unconfirmed/confirmed) pregnancy per dam is allowed
+    by the service layer.
+    """
+
+    __tablename__ = "swine_pregnancy"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    breeding_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_breeding.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    dam_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="unconfirmed")
+    confirmation_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    confirmation_method: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    expected_farrowing_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    risk_level: Mapped[str] = mapped_column(String(20), nullable=False, default="unknown")
+    loss_reason: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    loss_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    actual_farrowing_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    breeding: Mapped["SwineBreeding | None"] = relationship(foreign_keys=[breeding_id], lazy="noload")
+    dam: Mapped["SwinePig | None"] = relationship(foreign_keys=[dam_id], lazy="noload")
+
+    @property
+    def is_active(self) -> bool:
+        """True while the pregnancy is ongoing (blocks a duplicate active pregnancy)."""
+        return self.status in ("unconfirmed", "confirmed")
+
+    def __repr__(self) -> str:
+        return f"<SwinePregnancy dam={self.dam_id} status={self.status} due={self.expected_farrowing_date}>"

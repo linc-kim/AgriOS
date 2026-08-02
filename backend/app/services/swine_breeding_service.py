@@ -25,7 +25,6 @@ from app.models.swine import (
 )
 from app.schemas.swine import (
     BreedingCreate,
-    PregnancyCheckInput,
     ServiceInput,
 )
 from app.services import audit_service
@@ -167,36 +166,6 @@ async def record_service(db, farm_id, breeding_id, data: ServiceInput, user: Use
     return b
 
 
-async def record_pregnancy_check(db, farm_id, breeding_id, data: PregnancyCheckInput, user: User):
-    b = await _get_breeding_or_404(db, farm_id, breeding_id)
-    if b.status in ("farrowed", "closed", "cancelled"):
-        raise ConflictException("This breeding cycle is already resolved.")
-    b.pregnancy_checked_on = data.checked_on
-    b.pregnancy_check_method = data.method
-    b.pregnancy_result = data.result
-    if data.result == "pregnant":
-        b.status = "pregnant"
-        b.confirmed_on = data.checked_on
-        b.risk_level = data.risk_level or "low"
-    elif data.result == "not_pregnant":
-        b.status = "not_pregnant"
-        b.outcome = "failed"
-    await db.flush()
-    if b.dam_id:
-        dam = await _get_pig_or_404(db, farm_id, b.dam_id)
-        dam.reproductive_status = "pregnant" if data.result == "pregnant" else "open"
-        await _append_event(db, b.dam_id, "pregnancy_checked", f"Pregnancy check: {data.result}",
-                            operator_id=user.id,
-                            details={"breeding_id": str(b.id), "result": data.result, "method": data.method})
-    await audit_service.log_action(
-        db, action="swine.breeding.pregnancy_check", resource_type="swine_breeding",
-        resource_id=b.id, farm_id=farm_id, user_id=user.id, new_value={"result": data.result},
-    )
-    await db.commit()
-    await db.refresh(b)
-    return b
-
-
 # ── Reads: list / performance / pedigree / compatibility ───────────────────────
 
 async def list_breedings(db, farm_id, *, dam_id=None, sire_id=None, method=None, status=None, limit=100, offset=0):
@@ -216,21 +185,8 @@ async def list_breedings(db, farm_id, *, dam_id=None, sire_id=None, method=None,
     return list(result.scalars().all())
 
 
-async def list_pregnancies(db, farm_id, *, risk_level=None, limit=100, offset=0):
-    """The Pregnancy workspace: breedings currently confirmed pregnant."""
-    conds = [SwineBreeding.farm_id == farm_id, SwineBreeding.status == "pregnant",
-             SwineBreeding.deleted_at.is_(None)]
-    if risk_level:
-        conds.append(SwineBreeding.risk_level == risk_level)
-    result = await db.execute(
-        select(SwineBreeding).where(*conds)
-        .order_by(SwineBreeding.planned_farrowing_date.asc().nulls_last()).limit(limit).offset(offset)
-    )
-    return list(result.scalars().all())
-
-
 def _breeding_dicts(rows) -> list[dict]:
-    return [{"service_date": r.service_date, "pregnancy_result": r.pregnancy_result,
+    return [{"service_date": r.service_date, "outcome": r.outcome,
              "status": r.status, "method": r.method} for r in rows]
 
 

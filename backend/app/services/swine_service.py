@@ -42,6 +42,7 @@ from app.models.swine import (
     SwineGroup,
     SwineHerd,
     SwineMedia,
+    SwineMovement,
     SwinePen,
     SwinePig,
     TERMINAL_STATUSES,
@@ -518,6 +519,16 @@ async def move_pig(
         raise ConflictException("No location change requested.")
 
     await db.flush()
+    # Record a permanent movement-history row (Swine Doc 2 §16) — the source of truth
+    # for disease tracing / biosecurity, distinct from the current pen on the pig.
+    moved_on = data.occurred_on or date.today()
+    mv_type = "pen_transfer" if before["pen_id"] != after["pen_id"] else "group_change"
+    db.add(SwineMovement(
+        id=uuid.uuid4(), farm_id=farm_id, pig_id=p.id, movement_type=mv_type,
+        from_pen_id=before["pen_id"], to_pen_id=after["pen_id"],
+        from_group_id=before["group_id"], to_group_id=after["group_id"],
+        moved_on=moved_on, reason=data.reason, notes=data.notes, moved_by=user.id,
+    ))
     await _append_event(
         db, p.id, "moved", "Pig moved",
         occurred_at=(datetime.combine(data.occurred_on, datetime.min.time(), tzinfo=timezone.utc)
@@ -536,6 +547,39 @@ async def move_pig(
     await db.commit()
     await db.refresh(p)
     return p
+
+
+async def list_movements(
+    db: AsyncSession, farm_id: uuid.UUID, pig_id: uuid.UUID, limit: int = 100, offset: int = 0
+) -> list[SwineMovement]:
+    """The permanent movement history for a pig (biosecurity / welfare / audit)."""
+    await _get_pig_or_404(db, farm_id, pig_id)
+    result = await db.execute(
+        select(SwineMovement).where(
+            SwineMovement.pig_id == pig_id, SwineMovement.deleted_at.is_(None)
+        ).order_by(SwineMovement.moved_on.desc(), SwineMovement.created_at.desc())
+        .limit(limit).offset(offset)
+    )
+    return list(result.scalars().all())
+
+
+async def record_movement(
+    db: AsyncSession, farm_id: uuid.UUID, pig_id: uuid.UUID, *, movement_type: str,
+    from_pen_id=None, to_pen_id=None, from_group_id=None, to_group_id=None,
+    moved_on: date | None = None, reason: str | None = None, user: User | None = None,
+) -> SwineMovement:
+    """Append a movement-history row directly (used by farrowing/weaning moves in
+    later milestones). Does not itself mutate the pig's current location."""
+    mv = SwineMovement(
+        id=uuid.uuid4(), farm_id=farm_id, pig_id=pig_id, movement_type=movement_type,
+        from_pen_id=from_pen_id, to_pen_id=to_pen_id,
+        from_group_id=from_group_id, to_group_id=to_group_id,
+        moved_on=moved_on or date.today(), reason=reason,
+        moved_by=user.id if user else None,
+    )
+    db.add(mv)
+    await db.flush()
+    return mv
 
 
 async def _terminal_transition(

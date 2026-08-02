@@ -155,6 +155,27 @@ class TestHousing:
         bio = summary.json()["data"]["biosecurity"]
         assert bio["flagged"]["value"] >= 1
 
+    async def test_move_records_permanent_movement_history(self, async_client, workspace, auth_headers_owner):
+        fid = workspace.farm.id
+        h = auth_headers_owner
+        pen_a = await async_client.post(
+            f"{_sw(fid)}/housing/pens", json={"name": "A", "pen_type": "grower_pen"}, headers=h)
+        pen_b = await async_client.post(
+            f"{_sw(fid)}/housing/pens", json={"name": "B", "pen_type": "finisher_pen"}, headers=h)
+        a_id, b_id = pen_a.json()["data"]["id"], pen_b.json()["data"]["id"]
+        pig = await _register(async_client, fid, h, sex="barrow", pen_id=a_id)
+        # Move A → B.
+        mv = await async_client.post(
+            f"{_sw(fid)}/pigs/{pig['id']}/move",
+            json={"pen_id": b_id, "reason": "grower to finisher"}, headers=h)
+        assert mv.status_code == 200
+        # A permanent movement-history row exists (source of truth, not the pig's pen).
+        hist = await async_client.get(f"{_sw(fid)}/pigs/{pig['id']}/movements", headers=h)
+        rows = hist.json()["data"]
+        assert len(rows) == 1
+        assert rows[0]["from_pen_id"] == a_id and rows[0]["to_pen_id"] == b_id
+        assert rows[0]["movement_type"] == "pen_transfer"
+
 
 class TestPermissions:
     async def test_viewer_is_read_only(self, async_client, workspace, auth_headers_viewer, auth_headers_owner):
