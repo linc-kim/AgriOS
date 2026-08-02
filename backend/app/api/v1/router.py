@@ -57,6 +57,8 @@ from app.api.v1.endpoints import rabbit_reports
 from app.api.v1.endpoints import rabbit_growth_planner
 from app.api.v1.endpoints import rabbit_aria
 from app.api.v1.endpoints import ops_planner
+from app.api.v1.endpoints import sr_animals
+from app.api.v1.endpoints import sr_housing
 
 api_router = APIRouter()
 
@@ -158,3 +160,6 @@ api_router.include_router(rabbit_growth_planner.router)
 api_router.include_router(rabbit_aria.router)
 # Operations Planner (Platform Module 5) — cross-module recurring-operations engine
 api_router.include_router(ops_planner.router)
+# ── Modules 18/19 (Small Ruminant — Goat + Sheep) ─────────────────────────────
+api_router.include_router(sr_animals.router)
+api_router.include_router(sr_housing.router)
