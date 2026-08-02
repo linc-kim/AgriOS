@@ -919,3 +919,119 @@ class SwineFosterTransfer(AGRIOSBase):
 
     def __repr__(self) -> str:
         return f"<SwineFosterTransfer {self.source_litter_id}→{self.dest_litter_id} n={self.piglet_count}>"
+
+
+# ── Feed & nutrition (Swine Doc 2 §13, Doc 3 §17, Doc 5 §6) — Milestone 5 ───────
+# The feed catalog is data-driven reference (like breeds). Feeding CONSUMPTION reuses
+# the platform Inventory module — a feeding that references an inventory item posts a
+# consumption movement (stock decrement) and snapshots its cost; feed is expensed
+# ONCE at stock-in, never re-posted (frozen finance rule). Feed plans map a
+# production stage to a feed and a daily target.
+FEED_CATEGORY_VALUES = (
+    "starter", "creep", "nursery", "grower", "finisher", "developer",
+    "gestation", "lactation", "boar", "mineral", "supplement", "medicated", "other",
+)
+FEED_FORM_VALUES = ("pellet", "crumble", "mash", "meal", "liquid", "paste", "other")
+
+
+class SwineFeed(AGRIOSBase):
+    """Data-driven pig feed catalog (Swine Doc 2 §13).
+
+    Reference data: name, category (phase), physical form, and a nutrient ``profile``
+    (JSONB: crude protein %, ME, lysine, etc.). ``organization_id IS NULL`` is a
+    global/system feed shared by all orgs. Medicated feeds carry a withdrawal period.
+    """
+
+    __tablename__ = "swine_feed"
+
+    organization_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True,
+    )
+    name: Mapped[str] = mapped_column(String(150), nullable=False)
+    category: Mapped[str] = mapped_column(String(20), nullable=False, default="other")
+    form: Mapped[str] = mapped_column(String(20), nullable=False, default="pellet")
+    profile: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    is_medicated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    withdrawal_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    is_system: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SwineFeed {self.name!r} category={self.category}>"
+
+
+class SwineFeedPlan(AGRIOSBase):
+    """A feeding-plan entry: for a named plan and a production stage, the intended
+    feed and daily target (Swine Doc 3 §17, Doc 6 §10).
+
+    A "plan" is the set of entries sharing ``plan_name`` on a farm — one entry per
+    production stage / phase. Targets are recorded references the deterministic feed
+    engine compares actual consumption against; nothing here is a fact about an
+    animal.
+    """
+
+    __tablename__ = "swine_feed_plan"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    plan_name: Mapped[str] = mapped_column(String(150), nullable=False, index=True)
+    production_stage: Mapped[str] = mapped_column(String(20), nullable=False, default="unknown")
+    phase_label: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    feed_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_feed.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    daily_amount_kg: Mapped[Decimal | None] = mapped_column(Numeric(10, 3), nullable=True)
+    age_start_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    age_end_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    target_weight_start_kg: Mapped[Decimal | None] = mapped_column(Numeric(8, 3), nullable=True)
+    target_weight_end_kg: Mapped[Decimal | None] = mapped_column(Numeric(8, 3), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SwineFeedPlan {self.plan_name!r} stage={self.production_stage}>"
+
+
+class SwineFeedRecord(AGRIOSBase):
+    """A feeding event for a pig, group or the farm (Swine Doc 2 §13).
+
+    Feed stock and purchase cost live in the platform Inventory module; this row is
+    the domain feeding log. ``inventory_item_id`` / ``inventory_movement_id`` are SOFT
+    references (no FK — modules stay decoupled). ``cost`` is a snapshot allocation,
+    never re-posted to finance (feed is expensed once at Inventory stock-in).
+    """
+
+    __tablename__ = "swine_feed_record"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    pig_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    group_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_group.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    feed_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_feed.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    inventory_item_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    inventory_movement_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    feed_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    quantity_kg: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    fed_on: Mapped[date] = mapped_column(Date, nullable=False)
+    cost: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    currency: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    supplier: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SwineFeedRecord pig={self.pig_id} group={self.group_id} {self.quantity_kg}kg>"

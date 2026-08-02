@@ -74,6 +74,7 @@ from app.api.v1.endpoints import swine_housing
 from app.api.v1.endpoints import swine_breeding
 from app.api.v1.endpoints import swine_pregnancy
 from app.api.v1.endpoints import swine_farrowing
+from app.api.v1.endpoints import swine_feed
 
 api_router = APIRouter()
 
@@ -193,3 +194,4 @@ api_router.include_router(swine_housing.router)
 api_router.include_router(swine_breeding.router)
 api_router.include_router(swine_pregnancy.router)
 api_router.include_router(swine_farrowing.router)
+api_router.include_router(swine_feed.router)

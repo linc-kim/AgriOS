@@ -172,6 +172,9 @@ from app.models.swine import (
     SwineDocument,
     SwineEvent,
     SwineFarrowing,
+    SwineFeed,
+    SwineFeedPlan,
+    SwineFeedRecord,
     SwineFosterTransfer,
     SwineGroup,
     SwineHerd,
@@ -414,6 +417,10 @@ __all__ = [
     "SwineFarrowing",
     "SwineLitter",
     "SwineFosterTransfer",
+    # Swine Feed & Nutrition (Module 20, Milestone 5, Migration 083)
+    "SwineFeed",
+    "SwineFeedPlan",
+    "SwineFeedRecord",
     # Growth Planner (Platform, Migration 065)
     "GrowthPlan",
     "GrowthGoal",

@@ -698,3 +698,114 @@ class WeaningInput(AGRIOSSchema):
     weaning_date: date
     avg_weaning_weight_kg: Decimal | None = Field(None, ge=0)
     nursery_group_id: UUID | None = None
+
+
+# ── Feed & nutrition (Milestone 5) ─────────────────────────────────────────────
+
+class FeedCreate(AGRIOSSchema):
+    name: str = Field(..., min_length=1, max_length=150)
+    category: str = Field("other")
+    form: str = Field("pellet")
+    profile: dict = Field(default_factory=dict)
+    is_medicated: bool = False
+    withdrawal_days: int | None = Field(None, ge=0)
+
+    _cat = field_validator("category")(_one_of("category", swm.FEED_CATEGORY_VALUES))
+    _form = field_validator("form")(_one_of("form", swm.FEED_FORM_VALUES))
+
+
+class FeedUpdate(AGRIOSSchema):
+    name: str | None = Field(None, min_length=1, max_length=150)
+    category: str | None = None
+    form: str | None = None
+    profile: dict | None = None
+    is_medicated: bool | None = None
+    withdrawal_days: int | None = Field(None, ge=0)
+
+    _cat = field_validator("category")(_one_of("category", swm.FEED_CATEGORY_VALUES))
+    _form = field_validator("form")(_one_of("form", swm.FEED_FORM_VALUES))
+
+
+class FeedResponse(TimestampedSchema):
+    organization_id: UUID | None
+    name: str
+    category: str
+    form: str
+    profile: dict
+    is_medicated: bool
+    withdrawal_days: int | None
+    is_system: bool
+
+
+class FeedPlanCreate(AGRIOSSchema):
+    plan_name: str = Field(..., min_length=1, max_length=150)
+    production_stage: str = Field("unknown")
+    phase_label: str | None = Field(None, max_length=100)
+    feed_id: UUID | None = None
+    daily_amount_kg: Decimal | None = Field(None, ge=0)
+    age_start_days: int | None = Field(None, ge=0)
+    age_end_days: int | None = Field(None, ge=0)
+    target_weight_start_kg: Decimal | None = Field(None, ge=0)
+    target_weight_end_kg: Decimal | None = Field(None, ge=0)
+    notes: str | None = None
+
+    _ps = field_validator("production_stage")(_one_of("production_stage", swm.PRODUCTION_STAGE_VALUES))
+
+
+class FeedPlanUpdate(AGRIOSSchema):
+    plan_name: str | None = Field(None, min_length=1, max_length=150)
+    production_stage: str | None = None
+    phase_label: str | None = Field(None, max_length=100)
+    feed_id: UUID | None = None
+    daily_amount_kg: Decimal | None = Field(None, ge=0)
+    age_start_days: int | None = Field(None, ge=0)
+    age_end_days: int | None = Field(None, ge=0)
+    target_weight_start_kg: Decimal | None = Field(None, ge=0)
+    target_weight_end_kg: Decimal | None = Field(None, ge=0)
+    notes: str | None = None
+
+    _ps = field_validator("production_stage")(_one_of("production_stage", swm.PRODUCTION_STAGE_VALUES))
+
+
+class FeedPlanResponse(TimestampedSchema):
+    farm_id: UUID
+    plan_name: str
+    production_stage: str
+    phase_label: str | None
+    feed_id: UUID | None
+    daily_amount_kg: Decimal | None
+    age_start_days: int | None
+    age_end_days: int | None
+    target_weight_start_kg: Decimal | None
+    target_weight_end_kg: Decimal | None
+    notes: str | None
+
+
+class FeedRecordCreate(AGRIOSSchema):
+    pig_id: UUID | None = None
+    group_id: UUID | None = None
+    feed_id: UUID | None = None
+    feed_name: str | None = Field(None, max_length=150)
+    quantity_kg: Decimal = Field(..., gt=0)
+    fed_on: date
+    inventory_item_id: UUID | None = None
+    cost: Decimal | None = Field(None, ge=0)
+    currency: str | None = Field(None, max_length=10)
+    supplier: str | None = Field(None, max_length=200)
+    notes: str | None = None
+
+
+class FeedRecordResponse(TimestampedSchema):
+    farm_id: UUID
+    pig_id: UUID | None
+    group_id: UUID | None
+    feed_id: UUID | None
+    inventory_item_id: UUID | None
+    inventory_movement_id: UUID | None
+    feed_name: str | None
+    quantity_kg: Decimal
+    fed_on: date
+    cost: Decimal | None
+    currency: str | None
+    supplier: str | None
+    notes: str | None
