@@ -809,3 +809,368 @@ class FeedRecordResponse(TimestampedSchema):
     currency: str | None
     supplier: str | None
     notes: str | None
+
+
+# ── Health & biosecurity (Milestone 6) ─────────────────────────────────────────
+
+class DiseaseCaseCreate(AGRIOSSchema):
+    scope: str = Field("individual")
+    pig_id: UUID | None = None
+    group_id: UUID | None = None
+    pen_id: UUID | None = None
+    litter_id: UUID | None = None
+    disease_name: str = Field(..., min_length=1, max_length=200)
+    pathogen: str | None = Field(None, max_length=200)
+    status: str = Field("suspected")
+    severity: str = Field("mild")
+    onset_date: date | None = None
+    resolved_date: date | None = None
+    affected_count: int = Field(1, ge=0)
+    mortality_count: int = Field(0, ge=0)
+    diagnosis: str | None = None
+    reported_by: str | None = Field(None, max_length=200)
+    notes: str | None = None
+
+    _sc = field_validator("scope")(_one_of("scope", swm.DISEASE_SCOPE_VALUES))
+    _st = field_validator("status")(_one_of("status", swm.DISEASE_STATUS_VALUES))
+    _sev = field_validator("severity")(_one_of("severity", swm.HEALTH_SEVERITY_VALUES))
+
+
+class DiseaseCaseUpdate(AGRIOSSchema):
+    status: str | None = None
+    severity: str | None = None
+    pathogen: str | None = Field(None, max_length=200)
+    resolved_date: date | None = None
+    affected_count: int | None = Field(None, ge=0)
+    mortality_count: int | None = Field(None, ge=0)
+    diagnosis: str | None = None
+    reported_by: str | None = Field(None, max_length=200)
+    notes: str | None = None
+
+    _st = field_validator("status")(_one_of("status", swm.DISEASE_STATUS_VALUES))
+    _sev = field_validator("severity")(_one_of("severity", swm.HEALTH_SEVERITY_VALUES))
+
+
+class DiseaseCaseResponse(TimestampedSchema):
+    farm_id: UUID
+    scope: str
+    pig_id: UUID | None
+    group_id: UUID | None
+    pen_id: UUID | None
+    litter_id: UUID | None
+    disease_name: str
+    pathogen: str | None
+    status: str
+    severity: str
+    onset_date: date | None
+    resolved_date: date | None
+    affected_count: int
+    mortality_count: int
+    diagnosis: str | None
+    reported_by: str | None
+    notes: str | None
+
+
+class VaccinationCreate(AGRIOSSchema):
+    pig_id: UUID | None = None
+    group_id: UUID | None = None
+    vaccine_name: str = Field(..., min_length=1, max_length=200)
+    disease_targeted: str | None = Field(None, max_length=200)
+    dose: Decimal | None = Field(None, ge=0)
+    dose_unit: str | None = Field(None, max_length=20)
+    route: str | None = None
+    batch_number: str | None = Field(None, max_length=100)
+    administered_on: date
+    next_due_date: date | None = None
+    administered_by: str | None = Field(None, max_length=200)
+    animal_count: int = Field(1, ge=1)
+    inventory_item_id: UUID | None = None
+    notes: str | None = None
+
+    _rt = field_validator("route")(_one_of("route", swm.ADMIN_ROUTE_VALUES))
+
+
+class VaccinationResponse(TimestampedSchema):
+    farm_id: UUID
+    pig_id: UUID | None
+    group_id: UUID | None
+    vaccine_name: str
+    disease_targeted: str | None
+    dose: Decimal | None
+    dose_unit: str | None
+    route: str | None
+    batch_number: str | None
+    administered_on: date
+    next_due_date: date | None
+    administered_by: str | None
+    animal_count: int
+    inventory_item_id: UUID | None
+    inventory_movement_id: UUID | None
+    notes: str | None
+
+
+class TreatmentCreate(AGRIOSSchema):
+    pig_id: UUID | None = None
+    group_id: UUID | None = None
+    disease_case_id: UUID | None = None
+    intent: str = Field("therapeutic")
+    product_name: str = Field(..., min_length=1, max_length=200)
+    drug: str | None = Field(None, max_length=200)
+    dose: Decimal | None = Field(None, ge=0)
+    dose_unit: str | None = Field(None, max_length=20)
+    route: str | None = None
+    started_on: date
+    ended_on: date | None = None
+    duration_days: int | None = Field(None, ge=0)
+    withdrawal_until: date | None = None
+    administered_by: str | None = Field(None, max_length=200)
+    outcome: str = Field("ongoing")
+    animal_count: int = Field(1, ge=1)
+    inventory_item_id: UUID | None = None
+    notes: str | None = None
+
+    _in = field_validator("intent")(_one_of("intent", swm.TREATMENT_INTENT_VALUES))
+    _rt = field_validator("route")(_one_of("route", swm.ADMIN_ROUTE_VALUES))
+    _oc = field_validator("outcome")(_one_of("outcome", swm.TREATMENT_OUTCOME_VALUES))
+
+
+class TreatmentResponse(TimestampedSchema):
+    farm_id: UUID
+    pig_id: UUID | None
+    group_id: UUID | None
+    disease_case_id: UUID | None
+    intent: str
+    product_name: str
+    drug: str | None
+    dose: Decimal | None
+    dose_unit: str | None
+    route: str | None
+    started_on: date
+    ended_on: date | None
+    duration_days: int | None
+    withdrawal_until: date | None
+    administered_by: str | None
+    outcome: str
+    animal_count: int
+    inventory_item_id: UUID | None
+    inventory_movement_id: UUID | None
+    notes: str | None
+
+
+class ProcedureCreate(AGRIOSSchema):
+    pig_id: UUID | None = None
+    group_id: UUID | None = None
+    procedure_type: str = Field("other")
+    performed_on: date
+    performed_by: str | None = Field(None, max_length=200)
+    anesthesia: bool = False
+    analgesia: bool = False
+    outcome: str | None = Field(None, max_length=100)
+    animal_count: int = Field(1, ge=1)
+    notes: str | None = None
+
+    _pt = field_validator("procedure_type")(_one_of("procedure_type", swm.PROCEDURE_TYPE_VALUES))
+
+
+class ProcedureResponse(TimestampedSchema):
+    farm_id: UUID
+    pig_id: UUID | None
+    group_id: UUID | None
+    procedure_type: str
+    performed_on: date
+    performed_by: str | None
+    anesthesia: bool
+    analgesia: bool
+    outcome: str | None
+    animal_count: int
+    notes: str | None
+
+
+class ObservationCreate(AGRIOSSchema):
+    pig_id: UUID | None = None
+    group_id: UUID | None = None
+    observation_type: str = Field("routine_check")
+    observed_on: date
+    temperature_c: Decimal | None = Field(None, ge=0)
+    body_condition_score: Decimal | None = Field(None, ge=0)
+    severity: str = Field("info")
+    findings: str | None = None
+    observed_by: str | None = Field(None, max_length=200)
+    notes: str | None = None
+
+    _ot = field_validator("observation_type")(_one_of("observation_type", swm.OBSERVATION_TYPE_VALUES))
+    _sev = field_validator("severity")(_one_of("severity", swm.HEALTH_SEVERITY_VALUES))
+
+
+class ObservationResponse(TimestampedSchema):
+    farm_id: UUID
+    pig_id: UUID | None
+    group_id: UUID | None
+    observation_type: str
+    observed_on: date
+    temperature_c: Decimal | None
+    body_condition_score: Decimal | None
+    severity: str
+    findings: str | None
+    observed_by: str | None
+    notes: str | None
+
+
+class LabTestCreate(AGRIOSSchema):
+    pig_id: UUID | None = None
+    group_id: UUID | None = None
+    disease_case_id: UUID | None = None
+    sample_type: str | None = Field(None, max_length=100)
+    test_name: str = Field(..., min_length=1, max_length=200)
+    laboratory: str | None = Field(None, max_length=200)
+    collected_on: date | None = None
+    result_on: date | None = None
+    status: str = Field("pending")
+    result: str = Field("pending")
+    result_detail: str | None = None
+    reference: str | None = Field(None, max_length=150)
+    notes: str | None = None
+
+    _st = field_validator("status")(_one_of("status", swm.LAB_STATUS_VALUES))
+    _rs = field_validator("result")(_one_of("result", swm.LAB_RESULT_VALUES))
+
+
+class LabTestUpdate(AGRIOSSchema):
+    status: str | None = None
+    result: str | None = None
+    result_on: date | None = None
+    result_detail: str | None = None
+    reference: str | None = Field(None, max_length=150)
+    notes: str | None = None
+
+    _st = field_validator("status")(_one_of("status", swm.LAB_STATUS_VALUES))
+    _rs = field_validator("result")(_one_of("result", swm.LAB_RESULT_VALUES))
+
+
+class LabTestResponse(TimestampedSchema):
+    farm_id: UUID
+    pig_id: UUID | None
+    group_id: UUID | None
+    disease_case_id: UUID | None
+    sample_type: str | None
+    test_name: str
+    laboratory: str | None
+    collected_on: date | None
+    result_on: date | None
+    status: str
+    result: str
+    result_detail: str | None
+    reference: str | None
+    notes: str | None
+
+
+class MortalityCreate(AGRIOSSchema):
+    pig_id: UUID | None = None
+    litter_id: UUID | None = None
+    group_id: UUID | None = None
+    pen_id: UUID | None = None
+    disease_case_id: UUID | None = None
+    treatment_id: UUID | None = None
+    died_on: date
+    count: int = Field(1, ge=1)
+    cause_category: str = Field("unknown")
+    suspected_cause: str | None = Field(None, max_length=255)
+    confirmed_cause: str | None = Field(None, max_length=255)
+    vet_name: str | None = Field(None, max_length=200)
+    disposal_method: str = Field("unknown")
+    weight_kg: Decimal | None = Field(None, ge=0)
+    notes: str | None = None
+
+    _cc = field_validator("cause_category")(_one_of("cause_category", swm.MORTALITY_CAUSE_CATEGORY_VALUES))
+    _dm = field_validator("disposal_method")(_one_of("disposal_method", swm.DISPOSAL_METHOD_VALUES))
+
+
+class MortalityResponse(TimestampedSchema):
+    farm_id: UUID
+    pig_id: UUID | None
+    litter_id: UUID | None
+    group_id: UUID | None
+    pen_id: UUID | None
+    disease_case_id: UUID | None
+    treatment_id: UUID | None
+    died_on: date
+    count: int
+    cause_category: str
+    suspected_cause: str | None
+    confirmed_cause: str | None
+    vet_name: str | None
+    disposal_method: str
+    weight_kg: Decimal | None
+    notes: str | None
+
+
+class IsolationStartInput(AGRIOSSchema):
+    pig_id: UUID | None = None
+    group_id: UUID | None = None
+    pen_id: UUID | None = None
+    disease_case_id: UUID | None = None
+    reason: str = Field("observation")
+    started_on: date
+    notes: str | None = None
+
+    _rn = field_validator("reason")(_one_of("reason", swm.ISOLATION_REASON_VALUES))
+
+
+class IsolationEndInput(AGRIOSSchema):
+    ended_on: date | None = None
+    cleared: bool = True
+    cleared_by: str | None = Field(None, max_length=200)
+    clearance_notes: str | None = None
+
+
+class IsolationResponse(TimestampedSchema):
+    farm_id: UUID
+    pig_id: UUID | None
+    group_id: UUID | None
+    pen_id: UUID | None
+    disease_case_id: UUID | None
+    reason: str
+    status: str
+    started_on: date
+    ended_on: date | None
+    cleared_by: str | None
+    clearance_notes: str | None
+    notes: str | None
+
+
+class BiosecurityRecordCreate(AGRIOSSchema):
+    record_type: str = Field("inspection")
+    occurred_on: date
+    pen_id: UUID | None = None
+    location: str | None = Field(None, max_length=200)
+    party_name: str | None = Field(None, max_length=200)
+    performed_by: str | None = Field(None, max_length=200)
+    product_used: str | None = Field(None, max_length=200)
+    compliant: bool | None = None
+    detail: str | None = None
+    reminder_id: UUID | None = None
+    notes: str | None = None
+
+    _rt = field_validator("record_type")(_one_of("record_type", swm.BIOSECURITY_RECORD_TYPE_VALUES))
+
+
+class BiosecurityRecordUpdate(AGRIOSSchema):
+    compliant: bool | None = None
+    detail: str | None = None
+    product_used: str | None = Field(None, max_length=200)
+    notes: str | None = None
+
+
+class BiosecurityRecordResponse(TimestampedSchema):
+    farm_id: UUID
+    record_type: str
+    occurred_on: date
+    pen_id: UUID | None
+    location: str | None
+    party_name: str | None
+    performed_by: str | None
+    product_used: str | None
+    compliant: bool | None
+    detail: str | None
+    reminder_id: UUID | None
+    notes: str | None

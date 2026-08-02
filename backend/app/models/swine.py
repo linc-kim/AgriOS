@@ -1035,3 +1035,405 @@ class SwineFeedRecord(AGRIOSBase):
 
     def __repr__(self) -> str:
         return f"<SwineFeedRecord pig={self.pig_id} group={self.group_id} {self.quantity_kg}kg>"
+
+
+# ── Health & biosecurity (Swine Doc 2 §15, Doc 3 §18, Doc 6 §11) — Milestone 6 ──
+# Health is modelled as INDEPENDENT clinical events, each its own historical record
+# linked to a pig (and/or a group), never fields on the pig — so a complete medical
+# history is preserved. Distinct clinical event types are distinct tables (not one
+# generic "medical record"): disease cases (group-capable), vaccination, treatment
+# (therapeutic + preventive medication via ``intent``), procedure (surgical/routine),
+# observation (exam/assessment), and lab test. Mortality, isolation and operational
+# biosecurity are their own historical records. Per the frozen constitution §4.4, a
+# ``diagnosis`` is a RECORDED veterinary input only — the platform never infers it.
+DISEASE_SCOPE_VALUES = ("individual", "litter", "group", "pen", "multi_pen", "farm")
+DISEASE_STATUS_VALUES = ("suspected", "confirmed", "resolved", "chronic", "ruled_out")
+HEALTH_SEVERITY_VALUES = ("info", "mild", "moderate", "severe", "critical")
+ADMIN_ROUTE_VALUES = (
+    "intramuscular", "subcutaneous", "oral", "in_feed", "in_water", "intranasal",
+    "topical", "intravenous", "other",
+)
+TREATMENT_INTENT_VALUES = ("therapeutic", "preventive", "metaphylactic")
+TREATMENT_OUTCOME_VALUES = ("recovered", "improving", "ongoing", "no_response", "died", "unknown")
+PROCEDURE_TYPE_VALUES = (
+    "castration", "tail_docking", "teeth_clipping", "iron_injection", "ear_notching",
+    "hernia_repair", "surgery", "euthanasia", "other",
+)
+OBSERVATION_TYPE_VALUES = (
+    "routine_check", "examination", "vet_assessment", "body_condition", "temperature",
+    "lameness", "note",
+)
+LAB_STATUS_VALUES = ("pending", "completed", "cancelled")
+LAB_RESULT_VALUES = ("positive", "negative", "inconclusive", "pending", "not_recorded")
+MORTALITY_CAUSE_CATEGORY_VALUES = (
+    "disease", "respiratory", "digestive", "injury", "crushing", "starvation",
+    "congenital", "heat_stress", "sudden_death", "culled", "unknown", "other",
+)
+DISPOSAL_METHOD_VALUES = (
+    "incineration", "burial", "composting", "rendering", "knackery", "other", "unknown",
+)
+ISOLATION_REASON_VALUES = (
+    "disease", "injury", "quarantine_intake", "observation", "biosecurity", "other",
+)
+ISOLATION_STATUS_VALUES = ("active", "cleared", "ended")
+BIOSECURITY_RECORD_TYPE_VALUES = (
+    "visitor_log", "vehicle_entry", "equipment_disinfection", "staff_sanitation",
+    "pen_cleaning", "rodent_control", "deadstock_disposal", "quarantine", "inspection", "other",
+)
+
+
+class SwineDiseaseCase(AGRIOSBase):
+    """An illness / injury / disease case (Swine Doc 2 §15).
+
+    Group-capable: ``scope`` records whether it affects an individual, a litter, a
+    group, a pen, multiple pens, or the whole farm, with the relevant FK(s) set.
+    ``diagnosis`` is a recorded veterinary input only — never inferred (§4.4).
+    """
+
+    __tablename__ = "swine_disease_case"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    scope: Mapped[str] = mapped_column(String(20), nullable=False, default="individual")
+    pig_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    group_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_group.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    pen_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pen.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    litter_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_litter.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    disease_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    pathogen: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="suspected")
+    severity: Mapped[str] = mapped_column(String(20), nullable=False, default="mild")
+    onset_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    resolved_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    affected_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    mortality_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    diagnosis: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reported_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SwineDiseaseCase {self.disease_name!r} scope={self.scope} status={self.status}>"
+
+
+class SwineVaccination(AGRIOSBase):
+    """A vaccination event — preventive immunisation (Swine Doc 2 §15). Distinct from
+    treatment. May target an individual or a group; the vaccine product may draw from
+    Inventory (soft reference)."""
+
+    __tablename__ = "swine_vaccination"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    pig_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    group_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_group.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    vaccine_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    disease_targeted: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    dose: Mapped[Decimal | None] = mapped_column(Numeric(10, 3), nullable=True)
+    dose_unit: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    route: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    batch_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    administered_on: Mapped[date] = mapped_column(Date, nullable=False)
+    next_due_date: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    administered_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    animal_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    inventory_item_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    inventory_movement_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SwineVaccination {self.vaccine_name!r} on={self.administered_on}>"
+
+
+class SwineTreatment(AGRIOSBase):
+    """A medication treatment — therapeutic or preventive (Swine Doc 2 §15).
+
+    ``intent`` separates a therapeutic treatment from preventive / metaphylactic
+    medication (the same action — administering a product — differing in intent),
+    following the single-table-with-discriminator pattern used for breeding. Surgical
+    work is a :class:`SwineProcedure`, not a treatment. Links its disease case, records
+    the meat withdrawal date, and may draw product from Inventory (soft reference).
+    """
+
+    __tablename__ = "swine_treatment"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    pig_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    group_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_group.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    disease_case_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_disease_case.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    intent: Mapped[str] = mapped_column(String(20), nullable=False, default="therapeutic")
+    product_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    drug: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    dose: Mapped[Decimal | None] = mapped_column(Numeric(10, 3), nullable=True)
+    dose_unit: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    route: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    started_on: Mapped[date] = mapped_column(Date, nullable=False)
+    ended_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    duration_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    withdrawal_until: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    administered_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    outcome: Mapped[str] = mapped_column(String(20), nullable=False, default="ongoing")
+    animal_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    inventory_item_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    inventory_movement_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SwineTreatment {self.product_name!r} intent={self.intent} outcome={self.outcome}>"
+
+
+class SwineProcedure(AGRIOSBase):
+    """A surgical or routine husbandry procedure (Swine Doc 2 §15): castration, tail
+    docking, teeth clipping, iron injection, ear notching, hernia repair, euthanasia."""
+
+    __tablename__ = "swine_procedure"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    pig_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    group_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_group.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    procedure_type: Mapped[str] = mapped_column(String(20), nullable=False, default="other")
+    performed_on: Mapped[date] = mapped_column(Date, nullable=False)
+    performed_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    anesthesia: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    analgesia: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    outcome: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    animal_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SwineProcedure {self.procedure_type} on={self.performed_on}>"
+
+
+class SwineObservation(AGRIOSBase):
+    """A health observation / examination / veterinary assessment (Swine Doc 2 §15).
+
+    ``findings`` is recorded text — never an inferred diagnosis (§4.4). Temperature and
+    body-condition score are optional recorded measurements."""
+
+    __tablename__ = "swine_observation"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    pig_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    group_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_group.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    observation_type: Mapped[str] = mapped_column(String(20), nullable=False, default="routine_check")
+    observed_on: Mapped[date] = mapped_column(Date, nullable=False)
+    temperature_c: Mapped[Decimal | None] = mapped_column(Numeric(4, 1), nullable=True)
+    body_condition_score: Mapped[Decimal | None] = mapped_column(Numeric(3, 1), nullable=True)
+    severity: Mapped[str] = mapped_column(String(20), nullable=False, default="info")
+    findings: Mapped[str | None] = mapped_column(Text, nullable=True)
+    observed_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SwineObservation {self.observation_type} on={self.observed_on}>"
+
+
+class SwineLabTest(AGRIOSBase):
+    """A laboratory test and its recorded result (Swine Doc 2 §15). Results are
+    recorded facts from the lab — never inferred."""
+
+    __tablename__ = "swine_lab_test"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    pig_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    group_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_group.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    disease_case_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_disease_case.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    sample_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    test_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    laboratory: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    collected_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    result_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    result: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    result_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reference: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SwineLabTest {self.test_name!r} result={self.result}>"
+
+
+class SwineMortality(AGRIOSBase):
+    """A mortality event preserving full cause history (Swine Doc 2 §15).
+
+    A pig's death creates this record AND transitions the pig to ``deceased`` — the
+    pig row is never destroyed, so it stays historically traceable. Captures suspected
+    vs confirmed cause, location, related disease/treatment/vet and disposal method.
+    ``litter_id`` covers pre-wean piglet mortality where no individual pig row exists.
+    """
+
+    __tablename__ = "swine_mortality"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    pig_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    litter_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_litter.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    group_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_group.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    pen_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pen.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    disease_case_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_disease_case.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    treatment_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_treatment.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    died_on: Mapped[date] = mapped_column(Date, nullable=False)
+    count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    cause_category: Mapped[str] = mapped_column(String(20), nullable=False, default="unknown")
+    suspected_cause: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    confirmed_cause: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    vet_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    disposal_method: Mapped[str] = mapped_column(String(20), nullable=False, default="unknown")
+    weight_kg: Mapped[Decimal | None] = mapped_column(Numeric(8, 3), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SwineMortality pig={self.pig_id} on={self.died_on} cause={self.cause_category}>"
+
+
+class SwineIsolation(AGRIOSBase):
+    """A historical isolation / quarantine period (Swine Doc 2 §15).
+
+    Never a boolean flag — start, end, location, reason and clearance are recorded so
+    disease tracing is possible. An open period has ``ended_on IS NULL``.
+    """
+
+    __tablename__ = "swine_isolation"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    pig_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    group_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_group.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    pen_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pen.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    disease_case_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_disease_case.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    reason: Mapped[str] = mapped_column(String(20), nullable=False, default="observation")
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    started_on: Mapped[date] = mapped_column(Date, nullable=False)
+    ended_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    cleared_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    clearance_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    @property
+    def is_active(self) -> bool:
+        return self.status == "active" and self.ended_on is None
+
+    def __repr__(self) -> str:
+        return f"<SwineIsolation pig={self.pig_id} status={self.status} start={self.started_on}>"
+
+
+class SwineBiosecurityRecord(AGRIOSBase):
+    """An operational biosecurity record (Swine Doc 2 §15, Doc 5 §8): visitor and
+    vehicle logs, equipment disinfection, staff sanitation, pen cleaning, rodent
+    control, dead-stock disposal, quarantine and inspections.
+
+    ``reminder_id`` is a soft link to a Greena Operations reminder/task (no FK) so
+    recurring biosecurity routines integrate with Operations without coupling.
+    """
+
+    __tablename__ = "swine_biosecurity_record"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    record_type: Mapped[str] = mapped_column(String(30), nullable=False, default="inspection")
+    occurred_on: Mapped[date] = mapped_column(Date, nullable=False)
+    pen_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pen.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    location: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    party_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    performed_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    product_used: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    compliant: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reminder_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<SwineBiosecurityRecord {self.record_type} on={self.occurred_on}>"

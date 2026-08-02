@@ -166,9 +166,11 @@ from app.models.small_ruminant import (
     SmallRuminantWeight,
 )
 from app.models.swine import (
+    SwineBiosecurityRecord,
     SwineBloodline,
     SwineBreed,
     SwineBreeding,
+    SwineDiseaseCase,
     SwineDocument,
     SwineEvent,
     SwineFarrowing,
@@ -178,12 +180,19 @@ from app.models.swine import (
     SwineFosterTransfer,
     SwineGroup,
     SwineHerd,
+    SwineIsolation,
+    SwineLabTest,
     SwineLitter,
     SwineMedia,
+    SwineMortality,
     SwineMovement,
+    SwineObservation,
     SwinePen,
     SwinePig,
     SwinePregnancy,
+    SwineProcedure,
+    SwineTreatment,
+    SwineVaccination,
 )
 from app.models.growth import (
     GrowthGoal,
@@ -421,6 +430,16 @@ __all__ = [
     "SwineFeed",
     "SwineFeedPlan",
     "SwineFeedRecord",
+    # Swine Health & Biosecurity (Module 20, Milestone 6, Migration 084)
+    "SwineDiseaseCase",
+    "SwineVaccination",
+    "SwineTreatment",
+    "SwineProcedure",
+    "SwineObservation",
+    "SwineLabTest",
+    "SwineMortality",
+    "SwineIsolation",
+    "SwineBiosecurityRecord",
     # Growth Planner (Platform, Migration 065)
     "GrowthPlan",
     "GrowthGoal",
