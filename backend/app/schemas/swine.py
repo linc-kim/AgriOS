@@ -1232,3 +1232,53 @@ class StageTransitionResponse(TimestampedSchema):
     transition_date: date
     reason: str | None
     source: str
+
+
+# ── Sales & finance (Milestone 8) ──────────────────────────────────────────────
+
+class SaleCreate(AGRIOSSchema):
+    pig_id: UUID | None = None
+    sale_type: str = Field("market")
+    buyer_name: str | None = Field(None, max_length=200)
+    buyer_contact: str | None = Field(None, max_length=200)
+    destination: str | None = Field(None, max_length=200)
+    sale_date: date
+    head_count: int = Field(1, ge=1)
+    quantity: Decimal = Field(Decimal("1"), gt=0)
+    unit: str | None = Field(None, max_length=15)
+    weight_kg: Decimal | None = Field(None, ge=0)
+    unit_price: Decimal | None = Field(None, ge=0)
+    total_price: Decimal | None = Field(None, ge=0)
+    currency: str | None = Field(None, max_length=10)
+    invoice_reference: str | None = Field(None, max_length=150)
+    notes: str | None = None
+
+    _st = field_validator("sale_type")(_one_of("sale_type", swm.SALE_TYPE_VALUES))
+
+
+class SaleResponse(TimestampedSchema):
+    farm_id: UUID
+    pig_id: UUID | None
+    sale_type: str
+    buyer_name: str | None
+    buyer_contact: str | None
+    destination: str | None
+    sale_date: date
+    head_count: int
+    quantity: Decimal
+    unit: str | None
+    weight_kg: Decimal | None
+    unit_price: Decimal | None
+    total_price: Decimal
+    currency: str | None
+    invoice_reference: str | None
+    notes: str | None
+
+
+class OperationalExpenseCreate(AGRIOSSchema):
+    """Post an operating cost to the SHARED expenses ledger (tagged module=swine)."""
+
+    category_slug: str = Field(..., min_length=1, max_length=100)
+    amount: Decimal = Field(..., ge=0)
+    description: str | None = Field(None, max_length=500)
+    expense_date: date | None = None

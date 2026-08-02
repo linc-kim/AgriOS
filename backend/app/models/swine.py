@@ -1526,3 +1526,59 @@ class SwineBodyCondition(AGRIOSBase):
 
     def __repr__(self) -> str:
         return f"<SwineBodyCondition pig={self.pig_id} score={self.score} on={self.assessed_on}>"
+
+
+# ── Sales & finance (Swine Doc 2 §17, Doc 3 §12, Doc 5 §5) — Milestone 8 ────────
+# Swine finance is an ANALYTICS layer over the shared Finance engine, not a parallel
+# accounting system. A sale is a recorded revenue FACT on ``swine_sale`` (frozen
+# DB-07 keeps the platform revenue ledger flock-scoped); operating costs post ONCE to
+# the shared expenses ledger tagged ``metadata.module="swine"``; feed/med costs come
+# from their source records (already expensed — never re-posted). Profit / margin /
+# ROI / per-unit costs are COMPUTED on demand, never stored.
+SALE_TYPE_VALUES = (
+    "market", "breeding_stock", "cull", "piglet", "weaner", "internal_transfer",
+    "product", "other",
+)
+# Sale types that transition the pig out of the active herd, and how.
+SALE_SOLD_TYPES = ("market", "breeding_stock", "cull", "piglet", "weaner", "product")
+SALE_TRANSFER_TYPES = ("internal_transfer",)
+
+
+class SwineSale(AGRIOSBase):
+    """A sale of a pig or a product (Swine Doc 2 §17). ``total_price`` is the RECORDED
+    revenue fact — never posted to the flock-scoped platform revenue ledger (frozen
+    DB-07). ``pig_id`` is NULL for product sales / bulk lots not tied to one pig.
+    ``internal_transfer`` records a movement of stock between units at a transfer
+    value and is excluded from external revenue. P&L is computed on demand by the
+    deterministic finance engine from these recorded facts."""
+
+    __tablename__ = "swine_sale"
+
+    farm_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    pig_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("swine_pig.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    sale_type: Mapped[str] = mapped_column(String(20), nullable=False, default="market")
+    buyer_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    buyer_contact: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    destination: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    sale_date: Mapped[date] = mapped_column(Date, nullable=False)
+    head_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False, default=1)
+    unit: Mapped[str | None] = mapped_column(String(15), nullable=True)
+    weight_kg: Mapped[Decimal | None] = mapped_column(Numeric(12, 3), nullable=True)
+    unit_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    total_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    currency: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    invoice_reference: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    pig: Mapped["SwinePig | None"] = relationship(foreign_keys=[pig_id], lazy="noload")
+
+    def __repr__(self) -> str:
+        return f"<SwineSale {self.sale_type} pig={self.pig_id} total={self.total_price}>"

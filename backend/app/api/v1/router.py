@@ -78,6 +78,7 @@ from app.api.v1.endpoints import swine_feed
 from app.api.v1.endpoints import swine_health
 from app.api.v1.endpoints import swine_biosecurity
 from app.api.v1.endpoints import swine_growth
+from app.api.v1.endpoints import swine_finance
 
 api_router = APIRouter()
 
@@ -201,3 +202,4 @@ api_router.include_router(swine_feed.router)
 api_router.include_router(swine_health.router)
 api_router.include_router(swine_biosecurity.router)
 api_router.include_router(swine_growth.router)
+api_router.include_router(swine_finance.router)

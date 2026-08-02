@@ -192,6 +192,7 @@ from app.models.swine import (
     SwinePig,
     SwinePregnancy,
     SwineProcedure,
+    SwineSale,
     SwineStageTransition,
     SwineTreatment,
     SwineVaccination,
@@ -447,6 +448,8 @@ __all__ = [
     "SwineWeight",
     "SwineStageTransition",
     "SwineBodyCondition",
+    # Swine Sales & Finance (Module 20, Milestone 8, Migration 086)
+    "SwineSale",
     # Growth Planner (Platform, Migration 065)
     "GrowthPlan",
     "GrowthGoal",
