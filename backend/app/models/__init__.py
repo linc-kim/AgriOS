@@ -139,6 +139,18 @@ from app.models.rabbit import (
     RabbitRoom,
     RabbitRow,
 )
+from app.models.small_ruminant import (
+    SmallRuminant,
+    SmallRuminantBloodline,
+    SmallRuminantBreed,
+    SmallRuminantDocument,
+    SmallRuminantEvent,
+    SmallRuminantGroup,
+    SmallRuminantHerd,
+    SmallRuminantMedia,
+    SmallRuminantPasture,
+    SmallRuminantPen,
+)
 from app.models.growth import (
     GrowthGoal,
     GrowthMilestone,
@@ -321,6 +333,17 @@ __all__ = [
     "RabbitMortality",
     # Rabbit Sales (Module 17 Milestone 6, Migration 070)
     "RabbitSale",
+    # Small Ruminant — Goat + Sheep (Modules 18/19, Milestone 1, Migration 072)
+    "SmallRuminantBreed",
+    "SmallRuminantBloodline",
+    "SmallRuminantHerd",
+    "SmallRuminantGroup",
+    "SmallRuminantPen",
+    "SmallRuminantPasture",
+    "SmallRuminant",
+    "SmallRuminantEvent",
+    "SmallRuminantMedia",
+    "SmallRuminantDocument",
     # Growth Planner (Platform, Migration 065)
     "GrowthPlan",
     "GrowthGoal",

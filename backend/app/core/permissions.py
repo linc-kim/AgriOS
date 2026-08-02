@@ -180,6 +180,42 @@ class Permission(StrEnum):
     RABBIT_AUTOMATION_MANAGE = "rabbit:automation:manage"  # Generate reminders, drive workflows
     RABBIT_AUTOMATION_VIEW = "rabbit:automation:view"      # Read rabbit tasks, reminders, workflows
 
+    # Small Ruminant — Goat (Module 18) + Sheep (Module 19). Goat Doc 7 §4.
+    # ONE permission set covers both species workspaces (shared foundation); farm
+    # isolation + the species discriminator scope the data. ARIA / Mission Control
+    # reuse the platform AI_QUERY / AI_INSIGHT_VIEW perms.
+    SR_CREATE = "sr:create"                        # Register goats / sheep
+    SR_EDIT = "sr:edit"                            # Edit identity / details, move between groups/pens/pastures
+    SR_ARCHIVE = "sr:archive"                      # Archive / restore animals (no hard delete)
+    SR_TRANSACT = "sr:transact"                    # Ownership events: sale, transfer, death, culling
+    SR_VIEW = "sr:view"                            # Read animals, timeline, media, documents
+    SR_HOUSING_MANAGE = "sr:housing:manage"        # Write herds / groups / pens / pastures
+    SR_HOUSING_VIEW = "sr:housing:view"            # Read housing/grouping hierarchy & occupancy
+    SR_CATALOG_MANAGE = "sr:catalog:manage"        # Write custom breeds / bloodlines
+    SR_CATALOG_VIEW = "sr:catalog:view"            # Read breed / bloodline catalog
+    SR_BREEDING_MANAGE = "sr:breeding:manage"      # Write breedings, births (kidding/lambing), weaning
+    SR_BREEDING_VIEW = "sr:breeding:view"          # Read breeding records & births
+    SR_PEDIGREE_EDIT = "sr:pedigree:edit"          # Edit pedigree links (authorised correction)
+    SR_PEDIGREE_VIEW = "sr:pedigree:view"          # Read pedigrees / genetics
+    SR_HEALTH_LOG = "sr:health:log"                # Write health, vaccination, deworming, hoof, mortality
+    SR_HEALTH_VIEW = "sr:health:view"              # Read health & mortality records
+    SR_WEIGHT_LOG = "sr:weight:log"                # Record weights / growth measurements
+    SR_FEED_RECORD = "sr:feed:record"              # Record feeding / grazing events
+    SR_FEED_VIEW = "sr:feed:view"                  # Read feeding / grazing history
+    SR_DAIRY_RECORD = "sr:dairy:record"            # Record milk / lactation (goat dairy, Milestone 6)
+    SR_DAIRY_VIEW = "sr:dairy:view"                # Read milk / lactation records
+    SR_WOOL_RECORD = "sr:wool:record"              # Record shearing / fleece (sheep wool, Milestone 7)
+    SR_WOOL_VIEW = "sr:wool:view"                  # Read shearing / fleece records
+    SR_SALES_RECORD = "sr:sales:record"            # Record sales
+    SR_SALES_VIEW = "sr:sales:view"                # Read sales history
+    SR_FINANCE_VIEW = "sr:finance:view"            # Read finance summary & analytics
+    SR_REPORT_VIEW = "sr:report:view"              # Read reports & dashboards
+    SR_REPORT_EXPORT = "sr:report:export"          # Export reports (PDF / Excel / CSV)
+    SR_GROWTH_VIEW = "sr:growth:view"              # Read growth plan / roadmap / progress
+    SR_GROWTH_EDIT = "sr:growth:edit"              # Create / edit growth goals & roadmaps
+    SR_AUTOMATION_MANAGE = "sr:automation:manage"  # Generate reminders, drive workflows
+    SR_AUTOMATION_VIEW = "sr:automation:view"      # Read tasks, reminders, workflows
+
     # ── Operations Planner (Platform Module 5) ────────────────────────────────
     # Cross-module recurring-operations engine. `ops:` is already taken by the
     # daily ops-log perms, so the routine engine namespaces under `opsplan:`.
@@ -552,6 +588,71 @@ ROLE_PERMISSIONS["farm_worker"] |= _RABBIT_WORKER_VIEW | {
 }
 ROLE_PERMISSIONS["vet_consultant"] |= _RABBIT_VIEW | {Permission.RABBIT_HEALTH_LOG}
 ROLE_PERMISSIONS["viewer"] |= _RABBIT_VIEW
+
+
+# Small Ruminant — Goat + Sheep (Modules 18/19) permissions layered onto the base
+# matrix. Goat Doc 7 §4-5: owner/manager hold full control; workers operate but
+# cannot archive, transact, manage catalog/housing or see strategic finance/reports/
+# growth views; vets get clinical write; viewers are read-only. One shared set
+# covers both species (goat & sheep run on the same foundation).
+_SR_VIEW = {
+    Permission.SR_VIEW,
+    Permission.SR_HOUSING_VIEW,
+    Permission.SR_CATALOG_VIEW,
+    Permission.SR_BREEDING_VIEW,
+    Permission.SR_PEDIGREE_VIEW,
+    Permission.SR_HEALTH_VIEW,
+    Permission.SR_FEED_VIEW,
+    Permission.SR_DAIRY_VIEW,
+    Permission.SR_WOOL_VIEW,
+    Permission.SR_SALES_VIEW,
+    Permission.SR_FINANCE_VIEW,
+    Permission.SR_REPORT_VIEW,
+    Permission.SR_GROWTH_VIEW,
+    Permission.SR_AUTOMATION_VIEW,
+}
+_SR_FULL = _SR_VIEW | {
+    Permission.SR_CREATE,
+    Permission.SR_EDIT,
+    Permission.SR_ARCHIVE,
+    Permission.SR_TRANSACT,
+    Permission.SR_HOUSING_MANAGE,
+    Permission.SR_CATALOG_MANAGE,
+    Permission.SR_BREEDING_MANAGE,
+    Permission.SR_PEDIGREE_EDIT,
+    Permission.SR_HEALTH_LOG,
+    Permission.SR_WEIGHT_LOG,
+    Permission.SR_FEED_RECORD,
+    Permission.SR_DAIRY_RECORD,
+    Permission.SR_WOOL_RECORD,
+    Permission.SR_SALES_RECORD,
+    Permission.SR_REPORT_EXPORT,
+    Permission.SR_GROWTH_EDIT,
+    Permission.SR_AUTOMATION_MANAGE,
+}
+for _sr_full in ("enterprise_owner", "farm_owner", "farm_manager"):
+    ROLE_PERMISSIONS[_sr_full] |= _SR_FULL
+
+# Workers do the daily operational work but not strategic/transactional actions.
+_SR_WORKER_VIEW = _SR_VIEW - {
+    Permission.SR_SALES_VIEW,
+    Permission.SR_FINANCE_VIEW,
+    Permission.SR_REPORT_VIEW,
+    Permission.SR_GROWTH_VIEW,
+}
+ROLE_PERMISSIONS["farm_worker"] |= _SR_WORKER_VIEW | {
+    Permission.SR_CREATE,
+    Permission.SR_EDIT,
+    Permission.SR_BREEDING_MANAGE,
+    Permission.SR_HEALTH_LOG,
+    Permission.SR_WEIGHT_LOG,
+    Permission.SR_FEED_RECORD,
+    Permission.SR_DAIRY_RECORD,
+    Permission.SR_WOOL_RECORD,
+    Permission.SR_AUTOMATION_MANAGE,
+}
+ROLE_PERMISSIONS["vet_consultant"] |= _SR_VIEW | {Permission.SR_HEALTH_LOG}
+ROLE_PERMISSIONS["viewer"] |= _SR_VIEW
 
 
 # platform_admin is an explicit set rather than a farm role, so it is granted
