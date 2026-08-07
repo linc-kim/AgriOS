@@ -104,6 +104,17 @@ const SrProductionScreen = lazy(() => import("@/screens/smallRuminant/SrProducti
 const SrReportsScreen = lazy(() => import("@/screens/smallRuminant/SrReportsScreen"));
 const SrAriaScreen = lazy(() => import("@/screens/smallRuminant/SrAriaScreen"));
 const SrMissionScreen = lazy(() => import("@/screens/smallRuminant/SrMissionScreen"));
+// Swine (Module 20) — single-species pig workspace.
+const SwineDirectoryScreen = lazy(() => import("@/screens/swine/SwineDirectoryScreen"));
+const SwineProfileScreen = lazy(() => import("@/screens/swine/SwineProfileScreen"));
+const SwineDashboardScreen = lazy(() => import("@/screens/swine/SwineDashboardScreen"));
+const SwineBreedingScreen = lazy(() => import("@/screens/swine/SwineBreedingScreen"));
+const SwineHealthScreen = lazy(() => import("@/screens/swine/SwineHealthScreen"));
+const SwineGrowthScreen = lazy(() => import("@/screens/swine/SwineGrowthScreen"));
+const SwineFinanceScreen = lazy(() => import("@/screens/swine/SwineFinanceScreen"));
+const SwineReportsScreen = lazy(() => import("@/screens/swine/SwineReportsScreen"));
+const SwineAriaScreen = lazy(() => import("@/screens/swine/SwineAriaScreen"));
+const SwineMissionScreen = lazy(() => import("@/screens/swine/SwineMissionScreen"));
 const AdminScreen = lazy(() => import("@/screens/admin/AdminScreen"));
 const ProductionScreen = lazy(() => import("@/screens/production/ProductionScreen"));
 
@@ -270,6 +281,17 @@ const router = createBrowserRouter([
           { path: "/sheep/aria", element: <SrAriaScreen species="sheep" /> },
           { path: "/sheep/mission", element: <SrMissionScreen species="sheep" /> },
           { path: "/sheep/:animalId", element: <SrProfileScreen species="sheep" /> },
+          // ── Swine — Pig workspace (Module 20) ────────────────────────────
+          { path: "/swine", element: <SwineDirectoryScreen /> },
+          { path: "/swine/dashboard", element: <SwineDashboardScreen /> },
+          { path: "/swine/breeding", element: <SwineBreedingScreen /> },
+          { path: "/swine/health", element: <SwineHealthScreen /> },
+          { path: "/swine/growth", element: <SwineGrowthScreen /> },
+          { path: "/swine/finance", element: <SwineFinanceScreen /> },
+          { path: "/swine/reports", element: <SwineReportsScreen /> },
+          { path: "/swine/aria", element: <SwineAriaScreen /> },
+          { path: "/swine/mission", element: <SwineMissionScreen /> },
+          { path: "/swine/:pigId", element: <SwineProfileScreen /> },
           { path: "/admin", element: <AdminScreen /> },
           { path: "/production", element: <ProductionScreen /> },
           ...moduleRoutes,
