@@ -1282,3 +1282,19 @@ class OperationalExpenseCreate(AGRIOSSchema):
     amount: Decimal = Field(..., ge=0)
     description: str | None = Field(None, max_length=500)
     expense_date: date | None = None
+
+
+# ── ARIA (Milestone 10) ────────────────────────────────────────────────────────
+
+class AriaAsk(AGRIOSSchema):
+    question: str = Field(..., min_length=1, max_length=1000)
+
+
+class AriaAnswer(AGRIOSSchema):
+    provider: str            # deterministic | offline | gemini | claude
+    engine: str              # deterministic | ai_router
+    fact_type: str           # recorded | calculated | ai_suggestion | unavailable
+    answer: str
+    sources: list[str]
+    confidence: str          # high | medium | low
+    ai_enabled: bool

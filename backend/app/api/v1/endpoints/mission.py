@@ -50,6 +50,7 @@ from app.schemas.mission import (
     ReplanOut,
     ReplanRequest,
     SmallRuminantBriefingOut,
+    SwineBriefingOut,
     ReportOut,
     RevisionCreate,
     RevisionOut,
@@ -240,6 +241,33 @@ async def small_ruminant_briefing(
     farm, _m = access
     b = await mcd.small_ruminant_briefing(db, farm, species)
     return SuccessResponse(data=SmallRuminantBriefingOut(
+        headline=b.headline, summaries=b.summaries, priorities=b.priorities, counts=b.counts,
+        insights=[
+            InsightOut(category=i.category, severity=i.severity, title=i.title, detail=i.detail,
+                       confidence=i.confidence, limitations=i.limitations,
+                       evidence=[InsightEvidenceOut(source=e.source, value=e.value, fact_type=e.fact_type)
+                                 for e in i.evidence])
+            for i in b.insights
+        ],
+    ))
+
+
+@router.get("/swine/briefing", response_model=SuccessResponse[SwineBriefingOut],
+            summary="Strategic swine briefing — Mission Control over the deterministic engines")
+async def swine_briefing(
+    farm_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    access=Depends(require_farm_access(_READ)),
+    _: User = Depends(require_permission(Permission.AI_INSIGHT_VIEW)),
+):
+    """Mission Control orchestrates the swine reproduction/farrowing/feed/health/
+    growth/finance/housing engines into one strategic briefing — every insight citing
+    recorded/calculated evidence. It owns no business logic; the deterministic
+    engines remain the sources of truth. Health insights are patterns, never
+    diagnoses (frozen §4.4)."""
+    farm, _m = access
+    b = await mcd.swine_briefing(db, farm)
+    return SuccessResponse(data=SwineBriefingOut(
         headline=b.headline, summaries=b.summaries, priorities=b.priorities, counts=b.counts,
         insights=[
             InsightOut(category=i.category, severity=i.severity, title=i.title, detail=i.detail,

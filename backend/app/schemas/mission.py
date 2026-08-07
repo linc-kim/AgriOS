@@ -374,3 +374,14 @@ class SmallRuminantBriefingOut(AGRIOSSchema):
     insights: list[InsightOut]
     priorities: list[str]
     counts: dict
+
+
+class SwineBriefingOut(AGRIOSSchema):
+    """Mission Control's strategic swine briefing — same shape as the other module
+    briefings so Mission Control consumes every module identically."""
+
+    headline: str
+    summaries: dict
+    insights: list[InsightOut]
+    priorities: list[str]
+    counts: dict

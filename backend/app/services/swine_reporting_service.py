@@ -161,12 +161,14 @@ async def farm_dashboard(db, farm_id) -> dict:
     health = await swine_health_service.health_summary(db, farm_id)
     growth = await swine_growth_service.herd_growth_summary(db, farm_id)
     finance = await swine_finance_service.finance_summary(db, farm_id)
+    housing = await swine_housing_service.housing_summary(db, farm_id)
     population = await _count(db, SwinePig, SwinePig.farm_id == farm_id,
                               SwinePig.status == "active", SwinePig.deleted_at.is_(None))
     return {
         "report_type": "farm",
         "farm_id": str(farm_id),
         "population": _metric("Active pigs on the farm", population, "registry"),
+        "housing": {"meaning": "Occupancy, capacity and biosecurity", "source": "housing", **housing},
         "reproduction": {"meaning": "Service / conception / pregnancy performance", "source": "breeding",
                          **reproduction},
         "farrowing": {"meaning": "Litter size, live-birth and pre-wean survival", "source": "farrowing",

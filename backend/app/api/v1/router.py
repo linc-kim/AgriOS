@@ -80,6 +80,7 @@ from app.api.v1.endpoints import swine_biosecurity
 from app.api.v1.endpoints import swine_growth
 from app.api.v1.endpoints import swine_finance
 from app.api.v1.endpoints import swine_reports
+from app.api.v1.endpoints import swine_aria
 
 api_router = APIRouter()
 
@@ -205,3 +206,4 @@ api_router.include_router(swine_biosecurity.router)
 api_router.include_router(swine_growth.router)
 api_router.include_router(swine_finance.router)
 api_router.include_router(swine_reports.router)
+api_router.include_router(swine_aria.router)

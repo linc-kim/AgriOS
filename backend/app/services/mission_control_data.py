@@ -41,6 +41,8 @@ from app.services import (
     rabbit_reporting_service,
     small_ruminant_intelligence,
     small_ruminant_reporting_service,
+    swine_intelligence,
+    swine_reporting_service,
 )
 
 
@@ -486,6 +488,17 @@ async def small_ruminant_briefing(db: AsyncSession, farm: Farm, species: str):
 
     return small_ruminant_intelligence.build_briefing(
         species=species, dashboard=dashboard, forecast=forecast, growth=growth, bottlenecks=bottlenecks)
+
+
+async def swine_briefing(db: AsyncSession, farm: Farm):
+    """Mission Control's strategic briefing on the swine workspace.
+
+    Mission Control *orchestrates* — it owns no swine business logic. It gathers the
+    domain's already-computed deterministic farm dashboard (which composes the
+    reproduction/farrowing/feed/health/growth/finance/housing summaries) and hands it
+    to the pure ``swine_intelligence`` engine. No figure is recomputed."""
+    dashboard = await swine_reporting_service.farm_dashboard(db, farm.id)
+    return swine_intelligence.build_briefing(dashboard=dashboard)
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
