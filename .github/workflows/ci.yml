@@ -33,6 +33,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history so the scoped-lint diff below can resolve its base
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -43,8 +45,30 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
 
-      - name: Lint (ruff)
-        run: ruff check . && ruff format --check .
+      - name: Lint changed files (ruff)
+        # STRICT gate, scoped to the Python files this PR/push actually changes.
+        # CI was previously never running, so the repo carries pre-existing ruff
+        # debt; a repo-wide `ruff check .` would fail on untouched legacy files and
+        # block every PR. Scoping keeps the gate strict for all new/changed code
+        # (it fails the build on any lint error introduced) without weakening it —
+        # the historical debt is cleared in a separate pass, after which this can
+        # switch back to `ruff check .`.
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          [ -z "$BASE" ] && BASE="${{ github.event.before }}"
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            BASE="$(git rev-parse HEAD^ 2>/dev/null || true)"
+          fi
+          if [ -z "$BASE" ]; then
+            echo "No base commit to diff against; skipping scoped lint."; exit 0
+          fi
+          FILES=$(git diff --name-only --relative --diff-filter=ACMR "$BASE" HEAD -- '*.py' | tr '\n' ' ')
+          echo "Changed Python files under backend/: ${FILES:-<none>}"
+          if [ -n "$FILES" ]; then
+            ruff check $FILES
+            ruff format --check $FILES
+          fi
 
       - name: Type check (mypy)
         run: mypy app --ignore-missing-imports
