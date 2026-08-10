@@ -32,7 +32,6 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Any, Optional
 
-import httpx
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -446,77 +445,47 @@ async def check_quota(
 
 async def _call_gemini(prompt: str) -> tuple[str, int, int, int, float]:
     """
-    Call Gemini 2.0 Flash (AD-11).
-    Returns (content, prompt_tokens, completion_tokens, total_tokens, duration_ms).
-    Raises httpx.TimeoutException on timeout (AR-03).
+    Call Gemini through the AI Provider Manager (Gate 4 — key rotation + failover).
+
+    Kept as ARIA's Gemini entry point (and the seam tests patch) but no longer
+    holds a key or calls the model directly — the manager's GeminiProvider owns
+    key selection, health and rotation. Returns the legacy
+    (content, prompt_tokens, completion_tokens, total_tokens, duration_ms) tuple;
+    raises when no Gemini key is configured or every key fails, so the caller
+    falls back to Claude, then to the offline message.
     """
-    api_key = os.environ.get("GEMINI_API_KEY", "")
-    model = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
-    url = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{model}:generateContent?key={api_key}"
-    )
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "maxOutputTokens": 512,
-            "temperature": 0.3,
-        },
-    }
+    from app.services.ai_provider_manager import get_manager
+
+    provider = next((p for p in get_manager().providers if p.name == "gemini"), None)
+    if provider is None:
+        raise RuntimeError("No Gemini provider configured")
 
     start = time.monotonic()
-    async with httpx.AsyncClient(timeout=AI_TIMEOUT_SECONDS) as client:
-        response = await client.post(url, json=payload)
-        response.raise_for_status()
-
+    comp = await provider.complete(prompt)  # rotates keys; raises if all fail
     duration_ms = int((time.monotonic() - start) * 1000)
-    data = response.json()
-
-    candidate = data["candidates"][0]
-    content = candidate["content"]["parts"][0]["text"]
-
-    usage = data.get("usageMetadata", {})
-    prompt_tokens = usage.get("promptTokenCount", 0)
-    completion_tokens = usage.get("candidatesTokenCount", 0)
-    total_tokens = usage.get("totalTokenCount", prompt_tokens + completion_tokens)
-
-    return content, prompt_tokens, completion_tokens, total_tokens, duration_ms
+    total = comp.prompt_tokens + comp.completion_tokens
+    return comp.text, comp.prompt_tokens, comp.completion_tokens, total, duration_ms
 
 
 async def _call_claude(prompt: str) -> tuple[str, int, int, int, float]:
     """
-    Call Claude Haiku (AD-12 fallback — no OpenAI in V1).
-    Returns (content, prompt_tokens, completion_tokens, total_tokens, duration_ms).
+    Call Claude through the AI Provider Manager (AD-12 fallback).
+
+    Same contract as ``_call_gemini`` — the manager's ClaudeProvider owns the key
+    and health; raises when Claude is unconfigured or fails so the caller reaches
+    the offline message.
     """
-    api_key = os.environ.get("CLAUDE_API_KEY", "")
-    model = os.environ.get("CLAUDE_MODEL", "claude-haiku-4-5-20251001")
-    url = "https://api.anthropic.com/v1/messages"
-    headers = {
-        "x-api-key": api_key,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-    }
-    payload = {
-        "model": model,
-        "max_tokens": 512,
-        "messages": [{"role": "user", "content": prompt}],
-    }
+    from app.services.ai_provider_manager import get_manager
+
+    provider = next((p for p in get_manager().providers if p.name == "claude"), None)
+    if provider is None:
+        raise RuntimeError("No Claude provider configured")
 
     start = time.monotonic()
-    async with httpx.AsyncClient(timeout=AI_TIMEOUT_SECONDS) as client:
-        response = await client.post(url, json=payload, headers=headers)
-        response.raise_for_status()
-
+    comp = await provider.complete(prompt)
     duration_ms = int((time.monotonic() - start) * 1000)
-    data = response.json()
-
-    content = data["content"][0]["text"]
-    usage = data.get("usage", {})
-    prompt_tokens = usage.get("input_tokens", 0)
-    completion_tokens = usage.get("output_tokens", 0)
-    total_tokens = prompt_tokens + completion_tokens
-
-    return content, prompt_tokens, completion_tokens, total_tokens, duration_ms
+    total = comp.prompt_tokens + comp.completion_tokens
+    return comp.text, comp.prompt_tokens, comp.completion_tokens, total, duration_ms
 
 
 def _compute_cost(
