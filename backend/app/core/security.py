@@ -86,8 +86,19 @@ def create_refresh_token() -> tuple[str, str, datetime]:
     Returns: (raw_token, hashed_token, expiry_datetime)
     The raw token is sent to the client (httpOnly cookie).
     The hashed token is stored in the database.
+
+    Length is deliberately bounded so the encoded token stays under bcrypt's
+    72-byte input limit. bcrypt 4.x silently truncates longer input, so the
+    previous 64-byte (~86-char) token worked — but bcrypt 5.0+ raises
+    ``ValueError`` on >72 bytes, which would break every refresh/PIN/OTP verify.
+    token_urlsafe(48) yields 64 chars (384 bits of entropy — cryptographically
+    ample) and keeps every newly issued token safe across a future bcrypt major
+    upgrade. Tokens issued before this change are longer, but they still verify
+    on the pinned bcrypt 4.x and drain within REFRESH_TOKEN_EXPIRE_DAYS; a
+    bcrypt-major upgrade should therefore follow a full token-expiry window (or a
+    one-time session purge). See KNOWN_TECHNICAL_DEBT.md §6.
     """
-    raw_token = secrets.token_urlsafe(64)
+    raw_token = secrets.token_urlsafe(48)
     hashed_token = hash_secret(raw_token)
     expiry = datetime.now(timezone.utc) + timedelta(
         days=settings.REFRESH_TOKEN_EXPIRE_DAYS
