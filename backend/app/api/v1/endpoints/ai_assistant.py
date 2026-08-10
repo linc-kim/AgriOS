@@ -23,6 +23,7 @@ from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.permissions import Permission, require_permission
+from app.core.uploads import validate_upload
 from app.database import get_db
 from app.dependencies import require_farm_access
 from app.models.auth import User
@@ -109,10 +110,12 @@ async def assistant_image(
 ):
     farm, _m = access
     data = await _read_capped(file)
+    # Trust the verified content, not the client-supplied content_type (Security §16).
+    mime = validate_upload(filename=file.filename or "image", data=data, category="image")
     settings = await ai_settings_service.get_or_create(db, farm.id)
     result = await aria_assistant_service.analyze_image_upload(
         db, farm, current_user, filename=file.filename or "image",
-        mime=file.content_type or "image/jpeg", data=data, caption=caption, settings=settings,
+        mime=mime, data=data, caption=caption, settings=settings,
     )
     return SuccessResponse(data=_assist_out(result))
 
@@ -131,10 +134,11 @@ async def assistant_document(
 ):
     farm, _m = access
     data = await _read_capped(file)
+    mime = validate_upload(filename=file.filename or "document", data=data, category="document")
     settings = await ai_settings_service.get_or_create(db, farm.id)
     result = await aria_assistant_service.ingest_document(
         db, farm, current_user, filename=file.filename or "document",
-        mime=file.content_type or "", data=data, settings=settings,
+        mime=mime, data=data, settings=settings,
     )
     return SuccessResponse(data=DocumentIngestOut(**result))
 

@@ -22,6 +22,7 @@ from fastapi import APIRouter, Depends, File, Query, Response, UploadFile
 from fastapi.responses import PlainTextResponse
 
 from app.core.permissions import Permission, require_permission
+from app.core.uploads import MAX_IMPORT_BYTES, validate_upload
 from app.dependencies import CurrentUser, DBSession, require_farm_access
 from app.schemas.base import SuccessResponse
 from app.schemas.production import (
@@ -269,7 +270,9 @@ async def create_import(farm_id: uuid.UUID, db: DBSession, current_user: Current
                         access: tuple = Depends(require_farm_access()),
                         _p=Depends(require_permission(Permission.DATA_IMPORT))):
     farm, _ = access
-    content = await file.read()
+    # Bounded read (no unbounded buffering) + extension/content validation (Security §16).
+    content = await file.read(MAX_IMPORT_BYTES + 1)
+    validate_upload(filename=file.filename or "import.csv", data=content, category="import")
     job = await import_service.run_import(
         db, farm, entity, content, source_format, current_user,
         filename=file.filename, dry_run=dry_run, skip_invalid=skip_invalid,
