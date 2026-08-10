@@ -7,7 +7,7 @@ The app will not start if required variables are missing.
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import AnyHttpUrl, field_validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -167,10 +167,22 @@ class Settings(BaseSettings):
     AT_ENVIRONMENT: Literal["sandbox", "production"] = "sandbox"
 
     # ── AI Providers ─────────────────────────────────────────────────────
+    # Gemini supports multiple keys for round-robin rotation + failover, managed
+    # by the AI Provider Manager (Gate 4). GEMINI_API_KEY is the primary;
+    # GEMINI_API_KEY_2 (and any GEMINI_API_KEY_3…) are registered alongside it.
+    # GEMINI_API_KEYS (comma-separated) is an alternative that supplies several at
+    # once. All are backend-only and must never reach the frontend (Doc 3 §17).
     GEMINI_API_KEY: str = ""
+    GEMINI_API_KEY_2: str = ""
+    GEMINI_API_KEYS: str = ""
     GEMINI_MODEL: str = "gemini-2.0-flash"
     CLAUDE_API_KEY: str = ""
     CLAUDE_MODEL: str = "claude-haiku-4-5-20251001"
+
+    # AI Provider Manager key-selection policy (Gate 4): how Gemini keys are
+    # chosen across the pool. round_robin spreads load; primary sticks to the
+    # lowest-index usable key; least_failures prefers the healthiest key.
+    AI_KEY_ROUTING: Literal["round_robin", "primary", "least_failures"] = "round_robin"
 
     # AI context and quota (locked in Engineering Constitution)
     AI_CONTEXT_MAX_TOKENS: int = 8000
@@ -182,6 +194,23 @@ class Settings(BaseSettings):
 
     # ── Timezone ─────────────────────────────────────────────────────────
     TZ: str = "Africa/Nairobi"
+
+    @property
+    def gemini_api_keys(self) -> list[str]:
+        """
+        All configured Gemini keys, de-duplicated, order-preserving.
+
+        Sources, in order: GEMINI_API_KEY, GEMINI_API_KEY_2, then each entry of
+        the comma-separated GEMINI_API_KEYS. Empty values are dropped, so an
+        unconfigured slot simply reduces the pool rather than breaking rotation.
+        """
+        raw = [self.GEMINI_API_KEY, self.GEMINI_API_KEY_2, *self.GEMINI_API_KEYS.split(",")]
+        seen: dict[str, None] = {}
+        for key in raw:
+            k = key.strip()
+            if k:
+                seen.setdefault(k, None)
+        return list(seen)
 
     @property
     def allowed_origins(self) -> list[str]:

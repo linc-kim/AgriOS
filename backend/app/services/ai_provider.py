@@ -33,35 +33,24 @@ def _estimate_tokens(text: str) -> int:
 
 async def complete(prompt: str, *, offline_answer: str) -> AIResult:
     """
-    Try the configured providers in order; fall back to a grounded offline answer.
+    Complete a prompt through the AI Provider Manager (Gate 4).
 
-    ``offline_answer`` is a deterministic, context-grounded response the caller
-    precomputes from the farm data — used verbatim when no provider is available
-    or all providers fail.
+    All provider selection, Gemini multi-key round-robin, failover and health
+    tracking live in the manager now — this stays as the stable façade every
+    caller already imports. ``offline_answer`` is a deterministic, context-
+    grounded response the caller precomputes from farm data; the manager returns
+    it verbatim when no provider is available or all providers fail.
     """
-    from app.services import aria_service
+    from app.services.ai_provider_manager import get_manager
 
-    gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
-    claude_key = os.environ.get("CLAUDE_API_KEY", "").strip()
-
-    if gemini_key:
-        try:
-            content, pt, ct, tt, _dur = await aria_service._call_gemini(prompt)
-            if content:
-                return AIResult(content, "gemini", pt, ct, aria_service._compute_cost("gemini", pt, ct))
-        except Exception as e:  # timeout / quota / network → try next
-            logger.warning("Gemini call failed, falling back: %s", e)
-
-    if claude_key:
-        try:
-            content, pt, ct, tt, _dur = await aria_service._call_claude(prompt)
-            if content:
-                return AIResult(content, "claude", pt, ct, aria_service._compute_cost("claude", pt, ct))
-        except Exception as e:
-            logger.warning("Claude call failed, falling back: %s", e)
-
-    # Offline-safe deterministic fallback.
-    return AIResult(offline_answer, "offline", _estimate_tokens(prompt), _estimate_tokens(offline_answer), 0.0)
+    completion = await get_manager().complete(prompt, offline_answer=offline_answer)
+    return AIResult(
+        completion.text,
+        completion.provider,
+        completion.prompt_tokens,
+        completion.completion_tokens,
+        completion.cost_usd,
+    )
 
 
 def providers_available() -> dict:
