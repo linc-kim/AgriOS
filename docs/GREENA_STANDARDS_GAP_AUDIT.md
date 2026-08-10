@@ -247,6 +247,8 @@ When Fish is built it must **reuse**, not re-create (Master Index §53–55, Mod
 - **Deferred** rate-limiting broadening out of Gate 2 → P1 follow-up. Reason: AI is already governed by `ai_usage_log` + per-farm `monthly_budget_usd` (adding AI rate-limits would duplicate existing controls — Master Index §53), there are no uploads (URL-refs) and no payments (M-Pesa), so the only remaining surface is exports/imports — a smaller, limits-policy-dependent change best reviewed on its own rather than bundled with the isolation-evidence work.
 - **Added** an explicit **write/mutation IDOR** sweep as a P1 follow-up (the read sweep proves the shared `require_farm_access` chokepoint; writes use the same guard, but the standards want writes tested directly — Doc 4 §17).
 
+**Gate 3 — File-upload, write-path & data-layer hardening: COMPLETE (see `docs/GATE_3_REPORT.md`).** P0 all implemented + verified: shared upload validator (`app/core/uploads.py` — size caps, extension allowlist, magic-byte verification, trusted MIME) wired into the 3 upload sites (multimodal image/doc + the previously **uncapped** import); write-path IDOR proven across all **116** farm-scoped POST routes + a no-state-change assertion; cross-org isolation proven bidirectionally. P1 reviewed with live-DB evidence: pooling **KEEP** (31-conn ceiling < Supabase 60); index review — **208 FKs lack indexes but are overwhelmingly audit/actor columns**, bulk-indexing rejected per Doc 3 §14, targeted additions deferred to load-test evidence; cache/query tuning **DEFER** to the load test. No migrations.
+
 ## 7. What is explicitly NOT a gap (do not "fix")
 
 - In-process scheduler/cache/rate-limit — deliberate, trigger-gated (tech-debt §8).
