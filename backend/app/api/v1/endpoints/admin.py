@@ -238,3 +238,28 @@ async def get_ai_usage(
 ):
     result = await admin_service.get_ai_usage(db, period_days=period_days)
     return SuccessResponse(data=result)
+
+
+# ── AI Provider Manager health (Gate 4) ───────────────────────────────────────
+
+@router.get(
+    "/ai/health",
+    response_model=SuccessResponse[dict],
+    summary="AI Provider Manager health, per-key metrics and routing policy",
+)
+async def get_ai_health(
+    _perm=Depends(require_permission(Permission.ADMIN_AI_USAGE_VIEW)),
+):
+    """Operational diagnostics only. No secrets and no user content — key VALUES,
+    prompts and responses are never exposed, only provider config, per-key index/
+    state/counters, aggregate usage, and content-free prompt-safety counts."""
+    from app.core.ai_safety import prompt_safety_stats
+    from app.services.ai_provider_manager import get_manager
+
+    manager = get_manager()
+    return SuccessResponse(data={
+        "manager": manager.config(),          # version, registered providers, routing, cache status
+        "providers": manager.health(),        # per-key state/counters (index only, never the key)
+        "usage": manager.usage(),             # aggregate request/token counters
+        "prompt_safety": prompt_safety_stats(),  # content-free detection counts
+    })
