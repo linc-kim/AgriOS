@@ -29,12 +29,12 @@ import os
 import time
 import uuid
 from datetime import datetime, timedelta
-from decimal import Decimal
 from typing import Any, Optional
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.ai_safety import frame_user_question
 from app.models.ai import (
     AIConversation,
     AIInsight,
@@ -43,7 +43,7 @@ from app.models.ai import (
     AIUsageLog,
 )
 from app.models.auth import User
-from app.models.farm import Farm, SubscriptionPlan
+from app.models.farm import Farm
 from app.models.flock import DailyLog, Flock
 from app.models.finance import Expense, FinancialSnapshot, RevenueRecord
 from app.models.health import VaccinationRecord
@@ -621,10 +621,14 @@ async def send_message(
     )
 
     # ── 5. Build prompt ───────────────────────────────────────────────────────
+    # The user's question is untrusted data: sanitize it, and if it looks like an
+    # instruction-override attempt, append a defensive guard so the model treats it
+    # as a question rather than commands — without dropping the real question
+    # (Security §22, AI Std §5).
     prompt = ARIA_SYSTEM_PROMPT.format(
         farm_context_json=context_json,
         conversation_history=history_text or "(No prior conversation)",
-        user_question=content,
+        user_question=frame_user_question(content),
     )
 
     # ── 6. Call AI provider ───────────────────────────────────────────────────
@@ -1160,11 +1164,11 @@ async def generate_daily_insights(
         recent_logs = log_result.scalars().all()
 
         if recent_logs:
-            today_log = next((l for l in recent_logs if l.log_date == today), None)
-            past_logs = [l for l in recent_logs if l.log_date != today]
+            today_log = next((log for log in recent_logs if log.log_date == today), None)
+            past_logs = [log for log in recent_logs if log.log_date != today]
 
             if today_log and past_logs:
-                avg_mortality = sum(l.mortality_count for l in past_logs) / len(past_logs)
+                avg_mortality = sum(log.mortality_count for log in past_logs) / len(past_logs)
                 if avg_mortality > 0 and today_log.mortality_count > 2 * avg_mortality:
                     insight = AIInsight(
                         farm_id=str(farm_id),
@@ -1187,8 +1191,8 @@ async def generate_daily_insights(
             # ── 2. Feed drop: today's feed < 80% of 7-day average ────────────
             if today_log and past_logs and today_log.feed_consumed_kg:
                 avg_feed = sum(
-                    float(l.feed_consumed_kg) for l in past_logs if l.feed_consumed_kg
-                ) / max(1, len([l for l in past_logs if l.feed_consumed_kg]))
+                    float(log.feed_consumed_kg) for log in past_logs if log.feed_consumed_kg
+                ) / max(1, len([log for log in past_logs if log.feed_consumed_kg]))
                 if avg_feed > 0 and float(today_log.feed_consumed_kg) < 0.8 * avg_feed:
                     insight = AIInsight(
                         farm_id=str(farm_id),
@@ -1320,7 +1324,7 @@ async def generate_daily_insights(
         # This is only inserted when called from the 20:00 scheduler job.
         # The 06:00 run does not check this.
         today_log_check = next(
-            (l for l in recent_logs if l.log_date == today), None
+            (log for log in recent_logs if log.log_date == today), None
         ) if recent_logs else None
 
         if today_log_check is None and datetime.utcnow().hour >= 20:
