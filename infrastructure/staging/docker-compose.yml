@@ -1,0 +1,42 @@
+# Gate 5 — isolated staging stack (same components as production: Postgres + the
+# FastAPI app), with separate credentials and NO production data. For local/CI load
+# testing. For prod-like *numbers*, run the cloud staging instead (see the plan doc).
+#
+#   cp .env.staging.example .env.staging   # then fill isolated secrets
+#   docker compose -f infrastructure/staging/docker-compose.yml up --build
+#
+# Then seed + point k6 at http://localhost:8000.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: greena_staging
+      POSTGRES_PASSWORD: ${STAGING_DB_PASSWORD:-staging_pw}
+      POSTGRES_DB: greena_staging
+    ports:
+      - "5544:5432"          # host 5544 → avoid clashing with a local dev PG
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U greena_staging"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    env_file:
+      - .env.staging
+    environment:
+      # Container-internal DB URL overrides whatever the env file carries.
+      DATABASE_URL: postgresql+asyncpg://greena_staging:${STAGING_DB_PASSWORD:-staging_pw}@db:5432/greena_staging
+      DATABASE_SSL: "false"   # in-cluster Postgres speaks plaintext; SSL is for managed hosts
+      ENVIRONMENT: staging
+      PORT: "8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    # Apply migrations, then serve with several workers to exercise the pool.
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4"

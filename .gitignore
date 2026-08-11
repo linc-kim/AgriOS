@@ -77,3 +77,7 @@ coverage/
 
 .vercel
 .env*
+# Keep no-secret env templates tracked (override the .env* ignore above).
+!.env*.example
+# Gate 5 load-test: never commit generated access tokens.
+loadtest/data/*.json
