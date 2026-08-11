@@ -1,9 +1,23 @@
-# AGRIOS V1 Launch Runbook
+# Greena (AGRIOS) Launch Runbook
 
 **Version:** 1.0.0  
-**Date:** 2026-06-26  
+**Refreshed:** 2026-08-11 (Gate 6 — reconciled to current repo state)  
 **Environment:** Production  
 **Infra:** Railway (backend) + Vercel (frontend) + Supabase (PostgreSQL)  
+
+> **Launch is NOT authorized yet.** Production deployment stays gated on Gate 5
+> (performance) resuming and passing on staging, and on the Gate 6 items still open
+> (DR runbook, alerting, tested restore, security review). The GitHub-Actions deploy
+> workflows remain **parked** (`infrastructure/github/workflows/deploy-*.yml`).
+>
+> **Naming:** the platform is mid-rebrand **AGRIOS → Greena** (`config.PROJECT_NAME =
+> "Greena"`, `EMAIL_FROM` uses `greena.app`; some infra/domains below still say
+> `agrios`). **Confirm the authoritative production domain, sender ID, Sentry org and
+> Slack channel before launch** — the placeholders below are marked ⚠️CONFIRM.
+>
+> **Related:** `DEPLOYMENT_HARDENING.md` (blockers, env checklist, rollback),
+> `GATE_6_PRODUCTION_READINESS_AUDIT.md`, and the Gate 6 DR / alerting / security-review
+> docs once they land.
 
 ---
 
@@ -23,22 +37,52 @@ Complete every item in order. Do not proceed to deployment until all boxes are c
 
 ### 1.2 Secrets — Railway (Backend)
 
-Set each secret in Railway → Project → Variables before first deploy.
+Set each secret in Railway → Project → Variables before first deploy. Reconciled to
+`backend/app/config.py`; the app **fails to boot** if a required value is missing or
+invalid (`diagnostics_service.run_startup_validation`). Full annotated list:
+`backend/.env.example`.
+
+**Required**
 
 | Variable | Notes |
 |----------|-------|
 | `ENVIRONMENT` | `production` |
-| `DATABASE_URL` | `postgresql+asyncpg://postgres:[PASSWORD]@db.[REF].supabase.co:5432/postgres` |
-| `SECRET_KEY` | 32-byte hex: `python -c "import secrets; print(secrets.token_hex(32))"` |
-| `JWT_SECRET` | 64-byte hex: `python -c "import secrets; print(secrets.token_hex(64))"` |
-| `ALLOWED_ORIGINS` | `https://app.agrios.app,https://admin.agrios.app` |
-| `AT_API_KEY` | Africa's Talking production key |
-| `AT_USERNAME` | Africa's Talking production username |
-| `AT_ENVIRONMENT` | `production` |
-| `AT_SENDER_ID` | `AGRIOS` |
-| `SENTRY_DSN` | From Sentry → Project → Settings → Client Keys |
-| `GEMINI_API_KEY` | Google AI Studio production key |
-| `CLAUDE_API_KEY` | Anthropic Console production key |
+| `DATABASE_URL` | `postgresql+asyncpg://…@…supabase.co:5432/postgres` |
+| `SECRET_KEY` | `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `JWT_SECRET` | `python -c "import secrets; print(secrets.token_hex(64))"` |
+| `ALLOWED_ORIGINS` | comma-separated live frontend origin(s) ⚠️CONFIRM domain |
+
+**Auth / cookies / DB tuning**
+
+| Variable | Notes |
+|----------|-------|
+| `REFRESH_COOKIE_SAMESITE` | `strict` if frontend+API share a registrable domain; else `none` (see `DEPLOYMENT_HARDENING.md` BLOCKER-1) |
+| `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | size so `(pool+overflow)×workers×instances + 1 ≤ Supabase max_connections` |
+| `DATABASE_SSL` / `DATABASE_SSL_CA` | `true`; point CA at Supabase's bundle to authenticate the connection |
+
+**AI (Gate 4 — AI Provider Manager)**
+
+| Variable | Notes |
+|----------|-------|
+| `GEMINI_API_KEY`, `GEMINI_API_KEY_2` | one or both keys; the manager round-robins + fails over. Backend-only. |
+| `AI_KEY_ROUTING` | `round_robin` \| `primary` \| `least_failures` (default round_robin) |
+| `AI_RESPONSE_CACHE_TTL_SECONDS` | `0` disables (default); set >0 to enable the deterministic cache |
+| `CLAUDE_API_KEY` | optional fallback provider |
+
+**Email / SMS (launch = email; SMS dormant)**
+
+| Variable | Notes |
+|----------|-------|
+| `EMAIL_PROVIDER` + `SMTP_*` / `FRONTEND_URL` | launch verification/reset channel is email; set the provider + credentials |
+| `REQUIRE_EMAIL_VERIFICATION`, `ENABLE_SMS_OTP` | feature flags — SMS OTP stays OFF at launch (Africa's Talking dormant) |
+| `AT_API_KEY` / `AT_USERNAME` / `AT_ENVIRONMENT` / `AT_SENDER_ID` | only when SMS is activated later ⚠️CONFIRM sender ID |
+
+**Optional**
+
+| Variable | Notes |
+|----------|-------|
+| `SENTRY_DSN` | error monitoring |
+| `POSTHOG_ENABLED` / `POSTHOG_API_KEY` / `POSTHOG_HOST` | analytics — disabled by default (Gate 4) |
 | `TZ` | `Africa/Nairobi` |
 
 ### 1.3 Secrets — Vercel (Frontend)
@@ -63,7 +107,7 @@ alembic upgrade head
 Verify the migration chain is intact:
 ```bash
 alembic current
-# Expected: 030_market_prices (head)
+# Expected: 086_swine_sales (head)   # current head as of 2026-08-11
 
 alembic heads
 # Expected: exactly one head
@@ -131,24 +175,24 @@ curl -sI "$BASE/health" | grep -i "strict-transport-security"
 curl -o /dev/null -w "%{http_code}" "$BASE/docs"
 # Expected: 404
 
-# OTP request (verify SMS gateway is live)
-curl -sf -X POST "$BASE/api/v1/auth/request-otp" \
+# Auth: launch channel is EMAIL + PASSWORD (SMS OTP is dormant at launch).
+# Log in with a known test account:
+curl -sf -X POST "$BASE/api/v1/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"phone": "+254700000000"}' | jq .
-# Expected: {"success":true,"data":{"phone":"+254700000000",...}}
-# Verify SMS is received on the test phone
+  -d '{"email": "test@example.com", "password": "..."}' | jq .
+# Expected: {"success":true,"data":{"access_token":"...", ...}}
+# (When SMS is later enabled, verify /auth/request-otp delivers to a Kenyan number.)
 ```
 
 ### 3.2 Frontend Smoke Tests
 
-1. Open `https://app.agrios.app` in an incognito window
+1. Open the production frontend URL ⚠️CONFIRM in an incognito window
 2. Confirm redirect to `/auth` (not a blank screen)
-3. Enter a Kenyan phone number — confirm OTP SMS arrives within 60 s
-4. Complete OTP → confirm home screen loads
-5. Navigate to all 5 tabs: Home, Flock, Health, Finance, ARIA
-6. Open Settings → confirm language toggle works (EN ↔ SW)
-7. Throttle network to "offline" in DevTools → confirm offline banner appears
-8. Open DevTools → Application → Service Workers → confirm SW is registered
+3. Sign up / log in with **email + password** (SMS OTP dormant at launch) → confirm home loads
+4. Confirm the launch modules load (Poultry, Aviculture, BSF, Rabbit, Goat/Sheep, Swine + Finance, Reports, ARIA) for a farm that has them
+5. Open Settings → confirm language toggle works (EN ↔ SW)
+6. Throttle network to "offline" in DevTools → confirm offline banner appears
+7. Open DevTools → Application → Service Workers → confirm SW is registered
 
 ### 3.3 PWA Smoke Test
 
@@ -220,7 +264,9 @@ alembic downgrade -1   # rolls back one migration
 alembic current        # confirm target revision
 ```
 
-**Note:** DB-10 frozen — no migrations in Sprint 10. A database rollback is not expected for this release.
+**Note:** the schema is now at head `086` (86 migrations, 001→086). Every migration
+must be read before applying and be reversible/recoverable (Doc 4 §117). Full
+code/schema/data rollback detail: `DEPLOYMENT_HARDENING.md §4`.
 
 ---
 
@@ -233,14 +279,14 @@ All of the following are true:
 - All frontend smoke tests pass (Section 3.2)
 - Sentry is receiving events and showing 0 critical errors
 - Railway health check: continuous green for 10 min post-deploy
-- SMS OTP delivery confirmed on a live Kenyan number
+- Email login/signup works end to end (SMS OTP not required at launch)
 - PWA is installable on Android Chrome
 
 ### NO-GO — abort and rollback
 
 Any of the following are true:
 - `GET /health` returns anything other than `{"status":"ok",...}`
-- OTP SMS not delivered within 3 min of request
+- Email login/signup fails end to end
 - Frontend fails to load on mobile Chrome (primary target)
 - Any unhandled exception in Sentry within 10 min of deploy
 - Railway restarts the process more than once
@@ -274,4 +320,4 @@ Any of the following are true:
 
 ---
 
-*This runbook is the authoritative operational guide for AGRIOS V1 launch. Update it whenever infrastructure or deployment procedure changes.*
+*This runbook is the authoritative operational guide for the Greena (AGRIOS) launch. Update it whenever infrastructure or deployment procedure changes. Items marked ⚠️CONFIRM must be verified against the live production accounts (domain, sender ID, Sentry org, Slack channel) before launch.*
