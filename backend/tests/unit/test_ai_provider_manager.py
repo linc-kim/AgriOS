@@ -202,3 +202,63 @@ async def test_manager_usage_aggregates_across_keys(monkeypatch):
     assert usage["successes"] == 2
     assert usage["prompt_tokens"] == 10 and usage["completion_tokens"] == 6
     assert m.health()["gemini"]["policy"] == "round_robin"
+
+
+# ── Response cache (deterministic, safe) ──────────────────────────────────────
+
+
+async def test_cache_returns_cached_completion_and_zeroes_cost():
+    p = _FakeProvider("gemini", result=Completion("ans", "gemini", 5, 3, 0.01))
+    m = AIProviderManager([p], cache_ttl=60)
+    c1 = await m.complete("same prompt", offline_answer="off")
+    c2 = await m.complete("same prompt", offline_answer="off")
+    assert p.calls == 1  # second answer served from cache, no new provider call
+    assert c1.text == c2.text == "ans"
+    assert c2.confidence == "cached" and c2.cost_usd == 0.0
+
+
+async def test_no_cache_when_ttl_zero():
+    p = _FakeProvider("gemini", result=Completion("ans", "gemini", 1, 1, 0.0))
+    m = AIProviderManager([p], cache_ttl=0)
+    await m.complete("q", offline_answer="off")
+    await m.complete("q", offline_answer="off")
+    assert p.calls == 2
+
+
+async def test_offline_result_is_never_cached():
+    p = _FakeProvider("gemini", available=False)
+    m = AIProviderManager([p], cache_ttl=60)
+    c1 = await m.complete("q", offline_answer="off")
+    assert c1.provider == "offline"
+    # Provider recovers — the earlier offline must NOT have been cached.
+    p._available = True
+    p._result = Completion("real", "gemini", 1, 1, 0.0)
+    c2 = await m.complete("q", offline_answer="off")
+    assert c2.provider == "gemini" and p.calls == 1
+
+
+# ── Vision routing ────────────────────────────────────────────────────────────
+
+
+class _FakeVisionProvider(_FakeProvider):
+    async def complete_vision(self, prompt, image_bytes, mime):
+        self.calls += 1
+        if self._error:
+            raise self._error
+        return self._result
+
+
+async def test_complete_vision_uses_vision_capable_provider():
+    p = _FakeVisionProvider("gemini", result=Completion("a hen", "gemini", 2, 2, 0.0))
+    c = await AIProviderManager([p]).complete_vision(
+        "what is this?", b"img", "image/png", offline_answer="off"
+    )
+    assert c.text == "a hen" and c.provider == "gemini"
+
+
+async def test_complete_vision_offline_without_vision_provider():
+    p = _FakeProvider("claude", result=Completion("x", "claude", 1, 1, 0.0))  # no vision
+    c = await AIProviderManager([p]).complete_vision(
+        "q", b"img", "image/png", offline_answer="grounded"
+    )
+    assert c.provider == "offline" and c.text == "grounded"
