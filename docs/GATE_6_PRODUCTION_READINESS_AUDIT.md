@@ -12,7 +12,7 @@ Reviewed the repo's existing production-readiness artifacts and classified each 
 |---|---|---|---|---|
 | 1 | **Deployment architecture** | PARTIAL | `SYSTEM_ARCHITECTURE.md`, `DEPLOYMENT.md`/`_GUIDE`/`_ENVIRONMENTS`/`_HARDENING.md`, `backend/Dockerfile`, `backend/railway.toml`, `frontend/vercel.json`; `DEPLOYMENT_HARDENING.md §1` names the real launch blockers (shared registrable domain, CSP `connect-src`, scheduler advisory lock) | Docs carry stale details (AGRIOS↔Greena naming; runbook migration head). **Action:** consolidated current-state architecture note + reconcile stale bits. |
 | 2 | **Secrets verification** | COMPLETE | This audit's scan: **no tracked `.env`**, no live-key patterns, no hardcoded secret literals in `backend/app`; `config.py` fail-fast env validation; secrets inventory in `DEPLOYMENT_HARDENING.md §2`; AI keys backend-only (Gate 4) | Frontend **production bundle** secret scan (Doc 4 §109) still runs at deploy time. **Action:** add to the release checklist. |
-| 3 | **Backup & restore** | PARTIAL | App-level per-farm logical backup **implemented**: `backup_service.create_backup / verify_backup (checksum) / restore_backup / apply_retention`; `production.py` endpoints; DB-level PITR is Supabase (documented in HARDENING) | **No tested restore evidence** (Doc 4 §106: "a backup isn't reliable until restoration is tested"). **Action:** run an app-level backup→restore→verify locally and record it. |
+| 3 | **Backup & restore** | **VERIFIED** (app-level) | App-level per-farm logical backup **tested end-to-end** (Inc 3 — see §Backup/restore verification below): create → verify(checksum) → data-loss → dry-run → applied restore → integrity + operability, plus missing/corrupted failure paths. `backup_service`; `production.py` endpoints; automated in `tests/integration/test_backup_restore_cycle.py`. | DB-level (Supabase PITR) is out-of-scope locally (needs the DB) — cover in the DR runbook (Inc 4). Interrupted-restore not tested (see limitations). |
 | 4 | **Disaster recovery documentation** | MISSING (dedicated) | Rollback procedures exist (`DEPLOYMENT_HARDENING.md §4` code/schema/data) but no consolidated DR doc | **Action:** build a DR runbook — scenarios (DB loss, region/provider outage, corruption), RTO/RPO, recovery steps, degradation behavior. |
 | 5 | **Monitoring configuration** | PARTIAL | Sentry (prod-gated, `main.py`), Prometheus-style `metrics_service` + `MetricsMiddleware`, `/health` (503 on DB down), `diagnostics_service`, `release_service` (release/rollback record) | No single doc of *what is monitored and where*. **Action:** monitoring configuration doc (signals, dashboards, retention). |
 | 6 | **Alerting configuration** | MISSING | No alert rules found | **Action:** define alerts (error-rate, health-check failing, DB/pool pressure, AI failures, payment/webhook once integrated, cost spikes) + delivery + thresholds. |
@@ -35,3 +35,33 @@ Reviewed the repo's existing production-readiness artifacts and classified each 
 6. **Paystack integration plan** (planning only).
 
 No production deployment is enabled by any of this; deploy stays gated on Gate 5 resuming and passing.
+
+---
+
+## Backup/restore verification (Increment 3 — real execution, not inspection)
+
+Exercised the **actual** `backup_service` against real rows (throwaway farm: 1 flock + 3 daily logs), automated in `tests/integration/test_backup_restore_cycle.py` (3 tests, all pass).
+
+**Measured (small dataset, local embedded Postgres — sizes are real; times are local-dev and scale with data volume):**
+| Metric | Value |
+|---|---|
+| Backup size | 2,658 bytes (JSON snapshot, 6 entity types) |
+| Backup create time | ~130 ms |
+| **Restore time (RTO)** | ~150 ms service / ~220 ms wall (incl. the safety backup) |
+| Manual intervention | **none** — create/verify/restore are single service calls |
+
+**Verified behaviors:**
+- **Data integrity:** a soft-deleted flock was **revived** and hard-deleted logs **re-created**; restored counts matched the pre-loss state exactly.
+- **App operability after restore:** the API served the restored farm (`GET /farms/{id}/flocks` → 200).
+- **Dry-run** reports what would change and **writes nothing** (confirmed the flock stayed deleted after a dry run).
+- **Safety-first:** an applied restore **takes a safety backup first** (observed `safety_backup_id`) → the restore is itself reversible.
+- **Integrity gate:** `verify_backup` recomputes the checksum; a **tampered** payload verifies **invalid** and `restore_backup` **refuses** it.
+- **Missing backup:** restoring an unknown id raises `NotFoundException` (404).
+
+**RTO / RPO:**
+- **RTO (measured):** the app-level per-farm restore completes in well under a second for a small farm; it grows with the farm's row count and the 32 MB payload cap. A production-scale RTO must be re-measured on staging with a large seed.
+- **RPO (stated, not estimated):** app-level backups are **on-demand / scheduled snapshots**, so the RPO is *time since the last backup* — it depends on the backup **schedule**, which is an operational policy, not a code property. Continuous point-in-time recovery (sub-minute RPO) is provided by **Supabase PITR**, which **cannot be measured from this local environment** (no access to the managed DB); it must be verified on staging/production. I am not estimating a number.
+
+**Honest limitations:**
+- **Interrupted restore** was **not** tested — cleanly killing a process mid-transaction isn't reproducible in-test. Mitigation in the design: an applied restore runs inside a transaction and takes a safety backup first, so a crash rolls back rather than leaving a half-restored farm. Recommend a real interrupted-restore drill on staging.
+- Scope is the **6 `BACKUP_ENTITIES`** (flocks, daily_logs, expenses, revenue, vaccinations, inventory). Other modules' data (aviculture/BSF/rabbit/SR/swine, media, AI) are **not** in the app-level backup — for those, **DB-level backup/PITR is the recovery path**. This boundary belongs in the DR runbook (Inc 4).
