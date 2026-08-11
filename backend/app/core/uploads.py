@@ -40,18 +40,25 @@ _MAX: dict[str, int] = {
 
 # Extension → canonical (trusted) MIME, per category.
 _IMAGE_EXT = {
-    ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-    ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
 }
 _DOC_EXT = {
-    ".csv": "text/csv", ".txt": "text/plain", ".pdf": "application/pdf",
+    ".csv": "text/csv",
+    ".txt": "text/plain",
+    ".pdf": "application/pdf",
     ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 }
 _IMPORT_EXT = {".csv": "text/csv", ".json": "application/json", ".txt": "text/plain"}
 
 _ALLOWED: dict[str, dict[str, str]] = {
-    "image": _IMAGE_EXT, "document": _DOC_EXT, "import": _IMPORT_EXT,
+    "image": _IMAGE_EXT,
+    "document": _DOC_EXT,
+    "import": _IMPORT_EXT,
 }
 
 _TEXT_EXT = {".csv", ".txt", ".json"}
@@ -103,7 +110,9 @@ def validate_upload(*, filename: str, data: bytes, category: Category) -> str:
     if not data:
         raise ValidationException("The uploaded file is empty.")
     if len(data) > max_bytes:
-        raise ValidationException(f"File too large — {max_bytes // (1024 * 1024)} MB maximum.")
+        raise ValidationException(
+            f"File too large — {max_bytes // (1024 * 1024)} MB maximum."
+        )
 
     ext = _safe_ext(filename)
     allowed = _ALLOWED[category]
@@ -115,7 +124,9 @@ def validate_upload(*, filename: str, data: bytes, category: Category) -> str:
 
     if ext in _TEXT_EXT:
         if not _is_utf8_text(data):
-            raise ValidationException("File content is not valid UTF-8 text for its extension.")
+            raise ValidationException(
+                "File content is not valid UTF-8 text for its extension."
+            )
     elif not _matches_signature(data, ext):
         raise ValidationException(f"File content does not match its '{ext}' type.")
 
