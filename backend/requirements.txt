@@ -46,5 +46,5 @@ reportlab==4.2.5
 openpyxl==3.1.5
 
 # Utilities
-python-multipart==0.0.20
+python-multipart==0.0.32
 python-dotenv==1.0.1
