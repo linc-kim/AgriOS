@@ -11,6 +11,20 @@ Increment map: **1** readiness audit · **2** release-checklist refresh + runboo
 **3** backup/restore verification · **4** disaster recovery + alerting · **5** consolidated
 security review · **6** dependency security remediation (this increment).
 
+## Governing principle
+
+> Production-readiness gates prioritize reducing deployment risk. Security findings are
+> remediated when the fix lowers overall release risk. Findings demonstrated to be
+> non-exploitable in the current architecture, whose only remediation requires a major
+> architectural or framework change, are documented as accepted risks and scheduled for the
+> appropriate modernization milestone rather than introduced into the production-readiness gate.
+
+Applied in Inc 6: the five non-breaking, risk-reducing upgrades (jose, fastapi/starlette,
+multipart, dotenv) were taken **in** the gate; the two non-exploitable findings whose only fix is
+a major change — `ecdsa` (off the HS256/HMAC path; no fix exists) and `react-router` (SSR advisory
+N/A + open-redirect unreachable in a client-only SPA; fix is v7-only) — were **accepted, documented,
+and scheduled** for their modernization milestone instead.
+
 ---
 
 ## 1. Production Readiness Scorecard
