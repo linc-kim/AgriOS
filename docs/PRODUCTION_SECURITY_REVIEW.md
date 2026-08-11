@@ -125,8 +125,14 @@ but not launch-scoped) · ACCEPTED RISK (documented, consciously accepted).
   > application-defined constants; no user-controlled redirect parameters are accepted.
   > **Revisit when:** SSR/server rendering is introduced; dynamic redirect parameters are added;
   > or a major frontend framework upgrade is scheduled.
+  >
+  > **Migration timing (owner):** react-router 6.30.4 is already the newest v6 — the fix exists
+  > only in the breaking v7 series. Bundle the v7 migration into a **future frontend
+  > framework upgrade**; do **not** introduce a major routing change during the production-
+  > readiness gate.
 - **Recommendation:** add `pip-audit` + `npm audit` gates to CI so new advisories surface
-  automatically (P2); schedule the react-router v7 migration as post-launch work.
+  automatically (P2); schedule the react-router v7 migration as part of a future frontend
+  framework upgrade (not a standalone mid-gate change).
 - **Verification:** `pip-audit -r requirements.txt` (1/1, ecdsa only) + `npm audit --omit=dev`
   (2 moderate, react-router) + full backend regression **1913 passed, 0 failed** — all real scans/runs.
 

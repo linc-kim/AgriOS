@@ -84,7 +84,7 @@ None of these is an application-code defect; all are staging/deploy-time verific
 | Item | Priority | Note |
 |---|---|---|
 | `pip-audit` + `npm audit` gates in CI | P2 | Surface new advisories automatically |
-| react-router v6→v7 migration | P2 | Clears the 2 accepted frontend advisories |
+| react-router v6→v7 migration | P2 | Clears the 2 accepted frontend advisories. Owner direction: bundle into a **future frontend framework upgrade**, not a standalone mid-gate routing change (6.30.4 is already the newest v6; fix is v7-only) |
 | General incident-response runbook | P2 | Provider/scheduler/rotation already covered in `DISASTER_RECOVERY.md §2` |
 | Access-token transport hardening (in-memory) | P2 | Reduce XSS exposure window |
 | Broaden rate limiting to exports/imports | P2 | Auth already rate-limited; AI bounded by quota |
