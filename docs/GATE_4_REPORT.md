@@ -124,3 +124,62 @@ Positive — the last path that read a raw `GEMINI_API_KEY`/`CLAUDE_API_KEY` and
 
 ## Recommendation
 **Proceed.** Centralization is now complete (all model calls flow through the manager) with zero regressions and no breaking changes. Recommend approving increment 2 (commit), then a final increment for the AI-health endpoint + prompt-injection tests + (optional) response cache, plus the lint-debt cleanup.
+
+---
+
+# Gate 4 — Increment 3: AI health, vision, injection defenses, confidence, cache
+
+**Status:** implemented + verified. **Awaiting owner approval. NOT committed.**
+
+## Objectives completed (the five requested items)
+1. **AI Health endpoint** — `GET /api/v1/admin/ai/health` (gated by `ADMIN_AI_USAGE_VIEW`), operational diagnostics only: `manager.config()` (**manager version, registered providers, routing policy, cache status: enabled/ttl/entries**), `manager.health()` (per-key state/requests/successes/failures/cooldown/tokens/last-used — **index only**), `manager.usage()` aggregate, and **content-free** `prompt_safety` counts. **No secrets and no user content** — verified by a test that asserts key values, env secrets, and marker strings never appear in the response.
+2. **Vision path migrated onto the manager** — `ai_provider.analyze_image` no longer reads a key or calls Gemini directly; the manager's `GeminiProvider.complete_vision` handles it with the same multi-key rotation/failover, falling back to the grounded offline message. The last direct model call is gone.
+3. **Prompt-injection protections — detect *and* safely handle, intent preserved** — `app/core/ai_safety.py`: `sanitize_user_text` (control-char strip, NFKC normalize, cap) + **precise** override patterns (tightened so legitimate farming language — "show me the deworming instructions", "override the feeding schedule", "repeat the vaccination schedule" — is **not** flagged). `frame_user_question` sanitizes and, only when an override is detected, **appends a defensive guard** re-asserting the text is a question — the farmer's actual words are always kept. `analyze_prompt_safety` returns **content-free** structured metadata (`detected` / `action` / `confidence` / lengths / `marker_hits`); aggregate `prompt_safety_stats()` (analyzed/flagged counts) is surfaced in the health endpoint. Regression tests prove 13 real agricultural prompts pass through unflagged and unchanged. ~20 unit tests.
+4. **Confidence / explainability metadata** — `Completion.confidence` and `AIResult.confidence` are threaded through (`medium` normal, `offline` for the grounded fallback, `cached` for cache hits), so callers/UI can label answer provenance.
+5. **Safe deterministic AI response cache** — in the manager, keyed by the **full prompt SHA-256** (the prompt embeds the farm-context snapshot, so it is tenant-safe); short configurable TTL (`AI_RESPONSE_CACHE_TTL_SECONDS`, **default 0 / disabled**); the **offline fallback is never cached** (a transient outage can't stick); a cache hit returns `cost_usd=0` and `confidence="cached"`.
+6. **PostHog kept behind config, disabled by default** — `POSTHOG_ENABLED=false`, `POSTHOG_API_KEY=""`, `POSTHOG_HOST` added; nothing is sent unless explicitly enabled with a key. No client wired (Sentry already covers error tracking).
+
+Also: **CI format-check deferred correctly** — `ruff check` stays strict-scoped on changed files; `ruff format --check` is deferred to the one-time repo-wide format/lint cleanup phase (the repo was never formatted, so enforcing it piecemeal forces large cosmetic diffs). New files are `ruff format`-clean; `aria_service.py`'s 8 pre-existing lint errors were cleaned as part of touching it.
+
+## Files changed (delta)
+- `app/services/ai_provider_manager.py` — response cache; `complete_vision` + shared `_rotate`; `base64`/`hashlib`/`dataclasses` imports.
+- `app/services/ai_provider.py` — `analyze_image` → manager vision; `AIResult.confidence`.
+- `app/services/aria_service.py` — sanitize user question; cleaned pre-existing lint (2 unused imports, 6 `E741`).
+- `app/core/ai_safety.py` — **new** injection defenses.
+- `app/api/v1/endpoints/admin.py` — **new** `GET /admin/ai/health`.
+- `app/config.py` — `AI_RESPONSE_CACHE_TTL_SECONDS`, `POSTHOG_*`.
+- `.github/workflows/ci.yml` — defer `ruff format --check` to cleanup phase (check stays strict).
+- `tests/unit/test_ai_provider_manager.py` (+cache/vision), `tests/unit/test_ai_safety.py` (**new**), `tests/integration/test_ai_health_endpoint.py` (**new**).
+- `.env.example`, `backend/.env.example` — new variable names.
+
+## Database migrations
+**None.**
+
+## Tests executed
+- **Environment:** local Postgres 16 `:5433`; Python 3.12 venv; AI keys empty.
+- New/affected subset: `test_ai_provider_manager + test_ai_safety + test_ai_health_endpoint` → **36 passed** in 20.9s; `ruff check` on all changed files → clean.
+- **Full regression:** `pytest -q -rf` → **1909 passed, 0 failed in 462.0s (7m42s)** (clean run, no concurrent edits).
+- **Skipped:** none.
+- *Note:* an earlier run reported 169 failures — an artifact of editing source/test files **while the suite executed**; the clean re-run on the final code is green, and all affected subsets pass in isolation (83 passed).
+
+## Tests passed / failed
+**1909 passed, 0 failed, 0 errors.** Baseline before Gate 4 was 1865; total new across Gate 4 ≈ +44 (Inc 1 rotation/policy/metrics, Inc 3 cache/vision, `ai_safety` ×~20 incl. 13 legitimate-prompt regressions, health endpoint ×4).
+
+## Coverage / Performance / Security impact
+- **Coverage:** up — cache, vision, injection, and the health endpoint are unit/integration covered.
+- **Performance:** the cache reduces duplicate provider calls when enabled; disabled by default so no behavior change. Sanitization is O(len) on the user turn.
+- **Security:** stronger — vision no longer reads a raw key; user content is sanitized before prompting; injection patterns detectable; the health endpoint exposes **no** key material and is admin-gated.
+
+## Breaking changes
+**None.** Cache is off by default; `AIResult`/`Completion` gained an optional `confidence` field; the health endpoint is additive.
+
+## Rollback strategy
+`git revert` the increment; all additions are behind config or new modules/endpoints. No migrations/data.
+
+## Remaining risks / limitations
+- **Repo-wide lint/format cleanup** still owed (P2) before re-enabling `ruff check .` + `ruff format --check .`.
+- Response cache is in-process/per-replica (like the other in-process caches) — fine pre-Redis; multi-replica sharing is a later concern.
+- `looks_like_injection` is a heuristic signal (defense-in-depth), not a guarantee; the real protections are prompt structure + output redaction + sanitization.
+
+## Recommendation
+**Proceed.** All five Increment 3 items delivered with zero regressions; PostHog is config-gated and disabled. This completes the Gate 4 focus areas. Recommend approving Increment 3 (commit), then scheduling the **repo-wide lint/format cleanup** (re-enabling the full strict gate) and the **1,000-user load test** as the next gate.
