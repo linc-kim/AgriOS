@@ -97,16 +97,27 @@ def normalise_path(request: Request) -> str:
     Reduce a request path to a low-cardinality template.
 
     Prometheus label values must be bounded — recording the raw path would
-    create a distinct time series per farm id and blow up the registry. The
-    matched route template is used when routing resolved; otherwise ids are
-    substituted out by pattern so unmatched paths (404s, probes) still collapse.
-    """
-    route = request.scope.get("route")
-    path_format = getattr(route, "path_format", None) or getattr(route, "path", None)
-    if path_format:
-        return path_format
+    create a distinct time series per farm id and blow up the registry. When
+    routing resolved, the concrete path parameter values are substituted back
+    out to their names so the label is the route template
+    (``/api/v1/farms/{farm_id}``); otherwise ids are collapsed by pattern so
+    unmatched paths (404s, probes) still bound cardinality.
 
-    path = _UUID_RE.sub("/{id}", request.url.path)
+    Note: ``route.path_format`` is deliberately *not* used. Under FastAPI's
+    ``include_router`` it is the router-relative template with the mount prefix
+    stripped (``/production/version`` rather than ``/api/v1/production/version``),
+    which would silently drop the ``/api/v1`` prefix from every metric label and
+    break dashboards keyed on it. Reconstructing from the full request path
+    keeps the label stable and prefix-complete.
+    """
+    path = request.url.path
+    params = request.scope.get("path_params") or {}
+    if params:
+        for name, value in params.items():
+            path = path.replace(str(value), "{" + name + "}", 1)
+        return path
+
+    path = _UUID_RE.sub("/{id}", path)
     return _NUMERIC_RE.sub("/{n}", path)
 
 

@@ -39,11 +39,33 @@ async def _make_outsider(integration_session, phone: str) -> User:
     return user
 
 
+def _iter_api_routes(routes):
+    """Yield every leaf route (with ``methods``/``path``), recursing into
+    included/mounted routers.
+
+    FastAPI 0.141 no longer flattens ``include_router`` routes into
+    ``app.routes``; it inserts an opaque ``_IncludedRouter`` node (whose
+    sub-routes live on ``.original_router``), and nests further includes.
+    Walking only the top level would find 0 farm-scoped routes, silently
+    turning this IDOR sweep into a no-op — so recurse the tree.
+    """
+    for route in routes:
+        sub = None
+        if type(route).__name__ == "_IncludedRouter":
+            sub = getattr(getattr(route, "original_router", None), "routes", None)
+        elif hasattr(route, "routes"):
+            sub = route.routes
+        if sub:
+            yield from _iter_api_routes(sub)
+        if getattr(route, "path", None) and hasattr(route, "methods"):
+            yield route
+
+
 def _farm_scoped_post_routes() -> list[str]:
     from app.main import app
 
     out: set[str] = set()
-    for route in app.routes:
+    for route in _iter_api_routes(app.routes):
         path = getattr(route, "path", "")
         methods = getattr(route, "methods", set()) or set()
         if re.findall(r"{([^}]+)}", path) == ["farm_id"] and "POST" in methods:

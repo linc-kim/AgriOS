@@ -2,7 +2,11 @@
 # Python 3.12
 
 # Web framework
-fastapi==0.115.0
+fastapi==0.141.1
+# starlette is a FastAPI dependency; pinned explicitly to the security-fixed
+# line (fastapi 0.141.1 requires starlette>=0.46.0). 1.6.0 clears all known
+# starlette CVEs (PYSEC-2026-161/248/249/1941/1943/2280/2281).
+starlette==1.6.0
 uvicorn[standard]==0.32.0
 
 # Database
