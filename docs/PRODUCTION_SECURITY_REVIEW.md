@@ -44,12 +44,12 @@ but not launch-scoped) · ACCEPTED RISK (documented, consciously accepted).
 - **Recommendation:** hold the access token in memory (not localStorage) or keep CSP strict (HARDEN, P2).
 - **Verification:** code read.
 
-### 6. File-upload security — PASS (dependency caveat)
+### 6. File-upload security — PASS
 - **Evidence:** `app/core/uploads.py`; `test_uploads.py` + upload integration tests (Gate 3).
 - **Current:** size caps, extension allowlist, **magic-byte** verification, trusted-MIME; bounded reads; in-memory (non-executable) processing.
-- **Remaining risk:** the underlying `python-multipart` parser has known CVEs (see §11).
-- **Recommendation:** keep validator; **upgrade python-multipart** (P1).
-- **Verification:** unit + integration tests.
+- **Remaining risk:** the `python-multipart` parser CVEs are **resolved** — upgraded 0.0.20 → 0.0.32 this increment (see §11).
+- **Recommendation:** keep validator.
+- **Verification:** unit + integration tests (36 passed on the upgraded parser).
 
 ### 7. AI security — PASS
 - **Evidence:** `app/core/ai_safety.py`, `ai_provider.redact_secrets`; AI-authz-inheritance + injection tests (Gates 3–4).
@@ -79,12 +79,56 @@ but not launch-scoped) · ACCEPTED RISK (documented, consciously accepted).
 - **Recommendation:** verify at deploy per the runbook (no local action possible — not fabricated here).
 - **Verification:** code read + `test_hardening`; prod config = deploy-time.
 
-### 11. Supply-chain / dependency security — HARDEN (P1, new finding)
-- **Evidence (verified this increment):** `pip-audit -r requirements.txt` → **22 known vulnerabilities in 5 packages**: `python-jose 3.3.0` (JWT — used for our tokens; fix 3.4.0), `starlette 0.38.6` (web framework), `python-multipart 0.0.20` (upload/form parsing), `python-dotenv 1.0.1`, `ecdsa 0.19.2` (transitive). `npm audit --omit=dev` (frontend) → **2 moderate** in `react-router`/`react-router-dom` (open redirect + constructor injection, fixable).
-- **Current:** dependencies pinned; **no automated dependency scanning in CI**.
-- **Remaining risk:** known CVEs in the **JWT library and the framework** — the most exploitable of any finding here.
-- **Recommendation (P1, locally verifiable):** upgrade to fixed versions (`python-jose→3.4.0`, `python-multipart→latest`, `python-dotenv→1.2.2`, `starlette`/`ecdsa` via FastAPI-compatible bumps, `npm audit fix` for react-router) **then run the full regression**; add `pip-audit` + `npm audit` to CI. Note `bcrypt` must stay ≤4.x unless the refresh-token input is bounded (already done, so a bcrypt bump is now also safe to evaluate).
-- **Verification:** pip-audit + npm audit executed (real scans).
+### 11. Supply-chain / dependency security — PASS (two ACCEPTED RISKS)
+- **Status:** the P1 dependency finding from Inc 5 is **remediated** (Gate 6 Inc 6). Backend
+  `pip-audit -r requirements.txt` went from **22 vulns in 5 packages → 1 vuln in 1 package**;
+  frontend `npm audit --omit=dev` remains **2 moderate** (both consciously accepted, below).
+- **Remediation record (previous → new · vulnerability addressed · compatibility · regression):**
+
+| Package | Prev | New | Advisories cleared | Compatibility issues | Regression |
+|---|---|---|---|---|---|
+| `python-jose[cryptography]` | 3.3.0 | **3.5.0** | PYSEC-2024-232, -233, PYSEC-2025-185 (5) | None — we use HS256 `jwt.encode/decode` + `JWTError`, unchanged. 3.5.0 also cleared the no-fix-listed 2025-185. | auth subset 13 ✓; full 1913 ✓ |
+| `fastapi` | 0.115.0 | **0.141.1** | (required to reach the starlette fix line; 0.115 pinned `starlette<0.42`) | 0.141 no longer flattens `include_router` routes into `app.routes` (opaque `_IncludedRouter` node). Fixed two downstream assumptions — see note ▼. | request-surface 59 ✓; full 1913 ✓ |
+| `starlette` | 0.38.6 | **1.6.0** | PYSEC-2026-161, -248, -249, -1941, -1943, -2280, -2281 (9) | Only new deprecation: `HTTP_422_UNPROCESSABLE_ENTITY` → `_CONTENT` (old constant still works; left as-is, not a workaround). | full 1913 ✓ |
+| `python-multipart` | 0.0.20 | **0.0.32** | PYSEC-2026-1852, -3036, -3037, -3038, -3039, -3040 (6) | None (`pip check` clean). Transitive via FastAPI form/file parsing. | upload subset 36 ✓; full 1913 ✓ |
+| `python-dotenv` | 1.0.1 | **1.2.2** | PYSEC-2026-2270 | None. Used by pydantic-settings. | config load ✓; full 1913 ✓ |
+| `ecdsa` | 0.19.2 | *(no fix)* | PYSEC-2026-1325 — **ACCEPTED RISK** ▼ | Already latest; hard (non-extra) dep of python-jose — removal would be a workaround (deferred pending approval). | n/a |
+
+  **▼ FastAPI 0.141 routing-representation fallout (both fixed this increment, app-code + test-infra):**
+  - `MetricsMiddleware.normalise_path` used `route.path_format`, now the **router-relative**
+    template (mount prefix stripped) — every Prometheus `path` label silently lost its `/api/v1`
+    prefix. Rebuilt the label from the full request path + resolved `path_params`; verified the
+    label is `/api/v1/production/version` again. Dashboards/alerts keyed on the prefix stay valid.
+  - The tenant-isolation and write-IDOR sweeps discovered farm-scoped routes by walking
+    `app.routes`, which now returns 0 leaf routes — their sanity guard (`assert >150 / >80`)
+    tripped, meaning the sweeps had **become no-ops**. Added a recursive `_iter_api_routes` walker;
+    discovery restored to **220 GET + 116 POST** farm-scoped routes (matches the historical counts).
+    The isolation guard is live again and green.
+
+- **ACCEPTED RISK 1 — `ecdsa` PYSEC-2026-1325 (backend):** Minerva timing side-channel on the
+  P-256 curve. Affects ECDSA **signing, key generation, and ECDH** — **signature verification is
+  unaffected**, and the python-ecdsa project considers side-channels out of scope (**no planned
+  fix**). Greena issues **HS256 (HMAC)** JWTs only (`app/core/security.py`), so no ECDSA signing,
+  keygen, or ECDH ever executes; `ecdsa` is present solely as a hard transitive dependency of
+  `python-jose`. Exposure on our code path is **nil**. Cannot be upgraded (latest) and would need
+  a dependency-graph workaround to remove — deferred, not worked around, per the increment rule.
+- **ACCEPTED RISK 2 — `react-router` GHSA-wrjc-x8rr-h8h6 + GHSA-337j-9hxr-rhxg (frontend, 2
+  moderate):** fixed only in **react-router v7.18+**, a breaking major migration (our 6.30.4 is
+  already the newest v6 and still flagged). **Owner-accepted** (see decision below). Exposure
+  analysis: advisory #2 (arbitrary constructor injection via `deserializeErrors()` in **SSR
+  hydration**) is **not applicable** — Greena's frontend is a client-only Vite SPA (`createRoot`,
+  no SSR); advisory #1 (open redirect via backslash in `<Link>`/`useNavigate`) is **not reachable**
+  — every navigation target is an application-defined constant, with no `?redirect=`/`returnTo`
+  handling anywhere in `src/`.
+  > **Owner decision (2026-08-11):** Accepted Risk — React Router v6.30.4 advisories. The
+  > application is a client-side Vite SPA and does not implement SSR. All navigation targets are
+  > application-defined constants; no user-controlled redirect parameters are accepted.
+  > **Revisit when:** SSR/server rendering is introduced; dynamic redirect parameters are added;
+  > or a major frontend framework upgrade is scheduled.
+- **Recommendation:** add `pip-audit` + `npm audit` gates to CI so new advisories surface
+  automatically (P2); schedule the react-router v7 migration as post-launch work.
+- **Verification:** `pip-audit -r requirements.txt` (1/1, ecdsa only) + `npm audit --omit=dev`
+  (2 moderate, react-router) + full backend regression **1913 passed, 0 failed** — all real scans/runs.
 
 ### 12. Logging & auditability — PASS (one DEFER)
 - **Evidence:** structured logging + request/correlation IDs (`middleware.py`); `redact_secrets`; `audit_service` immutable events; Sentry (prod, scrubbed).
@@ -120,7 +164,9 @@ but not launch-scoped) · ACCEPTED RISK (documented, consciously accepted).
 | Pri | Item | Class | Locally verifiable? |
 |---|---|---|---|
 | **P0** | *(none security-blocking beyond the Gate 5 performance gate)* | — | — |
-| **P1** | **Dependency upgrades** (python-jose/starlette/python-multipart/dotenv/ecdsa + react-router) then full regression; add pip-audit + npm audit to CI | HARDEN | ✅ yes (upgrade + run tests) |
+| ~~**P1**~~ | ~~**Dependency upgrades** (python-jose/starlette/python-multipart/dotenv)~~ → **RESOLVED (Inc 6)**: 22→1 backend advisories; full regression 1913 passed. Residuals `ecdsa` + `react-router` = ACCEPTED RISK. | ✅ DONE | ✅ verified |
+| **P2** | Add `pip-audit` + `npm audit` gates to CI (surface new advisories automatically) | HARDEN | ✅ |
+| **P2** | react-router v6→v7 migration (clears the 2 accepted frontend advisories) | HARDEN | ✅ (frontend build/test) |
 | **P2** | Access-token transport hardening | HARDEN | ✅ |
 | **P2** | Broaden rate limiting to exports/imports | HARDEN | ✅ |
 | **P2** | Enable RLS (defense-in-depth) | HARDEN | partly (needs Supabase) |
@@ -132,7 +178,12 @@ but not launch-scoped) · ACCEPTED RISK (documented, consciously accepted).
 **Scope note:** no recommendation here requires infrastructure I cannot verify locally, except the two explicitly marked (prod TLS/CORS verification = deploy-time per the runbook; RLS enablement = needs Supabase) — those are flagged, not fabricated.
 
 ## Verdict
-The application-layer security posture is **strong and regression-guarded**. The one materially
-new, high-priority finding is **dependency CVEs (P1)** — verifiable and fixable locally. No P0
-security blocker remains; production readiness continues to depend on the Gate 5 performance
-gate and the P1 dependency remediation.
+The application-layer security posture is **strong and regression-guarded**. The P1 dependency
+finding is now **remediated (Inc 6)**: 21 of 22 backend advisories cleared (jose, fastapi/starlette,
+multipart, dotenv), the full regression is green on the upgraded stack (**1913 passed, 0 failed**),
+and the framework upgrade even revealed and fixed a would-be silent gap — the isolation sweeps had
+degraded to no-ops under FastAPI's new routing and are now live again. The **two residual advisories
+are consciously accepted**: `ecdsa` (no fix exists; off our HS256 path) and `react-router` (owner-
+accepted; not applicable / not reachable in a client-only SPA). **No P0 security blocker remains.**
+Production readiness now depends only on the **Gate 5 performance gate** — there is no outstanding
+security blocker. See `GATE_6_CLOSURE.md` for the consolidated go/no-go package.

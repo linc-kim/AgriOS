@@ -18,7 +18,8 @@ so contributors don't follow a stale copy. (Gate 6 — Production Readiness.)
 | `docs/GATE_6_PRODUCTION_READINESS_AUDIT.md` | 11-area readiness matrix + gap plan + backup/restore verification evidence | Current |
 | `docs/DISASTER_RECOVERY.md` | **Authoritative** DR: recovery coverage tiers (app-backup vs DB PITR vs no-recovery), 7 scenario procedures, RTO/RPO | Current (Gate 6 Inc 4) |
 | `docs/ALERTING.md` | **Authoritative** alert matrix (Critical/High/Medium/Info) grounded on exposed signals only | Current (Gate 6 Inc 4) |
-| `docs/PRODUCTION_SECURITY_REVIEW.md` | **Authoritative** consolidated security review (12 domains, RLS assessment, Gates 2–4 carry-forward, P0–P3 register) | Current (Gate 6 Inc 5) |
+| `docs/PRODUCTION_SECURITY_REVIEW.md` | **Authoritative** consolidated security review (12 domains, RLS assessment, Gates 2–4 carry-forward, P0–P3 register, dependency remediation record) | Current (Gate 6 Inc 5–6) |
+| `docs/GATE_6_CLOSURE.md` | **Authoritative** Gate 6 closure: production-readiness scorecard, go/no-go, launch blockers, accepted risks, deferred work, final recommendation | Current (Gate 6 Inc 6) |
 
 ## Supporting / reference
 
@@ -39,5 +40,7 @@ so contributors don't follow a stale copy. (Gate 6 — Production Readiness.)
 | Alerting configuration | ✅ `ALERTING.md` |
 | Monitoring configuration | Gate 6 Inc 4+ — extend `ALERTING.md` §Signal sources / a monitoring doc |
 | Production security review (RLS, secrets, auth, authz, upload, AI, ops) | ✅ `PRODUCTION_SECURITY_REVIEW.md` |
+| Dependency security remediation (pip-audit / npm audit) | ✅ Gate 6 Inc 6 — `PRODUCTION_SECURITY_REVIEW.md §11` (22→1 backend; 2 accepted) |
+| Gate 6 closure (scorecard, go/no-go, blockers, risks) | ✅ `GATE_6_CLOSURE.md` |
 | Incident response, provider-outage, scheduler recovery, secret rotation | provider-outage/scheduler/secret-rotation covered in `DISASTER_RECOVERY.md §2`; a general incident-response runbook still to add |
-| Paystack integration **plan** (implementation deferred) | Gate 6 (last) — plan doc |
+| Paystack integration **plan** (implementation deferred) | **Out of Gate 6 scope** — deferred to a separate post-production project (owner decision) |
