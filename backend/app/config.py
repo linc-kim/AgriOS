@@ -189,6 +189,19 @@ class Settings(BaseSettings):
     AI_CALL_TIMEOUT_SECONDS: int = 15
     AI_RESPONSE_MAX_WORDS: int = 150
 
+    # Deterministic AI response cache (Gate 4): identical prompts return the cached
+    # completion for this many seconds. Keyed by the full prompt hash (which embeds
+    # the farm-context snapshot, so it is tenant-safe); the offline fallback is
+    # never cached. 0 disables it (default — opt in explicitly).
+    AI_RESPONSE_CACHE_TTL_SECONDS: int = 0
+
+    # ── PostHog (analytics / feature flags) — disabled by default ─────────────
+    # Behind configuration: nothing is sent unless POSTHOG_ENABLED is true AND a
+    # key is set. The project key is frontend-safe; never expose a personal API key.
+    POSTHOG_ENABLED: bool = False
+    POSTHOG_API_KEY: str = ""
+    POSTHOG_HOST: str = "https://us.i.posthog.com"
+
     # ── Monitoring ───────────────────────────────────────────────────────
     SENTRY_DSN: str = ""
 

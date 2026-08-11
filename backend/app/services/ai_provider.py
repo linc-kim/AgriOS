@@ -21,10 +21,11 @@ logger = logging.getLogger("greena.ai.provider")
 @dataclass
 class AIResult:
     text: str
-    provider: str            # gemini | claude | offline
+    provider: str  # gemini | claude | offline
     prompt_tokens: int
     completion_tokens: int
     cost_usd: float
+    confidence: str = "medium"  # explainability: medium | offline | cached
 
 
 def _estimate_tokens(text: str) -> int:
@@ -50,6 +51,7 @@ async def complete(prompt: str, *, offline_answer: str) -> AIResult:
         completion.prompt_tokens,
         completion.completion_tokens,
         completion.cost_usd,
+        completion.confidence,
     )
 
 
@@ -87,41 +89,20 @@ async def analyze_image(
     Medical safety is caller-enforced: the prompt handed in must already carry
     the never-diagnose instruction (§4.4). This function only transports it.
     """
-    import base64
+    from app.services.ai_provider_manager import get_manager
 
-    gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
-    if not gemini_key:
-        return AIResult(offline_answer or _VISION_OFFLINE, "offline",
-                        _estimate_tokens(prompt), _estimate_tokens(offline_answer or _VISION_OFFLINE), 0.0)
-
-    import httpx
-
-    model = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
-    url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-           f"{model}:generateContent?key={gemini_key}")
-    b64 = base64.b64encode(image_bytes).decode("ascii")
-    payload = {
-        "contents": [{"parts": [
-            {"text": prompt},
-            {"inline_data": {"mime_type": mime or "image/jpeg", "data": b64}},
-        ]}],
-        "generationConfig": {"maxOutputTokens": 512, "temperature": 0.2},
-    }
-    try:
-        async with httpx.AsyncClient(timeout=20) as client:
-            r = await client.post(url, json=payload)
-            r.raise_for_status()
-        data = r.json()
-        text = data["candidates"][0]["content"]["parts"][0]["text"]
-        usage = data.get("usageMetadata", {})
-        pt = usage.get("promptTokenCount", 0)
-        ct = usage.get("candidatesTokenCount", 0)
-        from app.services import aria_service
-        return AIResult(text, "gemini", pt, ct, aria_service._compute_cost("gemini", pt, ct))
-    except Exception as e:
-        logger.warning("Gemini Vision failed, offline fallback: %s", e)
-        return AIResult(offline_answer or _VISION_OFFLINE, "offline",
-                        _estimate_tokens(prompt), _estimate_tokens(offline_answer or _VISION_OFFLINE), 0.0)
+    fallback = offline_answer or _VISION_OFFLINE
+    completion = await get_manager().complete_vision(
+        prompt, image_bytes, mime, offline_answer=fallback
+    )
+    return AIResult(
+        completion.text,
+        completion.provider,
+        completion.prompt_tokens,
+        completion.completion_tokens,
+        completion.cost_usd,
+        completion.confidence,
+    )
 
 
 async def summarize(prompt: str, *, offline_answer: str) -> AIResult:
@@ -133,8 +114,16 @@ async def summarize(prompt: str, *, offline_answer: str) -> AIResult:
 
 # Environment variables that must never leak into a prompt or a response.
 _SECRET_MARKERS = (
-    "api_key", "api key", "gemini_api_key", "claude_api_key", "secret_key",
-    "database_url", "password", "authorization", "bearer ", "jwt",
+    "api_key",
+    "api key",
+    "gemini_api_key",
+    "claude_api_key",
+    "secret_key",
+    "database_url",
+    "password",
+    "authorization",
+    "bearer ",
+    "jwt",
 )
 
 
@@ -156,6 +145,10 @@ def redact_secrets(text: str) -> str:
     if any(marker in lowered for marker in _SECRET_MARKERS):
         # Mask obvious key=value secret patterns.
         import re
-        out = re.sub(r"(?i)(api[_ ]?key|secret|password|bearer|token)\s*[:=]\s*\S+",
-                     r"\1: «redacted»", out)
+
+        out = re.sub(
+            r"(?i)(api[_ ]?key|secret|password|bearer|token)\s*[:=]\s*\S+",
+            r"\1: «redacted»",
+            out,
+        )
     return out
