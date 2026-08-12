@@ -226,6 +226,10 @@ from app.models.platform import (
     AuditLog,
     MarketPrice,
 )
+from app.models.billing import (
+    Subscription,
+    PaymentTransaction,
+)
 
 __all__ = [
     # Base
@@ -475,4 +479,7 @@ __all__ = [
     "Notification",
     "AuditLog",
     "MarketPrice",
+    # Billing (Migration 087)
+    "Subscription",
+    "PaymentTransaction",
 ]
