@@ -5,11 +5,15 @@ Paystack subscription payments. The client names which plan it wants; the amount
 is always derived server-side from ``subscription_plans``.
 """
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Request, status
 
 from app.dependencies import CurrentUser, DBSession
 from app.schemas.base import SuccessResponse
-from app.schemas.billing import InitializePaymentIn, InitializePaymentOut
+from app.schemas.billing import (
+    InitializePaymentIn,
+    InitializePaymentOut,
+    PaymentStatusOut,
+)
 from app.services.billing_service import billing_service
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
@@ -34,3 +38,31 @@ async def initialize_payment(
         callback_url=body.callback_url,
     )
     return SuccessResponse(data=InitializePaymentOut(**result))
+
+
+@router.post(
+    "/webhook",
+    response_model=SuccessResponse[PaymentStatusOut],
+    status_code=status.HTTP_200_OK,
+    summary="Paystack webhook (HMAC-verified; server-to-server, no auth)",
+)
+async def paystack_webhook(request: Request, db: DBSession) -> SuccessResponse[PaymentStatusOut]:
+    raw_body = await request.body()
+    signature = request.headers.get("x-paystack-signature")
+    result = await billing_service.process_webhook(db, raw_body=raw_body, signature=signature)
+    return SuccessResponse(data=PaymentStatusOut(**result))
+
+
+@router.get(
+    "/verify/{reference}",
+    response_model=SuccessResponse[PaymentStatusOut],
+    status_code=status.HTTP_200_OK,
+    summary="Manually verify a payment and activate the subscription (owner-only)",
+)
+async def verify_payment(
+    reference: str,
+    db: DBSession,
+    current_user: CurrentUser,
+) -> SuccessResponse[PaymentStatusOut]:
+    result = await billing_service.verify_payment(db, reference=reference, user=current_user)
+    return SuccessResponse(data=PaymentStatusOut(**result))

@@ -25,3 +25,12 @@ class InitializePaymentOut(AGRIOSSchema):
     amount_kes: int
     plan_id: UUID
     plan_name: str
+
+
+class PaymentStatusOut(AGRIOSSchema):
+    """Result of a webhook/verify: what happened and whether the sub is active."""
+
+    reference: str | None = None
+    status: str  # activated | already_processed | ignored
+    plan_id: UUID | None = None
+    subscription_active: bool = False

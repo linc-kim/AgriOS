@@ -13,7 +13,9 @@ trial logic land in later increments.
 
 from __future__ import annotations
 
+import json
 import uuid
+from datetime import datetime, timedelta, timezone
 
 from fastapi import status
 from sqlalchemy import select
@@ -26,10 +28,15 @@ from app.exceptions import (
     ValidationException,
 )
 from app.models.auth import User
-from app.models.billing import PaymentTransaction
+from app.models.billing import PaymentTransaction, Subscription
 from app.models.farm import SubscriptionPlan
+from app.models.organization import Organization
 from app.services import paystack_service
 from app.services.organization_service import OWNER_ROLE, organization_service
+
+# A billing period is one month; calendar-month/annual billing is commercial
+# policy (deferred). Kept here, not hardcoded per-plan, so it is easy to revisit.
+BILLING_PERIOD_DAYS = 30
 
 
 def _new_reference(org_id: uuid.UUID) -> str:
@@ -104,6 +111,7 @@ class BillingService:
             txn.status = "failed"
             await db.flush()
             raise AGRIOSException(
+                "PAYMENT_PROVIDER_ERROR",
                 "Could not initialize payment with the provider.",
                 status_code=status.HTTP_502_BAD_GATEWAY,
             ) from exc
@@ -118,6 +126,127 @@ class BillingService:
             "plan_id": plan.id,
             "plan_name": plan.name,
         }
+
+    # ── Webhook + verify (activation) ─────────────────────────────────────────
+
+    async def process_webhook(
+        self, db: AsyncSession, *, raw_body: bytes, signature: str | None
+    ) -> dict:
+        """Handle a Paystack webhook. HMAC-verified; only ``charge.success`` acts.
+
+        The webhook body is NOT trusted for the amount — the reference is looked
+        up locally and re-verified against Paystack in ``_verify_and_activate``.
+        """
+        if not paystack_service.verify_webhook_signature(raw_body, signature):
+            raise AGRIOSException(
+                "INVALID_SIGNATURE",
+                "Invalid webhook signature.",
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
+        try:
+            payload = json.loads(raw_body.decode("utf-8"))
+        except (ValueError, UnicodeDecodeError) as exc:
+            raise ValidationException("Malformed webhook payload.") from exc
+
+        data = payload.get("data") or {}
+        reference = data.get("reference")
+        if payload.get("event") != "charge.success" or not reference:
+            return {"status": "ignored", "reference": reference, "plan_id": None,
+                    "subscription_active": False}
+
+        txn = await self._get_txn(db, reference)
+        if txn is None:  # unknown reference — nothing of ours to activate
+            return {"status": "ignored", "reference": reference, "plan_id": None,
+                    "subscription_active": False}
+        return await self._verify_and_activate(db, txn)
+
+    async def verify_payment(
+        self, db: AsyncSession, *, reference: str, user: User
+    ) -> dict:
+        """Manual verification (frontend callback). Owner-only; same activation path."""
+        txn = await self._get_txn(db, reference)
+        if txn is None:
+            raise NotFoundException("Payment")
+        _org, role = await organization_service.get_for_user(db, txn.organization_id, user.id)
+        if role != OWNER_ROLE:
+            raise ForbiddenException("Only the organization owner can verify billing.")
+        return await self._verify_and_activate(db, txn)
+
+    async def _verify_and_activate(self, db: AsyncSession, txn: PaymentTransaction) -> dict:
+        """Verify a transaction against Paystack, then activate the subscription.
+
+        Idempotent: an already-successful transaction is a no-op. Activation only
+        happens when Paystack independently reports success AND the verified
+        amount, currency, and metadata match our stored record (which took its
+        amount from the plan, never the client).
+        """
+        if txn.status == "success":
+            sub = await self._get_org_subscription(db, txn.organization_id)
+            return {
+                "status": "already_processed",
+                "reference": txn.reference,
+                "plan_id": txn.plan_id,
+                "subscription_active": bool(sub and sub.status == "active"),
+            }
+
+        verified = await paystack_service.verify_transaction(txn.reference)
+
+        if verified.get("status") != "success":
+            raise ValidationException("Payment was not successful.")
+        if int(verified.get("amount", -1)) != paystack_service.kes_to_subunit(txn.amount_kes):
+            raise ValidationException("Payment amount does not match the plan price.")
+        if str(verified.get("currency", "")).upper() != txn.currency.upper():
+            raise ValidationException("Payment currency does not match.")
+        meta = verified.get("metadata") or {}
+        if str(meta.get("organization_id")) != str(txn.organization_id) or str(
+            meta.get("plan_id")
+        ) != str(txn.plan_id):
+            raise ValidationException("Payment metadata does not match.")
+
+        now = datetime.now(timezone.utc)
+        txn.status = "success"
+        txn.paid_at = now
+        txn.paystack_reference = verified.get("reference") or txn.reference
+
+        sub = await self._get_org_subscription(db, txn.organization_id)
+        if sub is None:
+            sub = Subscription(organization_id=txn.organization_id)
+            db.add(sub)
+        sub.plan_id = txn.plan_id
+        sub.status = "active"
+        sub.activation_source = "paystack"
+        sub.is_lifetime = False
+        sub.current_period_start = now
+        sub.current_period_end = now + timedelta(days=BILLING_PERIOD_DAYS)
+        await db.flush()
+
+        # Organization entitlement follows the subscription (farms inherit from org).
+        org = await db.get(Organization, txn.organization_id)
+        if org is not None:
+            org.plan_id = txn.plan_id
+        txn.subscription_id = sub.id
+        await db.flush()
+
+        return {
+            "status": "activated",
+            "reference": txn.reference,
+            "plan_id": txn.plan_id,
+            "subscription_active": True,
+        }
+
+    async def _get_txn(self, db: AsyncSession, reference: str) -> PaymentTransaction | None:
+        return (
+            await db.execute(
+                select(PaymentTransaction).where(PaymentTransaction.reference == reference)
+            )
+        ).scalar_one_or_none()
+
+    async def _get_org_subscription(
+        self, db: AsyncSession, org_id: uuid.UUID
+    ) -> Subscription | None:
+        return (
+            await db.execute(select(Subscription).where(Subscription.organization_id == org_id))
+        ).scalar_one_or_none()
 
 
 billing_service = BillingService()
