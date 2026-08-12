@@ -42,7 +42,7 @@ async def job_daily_log_reminder() -> None:
     try:
         from app.database import AsyncSessionLocal
         from app.services import sms_service
-        from sqlalchemy import and_, func, select
+        from sqlalchemy import select
         from app.models.flock import Flock, DailyLog
         from app.models.farm import Farm, FarmMember
         from app.models.auth import User
@@ -307,6 +307,26 @@ async def job_backup_retention() -> None:
         logger.error("SCHEDULER: backup_retention failed: %s", exc)
 
 
+async def job_subscription_expiry() -> None:
+    """
+    01:00 EAT: downgrade organizations whose subscription or trial has lapsed.
+
+    A lapsed paid subscription or an expired trial reverts the org (and its
+    farms) to the Free plan. Lifetime/admin grants never expire.
+    """
+    logger.info("SCHEDULER: Running subscription_expiry job")
+    try:
+        from app.database import AsyncSessionLocal
+        from app.services.billing_service import billing_service
+
+        async with AsyncSessionLocal() as session:
+            downgraded = await billing_service.sweep_expired_subscriptions(session)
+            await session.commit()
+            logger.info("SCHEDULER: subscription_expiry downgraded %d org(s)", downgraded)
+    except Exception as exc:
+        logger.error("SCHEDULER: subscription_expiry failed: %s", exc)
+
+
 # A fixed, arbitrary key identifying "the Greena scheduler" to Postgres.
 # Any process holding this advisory lock owns the cron jobs.
 SCHEDULER_LOCK_KEY = 4207731  # "greena-scheduler"
@@ -515,6 +535,16 @@ def start_scheduler() -> AsyncIOScheduler:
         name="ARIA Daily Insights",
         replace_existing=True,
         misfire_grace_time=300,  # 5 min grace window
+    )
+
+    # 01:00 EAT — Subscription/trial expiry sweep (downgrade lapsed orgs to Free)
+    scheduler.add_job(
+        job_subscription_expiry,
+        CronTrigger(hour=1, minute=0, timezone="Africa/Nairobi"),
+        id="subscription_expiry",
+        name="Subscription Expiry Sweep",
+        replace_existing=True,
+        misfire_grace_time=3600,  # 1h grace — non-urgent
     )
 
     # 08:00 EAT — Vaccination reminders (3 days ahead)

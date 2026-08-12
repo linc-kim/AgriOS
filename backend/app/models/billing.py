@@ -35,7 +35,7 @@ from app.models.base import AGRIOSBase
 # Allowed string values (plain constants, matching the recent String-status
 # convention across the swine modules — no native PG enum).
 SUBSCRIPTION_STATUSES = ("active", "expired", "cancelled")
-ACTIVATION_SOURCES = ("paystack", "admin", "lifetime")
+ACTIVATION_SOURCES = ("paystack", "admin", "lifetime", "trial")
 PAYMENT_STATUSES = ("pending", "success", "failed", "abandoned")
 
 
@@ -75,6 +75,11 @@ class Subscription(AGRIOSBase):
     )
     is_lifetime: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     paystack_customer_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # Trial metadata (C2) — kept explicit, not overloaded onto ``status``.
+    is_trial: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    trial_ends_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     organization = relationship("Organization")
     plan = relationship("SubscriptionPlan")

@@ -234,10 +234,7 @@ class BillingService:
         await db.flush()
 
         # Organization entitlement follows the subscription; farms inherit it.
-        org = await db.get(Organization, txn.organization_id)
-        if org is not None:
-            org.plan_id = txn.plan_id
-        await self._apply_plan_to_org_farms(db, txn.organization_id, txn.plan_id)
+        await self.apply_org_entitlement(db, txn.organization_id, txn.plan_id)
         txn.subscription_id = sub.id
         await db.flush()
 
@@ -267,12 +264,41 @@ class BillingService:
 
         free = await get_plan_by_name(db, "free")
         sub.status = "expired"
-        org = await db.get(Organization, organization_id)
-        if org is not None:
-            org.plan_id = free.id
-        await self._apply_plan_to_org_farms(db, organization_id, free.id)
+        await self.apply_org_entitlement(db, organization_id, free.id)
         await db.flush()
         return True
+
+    async def sweep_expired_subscriptions(self, db: AsyncSession) -> int:
+        """Downgrade every organization whose subscription/trial has lapsed.
+
+        Called on a schedule. Handles paid subscriptions and trials uniformly —
+        both carry ``current_period_end``. Returns the number downgraded.
+        """
+        now = datetime.now(timezone.utc)
+        org_ids = (
+            await db.execute(
+                select(Subscription.organization_id).where(
+                    Subscription.status == "active",
+                    Subscription.is_lifetime.is_(False),
+                    Subscription.current_period_end.isnot(None),
+                    Subscription.current_period_end < now,
+                )
+            )
+        ).scalars().all()
+        count = 0
+        for org_id in org_ids:
+            if await self.downgrade_if_expired(db, org_id):
+                count += 1
+        return count
+
+    async def apply_org_entitlement(
+        self, db: AsyncSession, org_id: uuid.UUID, plan_id: uuid.UUID
+    ) -> None:
+        """Set the org's plan and propagate it to its farms (farms inherit)."""
+        org = await db.get(Organization, org_id)
+        if org is not None:
+            org.plan_id = plan_id
+        await self._apply_plan_to_org_farms(db, org_id, plan_id)
 
     async def _apply_plan_to_org_farms(
         self, db: AsyncSession, org_id: uuid.UUID, plan_id: uuid.UUID

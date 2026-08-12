@@ -16,6 +16,7 @@ from app.schemas.billing import (
     PlanOut,
 )
 from app.services.billing_service import billing_service
+from app.services.trial_service import trial_service
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
 
@@ -72,6 +73,8 @@ async def paystack_webhook(request: Request, db: DBSession) -> SuccessResponse[P
     raw_body = await request.body()
     signature = request.headers.get("x-paystack-signature")
     result = await billing_service.process_webhook(db, raw_body=raw_body, signature=signature)
+    if result["status"] == "activated":
+        await trial_service.convert_trial_on_payment(db, result["reference"])
     return SuccessResponse(data=PaymentStatusOut(**result))
 
 
@@ -87,4 +90,6 @@ async def verify_payment(
     current_user: CurrentUser,
 ) -> SuccessResponse[PaymentStatusOut]:
     result = await billing_service.verify_payment(db, reference=reference, user=current_user)
+    if result["status"] == "activated":
+        await trial_service.convert_trial_on_payment(db, result["reference"])
     return SuccessResponse(data=PaymentStatusOut(**result))
