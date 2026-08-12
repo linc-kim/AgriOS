@@ -166,6 +166,19 @@ class Settings(BaseSettings):
     AT_SENDER_ID: str = "Greena"
     AT_ENVIRONMENT: Literal["sandbox", "production"] = "sandbox"
 
+    # ── Paystack (billing) ───────────────────────────────────────────────
+    # Backend-only. Dormant until PAYSTACK_SECRET_KEY is set: the billing
+    # service refuses to initialize/verify without it, so a missing key fails
+    # loudly instead of pretending a charge happened. The secret key must never
+    # reach the frontend; PAYSTACK_PUBLIC_KEY is the only frontend-safe value.
+    # Charges are in KES. Use TEST keys locally; live keys only in the deployed
+    # environment (Railway) — never committed.
+    PAYSTACK_SECRET_KEY: str = ""
+    PAYSTACK_PUBLIC_KEY: str = ""
+    PAYSTACK_BASE_URL: str = "https://api.paystack.co"
+    # Where Paystack redirects the customer after checkout (a frontend route).
+    PAYSTACK_CALLBACK_URL: str = ""
+
     # ── AI Providers ─────────────────────────────────────────────────────
     # Gemini supports multiple keys for round-robin rotation + failover, managed
     # by the AI Provider Manager (Gate 4). GEMINI_API_KEY is the primary;
