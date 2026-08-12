@@ -83,6 +83,11 @@ class SubscriptionPlan(AGRIOSBase):
         comment="-1 = unlimited",
     )
     max_team_members: Mapped[int] = mapped_column(Integer, nullable=False)
+    referral_first_payment_kes: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Discounted first-payment price when a referral is applied; NULL = none",
+    )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         default=True,
@@ -95,6 +100,14 @@ class SubscriptionPlan(AGRIOSBase):
     def is_unlimited(self, field: str) -> bool:
         """Check if a specific limit is unlimited (-1)."""
         return getattr(self, field, 0) == -1
+
+    @property
+    def is_self_serve(self) -> bool:
+        """A plan the checkout can charge for: a real positive price.
+
+        Free (0) needs no payment; Enterprise (-1 = custom) is contact-sales.
+        """
+        return self.price_kes > 0
 
     def __repr__(self) -> str:
         return f"<SubscriptionPlan {self.name} KES{self.price_kes}/mo>"

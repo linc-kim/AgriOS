@@ -36,7 +36,7 @@ from sqlalchemy.pool import NullPool
 
 from app.config import settings
 from app.core.security import create_access_token
-from app.database import Base, get_db
+from app.database import get_db
 from app.database import engine as app_engine
 from app.main import app
 from app.models.auth import Role, User, UserRole
@@ -651,10 +651,30 @@ async def farm_with_closed_flock(integration_session, workspace) -> dict:
 @pytest_asyncio.fixture
 async def farm_at_flock_limit(integration_session, workspace) -> dict:
     """
-    Farm B holding the free plan's maximum of 3 active flocks, plus one spare
-    empty house. Creating a flock in ``extra_house_id`` must be rejected with
-    402 PLAN_LIMIT rather than succeeding.
+    Farm B at its plan's maximum of 3 active flocks, plus one spare empty house.
+    Creating a flock in ``extra_house_id`` must be rejected with 402 PLAN_LIMIT.
+
+    Uses a dedicated 3-flock plan (not the seeded catalog) so the enforcement
+    check is independent of the production plan limits.
     """
+    limit_plan = SubscriptionPlan(
+        name=f"test-flock-limit-{uuid.uuid4().hex[:8]}",
+        display_name="Test Flock Limit",
+        price_kes=0,
+        max_farms=-1,
+        max_houses_per_farm=-1,
+        max_active_flocks=3,
+        max_aria_queries_per_month=-1,
+        history_days=-1,
+        max_team_members=-1,
+        is_active=True,
+    )
+    integration_session.add(limit_plan)
+    await integration_session.flush()
+    farm_b = await integration_session.get(Farm, workspace.farm_b.id)
+    farm_b.plan_id = limit_plan.id
+    await integration_session.flush()
+
     # Farm B's own house takes the first flock; two more houses for flocks 2-3.
     houses = [workspace.farm_b.house_id]
     for i in range(2, 4):
