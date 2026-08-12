@@ -25,6 +25,7 @@ from app.api.v1.endpoints import admin
 from app.api.v1.endpoints import admin_platform
 from app.api.v1.endpoints import exports
 from app.api.v1.endpoints import organizations
+from app.api.v1.endpoints import billing
 from app.api.v1.endpoints import production
 from app.api.v1.endpoints import operations
 from app.api.v1.endpoints import ai_assistant
@@ -89,6 +90,7 @@ api_router.include_router(auth.router)
 
 # ── Phase 2 (Organizations / workspace-first onboarding) ──────────────────────
 api_router.include_router(organizations.router)
+api_router.include_router(billing.router)
 
 # ── Sprint 2 ─────────────────────────────────────────────────────────────────
 api_router.include_router(farms.router)
