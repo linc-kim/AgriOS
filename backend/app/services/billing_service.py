@@ -18,7 +18,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import (
@@ -29,9 +29,10 @@ from app.exceptions import (
 )
 from app.models.auth import User
 from app.models.billing import PaymentTransaction, Subscription
-from app.models.farm import SubscriptionPlan
+from app.models.farm import Farm, SubscriptionPlan
 from app.models.organization import Organization
 from app.services import paystack_service
+from app.services.farm_service import get_plan_by_name
 from app.services.organization_service import OWNER_ROLE, organization_service
 
 # A billing period is one month; calendar-month/annual billing is commercial
@@ -220,10 +221,11 @@ class BillingService:
         sub.current_period_end = now + timedelta(days=BILLING_PERIOD_DAYS)
         await db.flush()
 
-        # Organization entitlement follows the subscription (farms inherit from org).
+        # Organization entitlement follows the subscription; farms inherit it.
         org = await db.get(Organization, txn.organization_id)
         if org is not None:
             org.plan_id = txn.plan_id
+        await self._apply_plan_to_org_farms(db, txn.organization_id, txn.plan_id)
         txn.subscription_id = sub.id
         await db.flush()
 
@@ -233,6 +235,40 @@ class BillingService:
             "plan_id": txn.plan_id,
             "subscription_active": True,
         }
+
+    async def downgrade_if_expired(self, db: AsyncSession, organization_id: uuid.UUID) -> bool:
+        """If the org's subscription has lapsed, downgrade it (and its farms) to Free.
+
+        The paywall is the plan on each farm; keeping that in sync with the
+        subscription is the whole enforcement mechanism. Returns True if a
+        downgrade happened. Lifetime/admin grants (no period end) never expire.
+        """
+        sub = await self._get_org_subscription(db, organization_id)
+        if (
+            sub is None
+            or sub.status != "active"
+            or sub.is_lifetime
+            or sub.current_period_end is None
+            or sub.current_period_end > datetime.now(timezone.utc)
+        ):
+            return False
+
+        free = await get_plan_by_name(db, "free")
+        sub.status = "expired"
+        org = await db.get(Organization, organization_id)
+        if org is not None:
+            org.plan_id = free.id
+        await self._apply_plan_to_org_farms(db, organization_id, free.id)
+        await db.flush()
+        return True
+
+    async def _apply_plan_to_org_farms(
+        self, db: AsyncSession, org_id: uuid.UUID, plan_id: uuid.UUID
+    ) -> None:
+        """Set every farm in the org to ``plan_id`` — farms inherit the org's entitlement."""
+        await db.execute(
+            update(Farm).where(Farm.organization_id == org_id).values(plan_id=plan_id)
+        )
 
     async def _get_txn(self, db: AsyncSession, reference: str) -> PaymentTransaction | None:
         return (
