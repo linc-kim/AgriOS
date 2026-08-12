@@ -45,6 +45,8 @@ const OnboardingScreen = lazy(() => import("@/screens/onboarding/OnboardingScree
 
 // App
 const DashboardScreen = lazy(() => import("@/screens/DashboardScreen"));
+const BillingCheckoutScreen = lazy(() => import("@/screens/billing/BillingCheckoutScreen"));
+const PaymentCallbackScreen = lazy(() => import("@/screens/billing/PaymentCallbackScreen"));
 const ModuleScreen = lazy(() => import("@/screens/modules/ModuleScreen"));
 
 // Modules with bespoke screens
@@ -216,6 +218,8 @@ const router = createBrowserRouter([
         element: <AppShell />,
         children: [
           { path: "/dashboard", element: <DashboardScreen /> },
+          { path: "/billing", element: <BillingCheckoutScreen /> },
+          { path: "/billing/callback", element: <PaymentCallbackScreen /> },
           { path: "/livestock", element: <LivestockScreen /> },
           { path: "/livestock/:flockId", element: <FlockDetailScreen /> },
           { path: "/feed", element: <FeedScreen /> },

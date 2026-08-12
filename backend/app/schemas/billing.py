@@ -27,6 +27,20 @@ class InitializePaymentOut(AGRIOSSchema):
     plan_name: str
 
 
+class PlanOut(AGRIOSSchema):
+    """A subscription plan for the checkout UI. Prices come from the DB.
+
+    ``is_self_serve`` = a real positive price the checkout can charge (free is 0,
+    a custom/Enterprise plan is -1).
+    """
+
+    id: UUID
+    name: str
+    display_name: str
+    price_kes: int
+    is_self_serve: bool
+
+
 class PaymentStatusOut(AGRIOSSchema):
     """Result of a webhook/verify: what happened and whether the sub is active."""
 

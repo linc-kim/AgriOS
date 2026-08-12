@@ -13,10 +13,32 @@ from app.schemas.billing import (
     InitializePaymentIn,
     InitializePaymentOut,
     PaymentStatusOut,
+    PlanOut,
 )
 from app.services.billing_service import billing_service
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
+
+
+@router.get(
+    "/plans",
+    response_model=SuccessResponse[list[PlanOut]],
+    status_code=status.HTTP_200_OK,
+    summary="List active subscription plans for the checkout UI",
+)
+async def list_plans(db: DBSession, current_user: CurrentUser) -> SuccessResponse[list[PlanOut]]:
+    plans = await billing_service.list_active_plans(db)
+    data = [
+        PlanOut(
+            id=p.id,
+            name=p.name,
+            display_name=p.display_name,
+            price_kes=p.price_kes,
+            is_self_serve=p.price_kes > 0,
+        )
+        for p in plans
+    ]
+    return SuccessResponse(data=data)
 
 
 @router.post(

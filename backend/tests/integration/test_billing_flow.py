@@ -127,6 +127,19 @@ async def test_free_plan_cannot_be_purchased(
 
 
 @pytest.mark.asyncio
+async def test_list_plans(async_client, workspace, auth_headers_owner):
+    resp = await async_client.get("/api/v1/billing/plans", headers=auth_headers_owner)
+    assert resp.status_code == 200, resp.text
+    plans = resp.json()["data"]
+    by_name = {p["name"]: p for p in plans}
+    assert {"free", "starter", "pro"} <= set(by_name)
+    assert by_name["starter"]["is_self_serve"] is True
+    assert by_name["free"]["is_self_serve"] is False
+    # cheapest first
+    assert plans == sorted(plans, key=lambda p: p["price_kes"])
+
+
+@pytest.mark.asyncio
 async def test_non_member_cannot_initialize(
     async_client, integration_session, workspace, auth_headers_manager, mock_paystack_init
 ):

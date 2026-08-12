@@ -128,6 +128,18 @@ class BillingService:
             "plan_name": plan.name,
         }
 
+    async def list_active_plans(self, db: AsyncSession) -> list[SubscriptionPlan]:
+        """Active plans for the checkout UI, cheapest first. Prices come from the DB."""
+        return list(
+            (
+                await db.execute(
+                    select(SubscriptionPlan)
+                    .where(SubscriptionPlan.is_active.is_(True))
+                    .order_by(SubscriptionPlan.price_kes)
+                )
+            ).scalars().all()
+        )
+
     # ── Webhook + verify (activation) ─────────────────────────────────────────
 
     async def process_webhook(
