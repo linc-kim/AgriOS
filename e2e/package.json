@@ -1,0 +1,13 @@
+{
+  "name": "greena-e2e",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Production Playwright suite for Greena V1 (runs against the deployed Vercel frontend + Render backend).",
+  "scripts": {
+    "test": "playwright test",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.49.1"
+  }
+}
