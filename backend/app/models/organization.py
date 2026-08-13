@@ -46,6 +46,8 @@ class Organization(AGRIOSBase):
     country: Mapped[str | None] = mapped_column(String(2), nullable=True)
     timezone: Mapped[str] = mapped_column(String(50), default="Africa/Nairobi", nullable=False)
     currency: Mapped[str] = mapped_column(String(3), default="KES", nullable=False)
+    # Unique shareable referral code (Commercial Policy C3), set at creation.
+    referral_code: Mapped[str | None] = mapped_column(String(32), unique=True, nullable=True)
     # Platform admin can suspend an organization (Module 10).
     is_suspended: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"

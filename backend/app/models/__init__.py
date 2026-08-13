@@ -230,6 +230,10 @@ from app.models.billing import (
     Subscription,
     PaymentTransaction,
 )
+from app.models.commercial import (
+    Referral,
+    CreditLedgerEntry,
+)
 
 __all__ = [
     # Base
@@ -482,4 +486,7 @@ __all__ = [
     # Billing (Migration 087)
     "Subscription",
     "PaymentTransaction",
+    # Commercial Policy (Migration 090)
+    "Referral",
+    "CreditLedgerEntry",
 ]

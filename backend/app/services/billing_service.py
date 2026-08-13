@@ -54,6 +54,7 @@ class BillingService:
         plan_id: uuid.UUID,
         user: User,
         callback_url: str | None = None,
+        amount_kes_override: int | None = None,
     ) -> dict:
         """Start a Paystack payment for ``plan_id`` on ``organization_id``.
 
@@ -73,10 +74,14 @@ class BillingService:
             raise NotFoundException("Subscription plan")
 
         # The amount is the plan's current price — from the DB, not the client.
-        amount_kes = plan.price_kes
-        if amount_kes <= 0:
+        if plan.price_kes <= 0:
             # Free (0) needs no payment; a custom/Enterprise plan (-1) is contact-sales.
             raise ValidationException("This plan cannot be purchased online.")
+        amount_kes = plan.price_kes
+        # A server-computed commercial override (e.g. a referral first-payment
+        # discount) may lower the price — never raise it, never from the client.
+        if amount_kes_override is not None and 0 < amount_kes_override <= plan.price_kes:
+            amount_kes = amount_kes_override
 
         if not user.email:
             raise ValidationException("An email address is required to make a payment.")

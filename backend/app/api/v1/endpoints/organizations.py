@@ -13,6 +13,7 @@ from app.dependencies import CurrentUser, DBSession
 from app.schemas.base import SuccessResponse
 from app.schemas.organization import OrganizationCreateIn, OrganizationOut
 from app.services.organization_service import organization_service
+from app.services.referral_service import referral_service
 from app.services.trial_service import trial_service
 
 router = APIRouter(prefix="/organizations", tags=["Organizations"])
@@ -53,8 +54,9 @@ async def create_organization(
         ip=_client_ip(request),
         user_agent=request.headers.get("user-agent"),
     )
-    # Commercial policy (orchestrated here; infra stays pure): grant the one-time
-    # 21-day Professional trial for this new organization.
+    # Commercial policy (orchestrated here; infra stays pure): assign a referral
+    # code and grant the one-time 21-day Professional trial for this new org.
+    await referral_service.assign_referral_code(db, org.id)
     await trial_service.grant_initial_trial(db, org.id)
     # The trial grant's writes expire ``org`` in the session; reload it (async)
     # so the sync response serialization does not attempt lazy IO.

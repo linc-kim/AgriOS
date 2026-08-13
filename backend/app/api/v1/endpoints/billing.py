@@ -16,6 +16,7 @@ from app.schemas.billing import (
     PlanOut,
 )
 from app.services.billing_service import billing_service
+from app.services.referral_service import referral_service
 from app.services.trial_service import trial_service
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
@@ -53,12 +54,18 @@ async def initialize_payment(
     db: DBSession,
     current_user: CurrentUser,
 ) -> SuccessResponse[InitializePaymentOut]:
+    # Commercial policy (server-computed): a referral may discount the first
+    # payment. The amount is derived from the DB plan, never the client.
+    amount_override = await referral_service.resolve_first_payment_amount(
+        db, body.organization_id, body.plan_id
+    )
     result = await billing_service.initialize_subscription_payment(
         db,
         organization_id=body.organization_id,
         plan_id=body.plan_id,
         user=current_user,
         callback_url=body.callback_url,
+        amount_kes_override=amount_override,
     )
     return SuccessResponse(data=InitializePaymentOut(**result))
 
@@ -75,6 +82,7 @@ async def paystack_webhook(request: Request, db: DBSession) -> SuccessResponse[P
     result = await billing_service.process_webhook(db, raw_body=raw_body, signature=signature)
     if result["status"] == "activated":
         await trial_service.convert_trial_on_payment(db, result["reference"])
+        await referral_service.on_payment_activated(db, result["reference"])
     return SuccessResponse(data=PaymentStatusOut(**result))
 
 
@@ -92,4 +100,5 @@ async def verify_payment(
     result = await billing_service.verify_payment(db, reference=reference, user=current_user)
     if result["status"] == "activated":
         await trial_service.convert_trial_on_payment(db, result["reference"])
+        await referral_service.on_payment_activated(db, result["reference"])
     return SuccessResponse(data=PaymentStatusOut(**result))
