@@ -40,6 +40,11 @@ apscheduler==3.10.4
 
 # Monitoring
 sentry-sdk[fastapi]==2.19.0
+# Required at runtime by sentry-sdk's Starlette integration (patch_templates
+# imports starlette.templating.Jinja2Templates, which raises ImportError unless
+# jinja2 is installed). Only triggered when SENTRY_DSN is set in a non-dev
+# environment, so it surfaces in production deploys, not local dev.
+jinja2==3.1.6
 
 # Export: PDF, Excel, CSV
 reportlab==4.2.5
