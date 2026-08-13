@@ -105,6 +105,31 @@ class ReferralService:
         await db.flush()
         return referral
 
+    async def list_referrals(self, db: AsyncSession, limit: int = 200) -> list[Referral]:
+        """All referrals, newest first (admin history)."""
+        return list(
+            (
+                await db.execute(
+                    select(Referral).order_by(Referral.accepted_at.desc()).limit(limit)
+                )
+            ).scalars().all()
+        )
+
+    async def get_referral_status(self, db: AsyncSession, organization_id: uuid.UUID) -> dict:
+        """The org's own shareable code + whether it has used a referral."""
+        org = await db.get(Organization, organization_id)
+        if org is None:
+            raise NotFoundException("Organization")
+        ref = await self.get_existing(db, organization_id)
+        return {
+            "referral_code": org.referral_code,
+            "has_referral": ref is not None,
+            "referrer_org_id": ref.referrer_org_id if ref else None,
+            "reward_status": ref.reward_status if ref else None,
+            "entry_open": self._entry_open(org),
+            "entry_deadline": org.created_at + timedelta(hours=REFERRAL_ENTRY_WINDOW_HOURS),
+        }
+
     async def resolve_first_payment_amount(
         self, db: AsyncSession, organization_id: uuid.UUID, plan_id: uuid.UUID
     ) -> int | None:

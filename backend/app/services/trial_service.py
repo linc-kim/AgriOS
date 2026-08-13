@@ -63,6 +63,25 @@ class TrialService:
         await db.flush()
         return True
 
+    async def get_trial_status(self, db: AsyncSession, organization_id: uuid.UUID) -> dict:
+        """Current trial state for an org (for the countdown UI)."""
+        sub = (
+            await db.execute(
+                select(Subscription).where(Subscription.organization_id == organization_id)
+            )
+        ).scalar_one_or_none()
+        if sub is None:
+            return {"is_trial": False, "active": False, "trial_ends_at": None, "days_remaining": 0}
+        days = 0
+        if sub.is_trial and sub.trial_ends_at is not None:
+            days = max(0, (sub.trial_ends_at - datetime.now(timezone.utc)).days)
+        return {
+            "is_trial": sub.is_trial,
+            "active": sub.status == "active",
+            "trial_ends_at": sub.trial_ends_at,
+            "days_remaining": days,
+        }
+
     async def convert_trial_on_payment(self, db: AsyncSession, reference: str) -> None:
         """After a successful paid activation, clear the trial markers.
 

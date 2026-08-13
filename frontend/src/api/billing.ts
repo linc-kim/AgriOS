@@ -37,9 +37,74 @@ export interface InitializePaymentInput {
   callback_url?: string;
 }
 
+export interface TrialStatus {
+  is_trial: boolean;
+  active: boolean;
+  trial_ends_at: string | null;
+  days_remaining: number;
+}
+
+export interface ReferralStatus {
+  referral_code: string | null;
+  has_referral: boolean;
+  referrer_org_id: string | null;
+  reward_status: string | null;
+  entry_open: boolean;
+  entry_deadline: string | null;
+}
+
+export interface ReferralValidation {
+  valid: boolean;
+  reason: string | null;
+}
+
+export interface CreditEntry {
+  amount_kes: number;
+  source: string;
+  payment_reference: string | null;
+  balance_after: number;
+  created_at: string;
+}
+
+export interface CreditBalance {
+  balance_kes: number;
+  entries: CreditEntry[];
+}
+
 export const billingAPI = {
   listPlans: async (): Promise<Plan[]> => {
     const res = await apiClient.get<APISuccess<Plan[]>>("/billing/plans");
+    return res.data.data;
+  },
+
+  getTrialStatus: async (orgId: string): Promise<TrialStatus> => {
+    const res = await apiClient.get<APISuccess<TrialStatus>>(`/billing/trial/${orgId}`);
+    return res.data.data;
+  },
+
+  getReferralStatus: async (orgId: string): Promise<ReferralStatus> => {
+    const res = await apiClient.get<APISuccess<ReferralStatus>>(`/billing/referral/${orgId}`);
+    return res.data.data;
+  },
+
+  validateReferral: async (orgId: string, code: string): Promise<ReferralValidation> => {
+    const res = await apiClient.get<APISuccess<ReferralValidation>>(
+      `/billing/referral/${orgId}/validate`,
+      { params: { code } },
+    );
+    return res.data.data;
+  },
+
+  submitReferral: async (orgId: string, code: string): Promise<ReferralStatus> => {
+    const res = await apiClient.post<APISuccess<ReferralStatus>>(
+      `/billing/referral/${orgId}`,
+      { code },
+    );
+    return res.data.data;
+  },
+
+  getCredits: async (orgId: string): Promise<CreditBalance> => {
+    const res = await apiClient.get<APISuccess<CreditBalance>>(`/billing/credits/${orgId}`);
     return res.data.data;
   },
 

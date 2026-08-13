@@ -26,6 +26,15 @@ export default function BillingCheckoutScreen() {
     queryFn: billingAPI.listPlans,
   });
 
+  // Discount visibility only (the flow is unchanged): a referral discounts the
+  // first Starter payment; the actual amount is computed server-side.
+  const referralQuery = useQuery({
+    queryKey: ["billing", "referral", currentOrgId],
+    queryFn: () => billingAPI.getReferralStatus(currentOrgId as string),
+    enabled: Boolean(currentOrgId),
+  });
+  const showDiscount = referralQuery.data?.has_referral === true;
+
   const initialize = useMutation({
     mutationFn: (planId: string) =>
       billingAPI.initialize({
@@ -50,6 +59,12 @@ export default function BillingCheckoutScreen() {
         {!currentOrgId && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-800">
             Select or create an organization before subscribing.
+          </div>
+        )}
+
+        {showDiscount && (
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-sm text-green-800">
+            A referral discount will be applied to your first Starter payment.
           </div>
         )}
 

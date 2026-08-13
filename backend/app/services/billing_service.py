@@ -273,6 +273,35 @@ class BillingService:
         await db.flush()
         return True
 
+    async def grant_lifetime_subscription(
+        self, db: AsyncSession, organization_id: uuid.UUID, plan_id: uuid.UUID
+    ) -> Subscription:
+        """Admin/manual grant: an active, never-expiring subscription on ``plan_id``.
+
+        Upserts the org's one subscription, clears any trial, and propagates the
+        entitlement to the org's farms. Lifetime grants are skipped by the expiry
+        sweep (no period end).
+        """
+        plan = await db.get(SubscriptionPlan, plan_id)
+        if plan is None:
+            raise NotFoundException("Subscription plan")
+        sub = await self._get_org_subscription(db, organization_id)
+        if sub is None:
+            sub = Subscription(organization_id=organization_id)
+            db.add(sub)
+        sub.plan_id = plan_id
+        sub.status = "active"
+        sub.activation_source = "lifetime"
+        sub.is_lifetime = True
+        sub.is_trial = False
+        sub.trial_ends_at = None
+        sub.current_period_start = datetime.now(timezone.utc)
+        sub.current_period_end = None  # never expires
+        await db.flush()
+        await self.apply_org_entitlement(db, organization_id, plan_id)
+        await db.flush()
+        return sub
+
     async def sweep_expired_subscriptions(self, db: AsyncSession) -> int:
         """Downgrade every organization whose subscription/trial has lapsed.
 
@@ -308,9 +337,17 @@ class BillingService:
     async def _apply_plan_to_org_farms(
         self, db: AsyncSession, org_id: uuid.UUID, plan_id: uuid.UUID
     ) -> None:
-        """Set every farm in the org to ``plan_id`` — farms inherit the org's entitlement."""
+        """Set every farm in the org to ``plan_id`` — farms inherit the org's entitlement.
+
+        ``synchronize_session=False``: this is a bulk write; callers that then read
+        a farm refresh it explicitly, and skipping the in-session sync avoids an
+        extra SELECT (and a savepoint-mode interaction in the test harness).
+        """
         await db.execute(
-            update(Farm).where(Farm.organization_id == org_id).values(plan_id=plan_id)
+            update(Farm)
+            .where(Farm.organization_id == org_id)
+            .values(plan_id=plan_id)
+            .execution_options(synchronize_session=False)
         )
 
     async def _get_txn(self, db: AsyncSession, reference: str) -> PaymentTransaction | None:

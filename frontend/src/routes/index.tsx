@@ -47,6 +47,7 @@ const OnboardingScreen = lazy(() => import("@/screens/onboarding/OnboardingScree
 const DashboardScreen = lazy(() => import("@/screens/DashboardScreen"));
 const BillingCheckoutScreen = lazy(() => import("@/screens/billing/BillingCheckoutScreen"));
 const PaymentCallbackScreen = lazy(() => import("@/screens/billing/PaymentCallbackScreen"));
+const ReferralDashboardScreen = lazy(() => import("@/screens/billing/ReferralDashboardScreen"));
 const ModuleScreen = lazy(() => import("@/screens/modules/ModuleScreen"));
 
 // Modules with bespoke screens
@@ -220,6 +221,7 @@ const router = createBrowserRouter([
           { path: "/dashboard", element: <DashboardScreen /> },
           { path: "/billing", element: <BillingCheckoutScreen /> },
           { path: "/billing/callback", element: <PaymentCallbackScreen /> },
+          { path: "/billing/referral", element: <ReferralDashboardScreen /> },
           { path: "/livestock", element: <LivestockScreen /> },
           { path: "/livestock/:flockId", element: <FlockDetailScreen /> },
           { path: "/feed", element: <FeedScreen /> },
