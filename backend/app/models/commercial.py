@@ -12,7 +12,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -53,6 +53,19 @@ class CreditLedgerEntry(AGRIOSBase):
     """An immutable credit-ledger row. Never updated or deleted."""
 
     __tablename__ = "credit_ledger"
+    __table_args__ = (
+        # Idempotency backstop: a given payment can credit a given source at most
+        # once, so a concurrently-delivered duplicate webhook cannot double-credit
+        # a referral reward even if two coroutines pass the app-level
+        # reward_status guard before either commits. Partial (NULLable
+        # payment_reference) so manual admin adjustments are unconstrained.
+        Index(
+            "uq_credit_ledger_payment_reference_source",
+            "payment_reference", "source",
+            unique=True,
+            postgresql_where=text("payment_reference IS NOT NULL"),
+        ),
+    )
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"),
