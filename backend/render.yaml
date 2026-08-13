@@ -1,0 +1,37 @@
+# Render Blueprint — Greena backend (infrastructure-as-code)
+# ─────────────────────────────────────────────────────────────────────────────
+# This mirrors the greena-api service that was created against the Render API.
+# It documents the deployment as code so the config is reproducible and
+# reviewable, and so a Blueprint sync can recreate/patch the service.
+#
+# Migration automation:
+#   • Paid instance types support `preDeployCommand`, which runs ONCE per deploy
+#     before the new instance serves traffic — the correct place for
+#     `alembic upgrade head`. It is declared below and takes effect when the
+#     service runs on a plan that supports pre-deploy.
+#   • The FREE tier does NOT support pre-deploy commands, so on free the same
+#     `alembic upgrade head` is prepended to the container start command instead
+#     (see the live service's Docker Command). alembic is idempotent — a no-op
+#     when the DB is already at head — and takes an advisory lock during a real
+#     migration, so it is safe on a single instance.
+#
+# Secrets (DATABASE_URL, JWT_SECRET, SECRET_KEY, PAYSTACK_*, SMTP_PASSWORD,
+# CLAUDE_API_KEY, GEMINI_API_KEY, SENTRY_DSN, …) are configured in the Render
+# dashboard / API and are intentionally NOT committed here.
+services:
+  - type: web
+    name: greena-api
+    runtime: docker
+    repo: https://github.com/linc-kim/AgriOS
+    branch: phase-2-auth
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    region: frankfurt          # nearest to the Supabase eu-west-1 database
+    plan: free                 # upgrade to `starter` (or higher) for scale — see readiness report
+    healthCheckPath: /health
+    numInstances: 1
+    # Runs once per deploy on paid plans (ignored on free — see header note).
+    preDeployCommand: alembic upgrade head
+    # 1 worker fits the 512 MB free tier; raise on a larger plan.
+    dockerCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+    autoDeploy: true
