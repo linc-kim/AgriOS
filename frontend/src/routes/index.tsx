@@ -32,6 +32,8 @@ const AboutScreen = lazy(() => import("@/screens/public/AboutScreen"));
 const ContactScreen = lazy(() => import("@/screens/public/ContactScreen"));
 const HelpScreen = lazy(() => import("@/screens/public/HelpScreen"));
 const InstallScreen = lazy(() => import("@/screens/public/InstallScreen"));
+const EnterprisesScreen = lazy(() => import("@/screens/public/EnterprisesScreen"));
+const EnterpriseScreen = lazy(() => import("@/screens/public/EnterpriseScreen"));
 const PrivacyScreen = lazy(() => import("@/screens/public/PrivacyScreen"));
 const TermsScreen = lazy(() => import("@/screens/public/TermsScreen"));
 const BrandAriaScreen = lazy(() => import("@/screens/public/BrandAriaScreen"));
@@ -181,6 +183,8 @@ const router = createBrowserRouter([
       { path: "/", element: <HomeScreen /> },
       { path: "/features", element: <FeaturesScreen /> },
       { path: "/solutions", element: <SolutionsScreen /> },
+      { path: "/farming", element: <EnterprisesScreen /> },
+      { path: "/farming/:slug", element: <EnterpriseScreen /> },
       // /aria-ai, not /aria — /ai is the in-app assistant module.
       { path: "/aria-ai", element: <AriaScreen /> },
       { path: "/pricing", element: <PricingScreen /> },

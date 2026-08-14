@@ -17,7 +17,7 @@ import greenaEmblem from "@/assets/brand/greena-emblem.svg";
 
 const NAV = [
   { to: "/features", label: "Features" },
-  { to: "/solutions", label: "Solutions" },
+  { to: "/farming", label: "Farming" },
   { to: "/aria-ai", label: "ARIA AI" },
   { to: "/pricing", label: "Pricing" },
   { to: "/learning", label: "Learning" },
@@ -182,7 +182,7 @@ export default function MarketingLayout() {
               title="Product"
               links={[
                 { to: "/features", label: "Features" },
-                { to: "/solutions", label: "Solutions" },
+                { to: "/farming", label: "Farming" },
                 { to: "/aria-ai", label: "ARIA AI" },
                 { to: "/pricing", label: "Pricing" },
               ]}

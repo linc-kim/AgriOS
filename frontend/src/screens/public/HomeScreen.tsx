@@ -19,6 +19,7 @@ import {
   Container, Section, Reveal, Stagger, Eyebrow, Heading, Lead, CTA, Pill,
   Card, ScreenFrame, StatTile,
 } from "@/components/marketing/primitives";
+import { EnterpriseShowcase } from "@/components/marketing/EnterpriseShowcase";
 
 const MODULES = [
   { icon: Bird, name: "Flocks", copy: "Every batch from placement to sale, with live bird counts." },
@@ -76,9 +77,10 @@ export default function HomeScreen() {
 
             <Reveal delay={0.12}>
               <Lead className="mx-auto mt-6 max-w-2xl">
-                Greena keeps every flock, feed bag, vaccination and shilling in one
-                place — then tells you what it means. Built for Kenyan poultry
-                farms, from a hundred birds to a hundred thousand.
+                Greena keeps every animal, feed bag, treatment and shilling in one
+                place — then tells you what it means. One platform for poultry,
+                birds, BSF, rabbits, goats, sheep and pigs, from a few animals to
+                many thousands.
               </Lead>
             </Reveal>
 
@@ -245,6 +247,9 @@ export default function HomeScreen() {
           </div>
         </Container>
       </Section>
+
+      {/* ── Enterprises ──────────────────────────────────────────────────── */}
+      <EnterpriseShowcase />
 
       {/* ── Close ────────────────────────────────────────────────────────── */}
       <Section className="relative overflow-hidden border-t border-gray-100 dark:border-white/5">
