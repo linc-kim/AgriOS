@@ -14,6 +14,7 @@ import { GlowField } from "@/components/marketing/LineWaves";
 import {
   Container, Section, Reveal, Eyebrow, Heading, Lead, Card,
 } from "@/components/marketing/primitives";
+import { SOCIAL_LINKS } from "@/lib/social";
 
 const SUPPORT_EMAIL = "support@greena.app";
 
@@ -139,6 +140,25 @@ export default function ContactScreen() {
                   <p className="mt-2 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
                     Nairobi, Kenya — building for farms across East Africa.
                   </p>
+                </Card>
+
+                <Card className="mt-4">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">Follow Greena</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {SOCIAL_LINKS.map(({ name, handle, url, Icon }) => (
+                      <a
+                        key={name}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`Greena on ${name}`}
+                        className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:border-brand-300 hover:text-brand-700 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200 dark:hover:border-brand-500/40 dark:hover:text-brand-300"
+                      >
+                        <Icon className="h-4 w-4" aria-hidden />
+                        {handle ?? name}
+                      </a>
+                    ))}
+                  </div>
                 </Card>
               </Reveal>
             </div>

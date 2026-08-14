@@ -12,6 +12,7 @@ import { Menu, X, ArrowRight } from "lucide-react";
 
 import { useAuthStore } from "@/stores/authStore";
 import { Container, CTA } from "@/components/marketing/primitives";
+import { SOCIAL_LINKS } from "@/lib/social";
 
 const NAV = [
   { to: "/features", label: "Features" },
@@ -213,8 +214,25 @@ export default function MarketingLayout() {
             />
           </div>
 
-          <div className="mt-12 flex flex-col gap-3 border-t border-gray-200 pt-6 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:text-gray-400">
+          <div className="mt-12 flex flex-col gap-4 border-t border-gray-200 pt-6 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:text-gray-400">
             <p>© {new Date().getFullYear()} Greena. Built for farmers.</p>
+
+            <ul className="flex items-center gap-2">
+              {SOCIAL_LINKS.map(({ name, url, Icon }) => (
+                <li key={name}>
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Greena on ${name}`}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-brand-700 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-brand-300"
+                  >
+                    <Icon className="h-5 w-5" aria-hidden />
+                  </a>
+                </li>
+              ))}
+            </ul>
+
             <p>Nairobi, Kenya</p>
           </div>
         </Container>
