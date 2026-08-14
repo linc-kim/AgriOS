@@ -1,58 +1,106 @@
 /**
- * Greena — Home.
+ * Greena — Home (conversion-first).
  *
- * The first impression. Structure: hero → proof → what it replaces → module
- * grid → ARIA → outcomes → close.
+ * This page is a sales experience, not a feature list. It follows the farmer's
+ * emotional journey: feel understood → recognise the hidden costs → see the
+ * transformation → watch it work in a real moment → understand the outcomes
+ * (with features as the evidence) → have doubts answered → take the next step.
  *
- * Copy is written for a farmer, not a buyer of software: it names the job
- * (knowing what the flock cost and earned) rather than the feature list.
+ * Honesty rule: every outcome maps to a shipped capability. We sell what the
+ * feature *does for the farmer*, never a feature that doesn't exist.
  */
 import {
-  ArrowRight, Bird, Wheat, HeartPulse, Wallet, Package, Zap, FileText,
-  Bell, BarChart3, Check,
+  ArrowRight, Wallet, HeartPulse, ClipboardCheck, Clock, TrendingUp,
+  Smartphone, Users, Lock, Check,
 } from "lucide-react";
 
 import { AriaMark } from "@/components/brand/AriaMark";
-
 import { LineWaves, GlowField } from "@/components/marketing/LineWaves";
 import {
   Container, Section, Reveal, Stagger, Eyebrow, Heading, Lead, CTA, Pill,
   Card, ScreenFrame, StatTile,
 } from "@/components/marketing/primitives";
 import { EnterpriseShowcase } from "@/components/marketing/EnterpriseShowcase";
-
-const MODULES = [
-  { icon: Bird, name: "Flocks", copy: "Every batch from placement to sale, with live bird counts." },
-  { icon: Wheat, name: "Feed", copy: "Stock, purchases and consumption — and what a kilo actually cost you." },
-  { icon: HeartPulse, name: "Health", copy: "Vaccinations, treatments and disease alerts before they spread." },
-  { icon: Wallet, name: "Finance", copy: "Expenses and revenue per flock, so profit is a number not a guess." },
-  { icon: Package, name: "Inventory", copy: "Supplies, assets and maintenance, with reorder warnings." },
-  { icon: Zap, name: "Automation", copy: "Reminders and rules that chase the work for you." },
-  { icon: FileText, name: "Reports", copy: "Production, mortality and P&L, ready to export." },
-  { icon: Bell, name: "Notifications", copy: "The things that need you today — nothing that doesn't." },
-  { icon: BarChart3, name: "Analytics", copy: "Trends across flocks, seasons and houses." },
-];
-
-const REPLACES = [
-  "Exercise books that get lost or rained on",
-  "Six different spreadsheets that disagree",
-  "Guessing feed cost per bird at the end of a cycle",
-  "Finding out about a disease outbreak a week late",
-  "Not knowing which flock actually made money",
-];
-
 import { useSeo } from "@/hooks/useSeo";
+import { TRIAL_DAYS, PREMIUM_PLAN_LABEL } from "@/lib/policy";
+
+// The pressures every farmer knows — said plainly, so they feel understood.
+const PRESSURES = [
+  "A dozen decisions before breakfast, most of them with money attached.",
+  "Disease doesn't wait for a convenient week.",
+  "Feed is your biggest cost — and the easiest to lose track of.",
+  "The farm grows, and suddenly no one person can hold it all in their head.",
+];
+
+// Hidden costs — recognition, not fear. Each is a real, common loss.
+const HIDDEN_COSTS = [
+  ["A vaccination slips a few days", "One missed window can run through a whole flock before you notice."],
+  ["Feed “disappears”", "Without a running count, a few kilos a day becomes a hole in your margin."],
+  ["You find out late", "A trend you'd have caught in the numbers only shows up when birds are already down."],
+  ["Profit is a guess", "At the end of a cycle, “did this batch make money?” shouldn't be a shrug."],
+];
+
+// Transformation — believable shifts, not hype.
+const SHIFTS = [
+  ["Guesswork", "Evidence"],
+  ["Memory", "Records that add up"],
+  ["Finding out late", "Seeing it coming"],
+  ["“About right”", "A number you trust"],
+];
+
+// Outcomes first; the real feature is the proof underneath.
+const OUTCOMES = [
+  {
+    icon: Wallet,
+    title: "Know whether you're actually making money",
+    body: "Every expense and sale lands against the right flock, so profit per batch is a number — not a feeling at the end of the cycle.",
+    proof: "Finance & profit per flock",
+  },
+  {
+    icon: HeartPulse,
+    title: "Catch problems before they become losses",
+    body: "Vaccinations, treatments and mortality are tracked and flagged, so a small issue gets your attention while it's still small.",
+    proof: "Health records & alerts",
+  },
+  {
+    icon: ClipboardCheck,
+    title: "Stop running the farm from memory",
+    body: "Record it once and it's there for good — counts, weights, feed, treatments — for you, your workers and next season.",
+    proof: "Connected records",
+  },
+  {
+    icon: Clock,
+    title: "Spend the evening with family, not paperwork",
+    body: "One entry updates everything it touches. No re-typing the same figures into three books that still disagree.",
+    proof: "Automation & one-time entry",
+  },
+  {
+    icon: TrendingUp,
+    title: "Grow without losing the plot",
+    body: "More houses, more batches, more people — the farm stays legible because the numbers scale with it.",
+    proof: "Multi-farm, roles & reports",
+  },
+];
+
+// Objections, answered before they're asked.
+const REASSURANCE = [
+  { icon: Smartphone, title: "Works on the phone in your pocket", body: "No new hardware. If you can use WhatsApp, you can use Greena." },
+  { icon: Users, title: "Your workers can use it", body: "Log the day in plain language — “collected 320 eggs” — and Greena does the filing." },
+  { icon: Lock, title: "Your data stays yours", body: "Export it whenever you like. We never sell it." },
+  { icon: Check, title: "Start free, no card", body: "Begin with one flock at no cost. Upgrade only when it's earning its keep." },
+];
 
 export default function HomeScreen() {
   useSeo({
-    title: "The farm operating system",
+    title: "Farm management that makes you money",
     description:
-      "Greena keeps your farm's records, turns them into reports and forecasts, and gives you ARIA — an AI assistant grounded in your own data. Built for farms across East Africa.",
+      "Greena helps farmers know if they're making money, catch problems early, and stop running the farm from memory — for poultry, livestock, rabbits, goats, sheep, pigs and more.",
     path: "/",
   });
+
   return (
     <>
-      {/* ── Hero ─────────────────────────────────────────────────────────── */}
+      {/* ── Hero: recognition + hope ─────────────────────────────────────── */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0">
           <LineWaves />
@@ -70,17 +118,17 @@ export default function HomeScreen() {
 
             <Reveal delay={0.06}>
               <Heading as="h1" className="mt-6">
-                Run your farm on numbers,
-                <br className="hidden sm:block" /> not memory.
+                Farm with confidence,
+                <br className="hidden sm:block" /> not on a hunch.
               </Heading>
             </Reveal>
 
             <Reveal delay={0.12}>
               <Lead className="mx-auto mt-6 max-w-2xl">
-                Greena keeps every animal, feed bag, treatment and shilling in one
-                place — then tells you what it means. One platform for poultry,
-                birds, BSF, rabbits, goats, sheep and pigs, from a few animals to
-                many thousands.
+                You already work hard. Greena makes that work pay — by turning the
+                day's records into clear answers: what's healthy, what's costing
+                you, and whether this batch is making money. For poultry, birds,
+                BSF, rabbits, goats, sheep and pigs.
               </Lead>
             </Reveal>
 
@@ -102,7 +150,7 @@ export default function HomeScreen() {
             </Reveal>
           </div>
 
-          {/* Product glimpse */}
+          {/* Evidence, right up front: this is what clarity looks like. */}
           <Reveal delay={0.3} y={28}>
             <div className="mx-auto mt-16 max-w-4xl">
               <ScreenFrame title="greena.app — Dashboard">
@@ -118,10 +166,7 @@ export default function HomeScreen() {
                     ["Batch B — Layers", "Week 22 · 2,400 birds"],
                     ["Batch C — Broilers", "Day 12 · 820 birds"],
                   ].map(([t, s]) => (
-                    <div
-                      key={t}
-                      className="rounded-xl border border-gray-100 p-3 dark:border-white/5"
-                    >
+                    <div key={t} className="rounded-xl border border-gray-100 p-3 dark:border-white/5">
                       <p className="text-sm font-medium text-gray-900 dark:text-white">{t}</p>
                       <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{s}</p>
                     </div>
@@ -133,67 +178,147 @@ export default function HomeScreen() {
         </Container>
       </section>
 
-      {/* ── What it replaces ─────────────────────────────────────────────── */}
+      {/* ── Understood: we know what farming asks of you ─────────────────── */}
       <Section className="border-t border-gray-100 dark:border-white/5">
         <Container>
-          <div className="grid items-center gap-12 lg:grid-cols-2">
-            <div>
-              <Reveal>
-                <Eyebrow>The problem</Eyebrow>
-                <Heading>You already have the data. It's just scattered.</Heading>
-                <Lead className="mt-5">
-                  Most farms record plenty — in books, on phones, in someone's head.
-                  The trouble starts when you need to answer a simple question:
-                  did this batch make money, and why?
-                </Lead>
-              </Reveal>
-            </div>
+          <div className="mx-auto max-w-3xl text-center">
+            <Reveal>
+              <Eyebrow>We get it</Eyebrow>
+              <Heading>Farming is a hundred decisions a day — and they all cost something</Heading>
+              <Lead className="mx-auto mt-5">
+                You carry the weight of it: the money on the line, the animals
+                depending on you, the pride in doing it well. That's a lot to hold
+                in your head, season after season.
+              </Lead>
+            </Reveal>
+          </div>
+          <Stagger className="mx-auto mt-10 grid max-w-3xl gap-3 sm:grid-cols-2">
+            {PRESSURES.map((p) => (
+              <div key={p} className="rounded-xl border border-gray-200 bg-white p-4 text-[15px] leading-relaxed text-gray-700 dark:border-white/10 dark:bg-white/[0.02] dark:text-gray-200">
+                {p}
+              </div>
+            ))}
+          </Stagger>
+        </Container>
+      </Section>
 
-            <Reveal delay={0.1}>
-              <Card>
-                <p className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">
-                  Greena replaces
-                </p>
-                <ul className="space-y-3">
-                  {REPLACES.map((item) => (
-                    <li key={item} className="flex gap-3 text-sm text-gray-600 dark:text-gray-300">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-600 dark:text-brand-400" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
+      {/* ── Hidden costs: concern, through recognition ───────────────────── */}
+      <Section className="bg-gray-50/60 dark:bg-white/[0.02]">
+        <Container>
+          <div className="mx-auto max-w-3xl text-center">
+            <Reveal>
+              <Eyebrow>The hidden costs</Eyebrow>
+              <Heading>The most expensive problems are the ones you can't see</Heading>
+              <Lead className="mx-auto mt-5">
+                None of these feel like a crisis on the day. They just quietly take
+                money off the farm — until you're left wondering where it went.
+              </Lead>
+            </Reveal>
+          </div>
+          <Stagger className="mx-auto mt-10 grid max-w-4xl gap-4 sm:grid-cols-2">
+            {HIDDEN_COSTS.map(([t, s]) => (
+              <Card key={t}>
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white">{t}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-gray-600 dark:text-gray-300">{s}</p>
               </Card>
+            ))}
+          </Stagger>
+        </Container>
+      </Section>
+
+      {/* ── Transformation: without → with ───────────────────────────────── */}
+      <Section>
+        <Container>
+          <div className="mx-auto max-w-2xl text-center">
+            <Reveal>
+              <Eyebrow>The shift</Eyebrow>
+              <Heading>From running blind to farming with your eyes open</Heading>
+            </Reveal>
+          </div>
+          <Reveal delay={0.08}>
+            <div className="mx-auto mt-10 max-w-2xl divide-y divide-gray-200 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:divide-white/10 dark:border-white/10 dark:bg-white/[0.02]">
+              {SHIFTS.map(([from, to]) => (
+                <div key={from} className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-5 py-4">
+                  <span className="text-right text-sm text-gray-400 line-through dark:text-gray-500">{from}</span>
+                  <ArrowRight className="h-4 w-4 text-brand-500" aria-hidden />
+                  <span className="text-[15px] font-semibold text-gray-900 dark:text-white">{to}</span>
+                </div>
+              ))}
+            </div>
+          </Reveal>
+        </Container>
+      </Section>
+
+      {/* ── The story: one entry, everywhere it matters ──────────────────── */}
+      <Section className="bg-gray-50/60 dark:bg-white/[0.02]">
+        <Container>
+          <div className="grid items-center gap-12 lg:grid-cols-2">
+            <Reveal>
+              <Eyebrow>A moment on the farm</Eyebrow>
+              <Heading>Your worker records the feed. Greena does the rest.</Heading>
+              <Lead className="mt-5">
+                One person, one entry, thirty seconds. Behind the scenes, the whole
+                picture updates — so you never have to sit down and work it all out
+                later.
+              </Lead>
+              <ul className="mt-6 space-y-3">
+                {[
+                  "Feed stock goes down by what was used",
+                  "This flock's cost per bird goes up",
+                  "Feed conversion is recalculated",
+                  "Your profit forecast adjusts",
+                ].map((s) => (
+                  <li key={s} className="flex gap-3 text-[15px] text-gray-700 dark:text-gray-200">
+                    <Check className="mt-0.5 h-5 w-5 shrink-0 text-brand-600 dark:text-brand-400" />
+                    {s}
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+
+            <Reveal delay={0.12} y={24}>
+              <ScreenFrame title="greena.app — Feed logged">
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-gray-100 p-3 dark:border-white/5">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">Added: 2 bags · Batch A</p>
+                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">by Musa · 6:40 am</p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <StatTile value="−50kg" label="Feed stock" />
+                    <StatTile value="1.62" label="FCR" tone="navy" />
+                    <StatTile value="KES 148k" label="Forecast" tone="amber" />
+                  </div>
+                </div>
+              </ScreenFrame>
             </Reveal>
           </div>
         </Container>
       </Section>
 
-      {/* ── Modules ──────────────────────────────────────────────────────── */}
-      <Section className="bg-gray-50/60 dark:bg-white/[0.02]">
+      {/* ── Outcomes (features as evidence) ──────────────────────────────── */}
+      <Section>
         <Container>
           <div className="mx-auto max-w-2xl text-center">
             <Reveal>
-              <Eyebrow>One system</Eyebrow>
-              <Heading>Everything the farm runs on</Heading>
+              <Eyebrow>What changes for you</Eyebrow>
+              <Heading>Five ways your farm gets easier to run</Heading>
               <Lead className="mt-4">
-                Nine connected modules. Record something once and it shows up
-                everywhere it matters — a feed purchase becomes an expense, a
-                mortality updates your live count.
+                Not a feature list — the outcomes farmers actually feel. The tools
+                that make each one happen are named underneath.
               </Lead>
             </Reveal>
           </div>
 
           <Stagger className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {MODULES.map((m) => (
-              <Card key={m.name} interactive className="h-full">
+            {OUTCOMES.map((o) => (
+              <Card key={o.title} interactive className="flex h-full flex-col">
                 <span className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
-                  <m.icon className="h-5 w-5" />
+                  <o.icon className="h-5 w-5" />
                 </span>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-                  {m.name}
-                </h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
-                  {m.copy}
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white">{o.title}</h3>
+                <p className="mt-1.5 flex-1 text-sm leading-relaxed text-gray-600 dark:text-gray-300">{o.body}</p>
+                <p className="mt-4 text-xs font-medium uppercase tracking-[0.08em] text-brand-600/80 dark:text-brand-400/80">
+                  {o.proof}
                 </p>
               </Card>
             ))}
@@ -202,24 +327,24 @@ export default function HomeScreen() {
           <Reveal delay={0.1}>
             <div className="mt-10 text-center">
               <CTA to="/features" variant="secondary">
-                Explore every feature <ArrowRight className="h-4 w-4" />
+                See exactly how it works <ArrowRight className="h-4 w-4" />
               </CTA>
             </div>
           </Reveal>
         </Container>
       </Section>
 
-      {/* ── ARIA ─────────────────────────────────────────────────────────── */}
-      <Section>
+      {/* ── ARIA: reduce risk, show how ──────────────────────────────────── */}
+      <Section className="bg-gray-50/60 dark:bg-white/[0.02]">
         <Container>
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <Reveal>
               <Eyebrow>ARIA</Eyebrow>
-              <Heading>Ask your farm a question</Heading>
+              <Heading>Ask your farm a question. Get an answer you can act on.</Heading>
               <Lead className="mt-5">
                 ARIA reads your actual records — not the internet — and answers in
-                plain language. Log the day's work by typing it the way you'd say
-                it, and ask what it means afterwards.
+                plain language. It's like having someone who's memorised every
+                figure on the farm, ready whenever you are.
               </Lead>
               <div className="mt-7">
                 <CTA to="/aria-ai">
@@ -251,21 +376,45 @@ export default function HomeScreen() {
       {/* ── Enterprises ──────────────────────────────────────────────────── */}
       <EnterpriseShowcase />
 
-      {/* ── Close ────────────────────────────────────────────────────────── */}
+      {/* ── Reduce risk: answer the doubts ───────────────────────────────── */}
+      <Section className="bg-gray-50/60 dark:bg-white/[0.02]">
+        <Container>
+          <div className="mx-auto max-w-2xl text-center">
+            <Reveal>
+              <Eyebrow>Will it work for me?</Eyebrow>
+              <Heading>Fair question. Here's the honest answer.</Heading>
+            </Reveal>
+          </div>
+          <Stagger className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {REASSURANCE.map((r) => (
+              <Card key={r.title} className="h-full">
+                <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+                  <r.icon className="h-5 w-5" />
+                </span>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{r.title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-gray-600 dark:text-gray-300">{r.body}</p>
+              </Card>
+            ))}
+          </Stagger>
+        </Container>
+      </Section>
+
+      {/* ── Close: the natural next step ─────────────────────────────────── */}
       <Section className="relative overflow-hidden border-t border-gray-100 dark:border-white/5">
         <GlowField />
         <Container className="relative">
           <div className="mx-auto max-w-2xl text-center">
             <Reveal>
-              <Heading>Start with one flock.</Heading>
+              <Heading>Start with one flock. See the difference in a week.</Heading>
               <Lead className="mx-auto mt-5">
-                Set up takes about ten minutes, and Greena walks you through it.
-                Add a farm, a house and your first batch — the numbers start
-                working from day one.
+                Set-up takes about ten minutes and Greena walks you through it. Add
+                a farm, a house and your first batch — the numbers start working for
+                you from day one. Free to begin, with a {TRIAL_DAYS}-day{" "}
+                {PREMIUM_PLAN_LABEL} trial when you're ready for more.
               </Lead>
               <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <CTA to="/signup">
-                  Create your account <ArrowRight className="h-4 w-4" />
+                  Start free <ArrowRight className="h-4 w-4" />
                 </CTA>
                 <CTA to="/pricing" variant="secondary">
                   See pricing
