@@ -11,7 +11,7 @@ import { Link } from "react-router-dom";
 
 import { useSeo } from "@/hooks/useSeo";
 import { SUPPORT_EMAIL } from "@/lib/site";
-import { LegalHero, DraftNotice, Prose, Clause, Bullets } from "./legalPrimitives";
+import { LegalHero, Prose, Clause, Bullets } from "./legalPrimitives";
 
 export default function PrivacyScreen() {
   useSeo({
@@ -31,8 +31,6 @@ export default function PrivacyScreen() {
       />
 
       <Prose>
-        <DraftNotice />
-
         <Clause heading="Who we are">
           <p>
             Greena provides farm record-keeping, reporting, and an AI assistant

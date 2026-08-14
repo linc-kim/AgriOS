@@ -11,7 +11,7 @@ import { Link } from "react-router-dom";
 
 import { useSeo } from "@/hooks/useSeo";
 import { SUPPORT_EMAIL } from "@/lib/site";
-import { LegalHero, DraftNotice, Prose, Clause, Bullets } from "./legalPrimitives";
+import { LegalHero, Prose, Clause, Bullets } from "./legalPrimitives";
 
 export default function TermsScreen() {
   useSeo({
@@ -31,8 +31,6 @@ export default function TermsScreen() {
       />
 
       <Prose>
-        <DraftNotice />
-
         <Clause heading="The service">
           <p>
             Greena is a farm management platform that lets you keep records,
