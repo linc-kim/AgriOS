@@ -13,6 +13,7 @@ import { Menu, X, ArrowRight } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { Container, CTA } from "@/components/marketing/primitives";
 import { SOCIAL_LINKS } from "@/lib/social";
+import greenaEmblem from "@/assets/brand/greena-emblem.svg";
 
 const NAV = [
   { to: "/features", label: "Features" },
@@ -27,9 +28,7 @@ const NAV = [
 function Wordmark() {
   return (
     <Link to="/" className="flex items-center gap-2" aria-label="Greena home">
-      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">
-        G
-      </span>
+      <img src={greenaEmblem} alt="" aria-hidden className="h-8 w-auto" />
       <span className="text-lg font-semibold tracking-[-0.02em] text-gray-900 dark:text-white">
         Greena
       </span>
