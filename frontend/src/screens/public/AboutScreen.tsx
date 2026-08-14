@@ -36,7 +36,15 @@ const PRINCIPLES = [
   },
 ];
 
+import { useSeo } from "@/hooks/useSeo";
+
 export default function AboutScreen() {
+  useSeo({
+    title: "About",
+    description:
+      "Greena is building the operating system for African farms — practical record-keeping, insight, and an assistant that understands your farm.",
+    path: "/about",
+  });
   return (
     <>
       <section className="relative overflow-hidden border-b border-gray-100 dark:border-white/5">

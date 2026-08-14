@@ -133,6 +133,18 @@ export default function SignUpScreen() {
         </Button>
       </form>
 
+      <p className="text-center text-xs leading-relaxed text-gray-500">
+        By creating an account you agree to our{" "}
+        <Link to="/terms" className="font-medium text-brand-600 hover:text-brand-700">
+          Terms of Service
+        </Link>{" "}
+        and{" "}
+        <Link to="/privacy" className="font-medium text-brand-600 hover:text-brand-700">
+          Privacy Policy
+        </Link>
+        .
+      </p>
+
       <p className="text-center text-sm text-gray-500">
         Already have an account?{" "}
         <Link to="/login" className="font-semibold text-brand-600 hover:text-brand-700">

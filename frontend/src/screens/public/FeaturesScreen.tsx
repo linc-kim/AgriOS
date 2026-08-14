@@ -232,7 +232,15 @@ const FEATURES: Feature[] = [
   },
 ];
 
+import { useSeo } from "@/hooks/useSeo";
+
 export default function FeaturesScreen() {
+  useSeo({
+    title: "Features",
+    description:
+      "Records, dashboards, reports and forecasts, automation, and an AI assistant — everything Greena gives your farm in one place.",
+    path: "/features",
+  });
   return (
     <>
       <section className="relative overflow-hidden border-b border-gray-100 dark:border-white/5">

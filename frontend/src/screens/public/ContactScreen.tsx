@@ -43,7 +43,15 @@ const CHANNELS = [
 
 type Errors = Partial<Record<"name" | "email" | "message", string>>;
 
+import { useSeo } from "@/hooks/useSeo";
+
 export default function ContactScreen() {
+  useSeo({
+    title: "Contact",
+    description:
+      "Questions about the product, pricing for a cooperative, or something not working — reach the Greena team.",
+    path: "/contact",
+  });
   const [form, setForm] = useState({ name: "", email: "", topic: "Support", message: "" });
   const [errors, setErrors] = useState<Errors>({});
   const [sent, setSent] = useState(false);

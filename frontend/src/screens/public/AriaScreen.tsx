@@ -45,7 +45,15 @@ const CONVERSATIONS: Record<string, { user: string; aria: string }[]> = {
   ],
 };
 
+import { useSeo } from "@/hooks/useSeo";
+
 export default function AriaScreen() {
+  useSeo({
+    title: "ARIA — your AI farm assistant",
+    description:
+      "ARIA answers questions about your farm using your own records, surfaces insights, and helps with day-to-day decisions. Understands English and Swahili.",
+    path: "/aria-ai",
+  });
   const tabs = Object.keys(CONVERSATIONS);
   const [tab, setTab] = useState(tabs[0]);
 

@@ -8,17 +8,78 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Greena" />
-    <meta name="description" content="Greena — the farm operating system." />
+    <meta
+      name="description"
+      content="Greena is the farm operating system for African farms — records, reports, and an AI assistant (ARIA) for poultry, livestock, rabbits, goats, sheep, pigs, BSF and more."
+    />
+    <link rel="canonical" href="https://greena.app/" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#076524" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta property="og:title" content="Greena" />
-    <meta property="og:description" content="Greena — the farm operating system." />
-    <meta property="og:image" content="/og-image.png" />
+
+    <!-- Open Graph (site-level defaults; per-route pages refine title/description at runtime) -->
+    <meta property="og:site_name" content="Greena" />
+    <meta property="og:title" content="Greena — the farm operating system" />
+    <meta
+      property="og:description"
+      content="Keep your farm's records, turn them into reports and forecasts, and ask ARIA — your AI farm assistant. Built for farms across East Africa."
+    />
+    <meta property="og:image" content="https://greena.app/og-image.png" />
+    <meta property="og:url" content="https://greena.app/" />
     <meta property="og:type" content="website" />
-    <title>Greena</title>
+    <meta property="og:locale" content="en_KE" />
+
+    <!-- Twitter / X card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Greena — the farm operating system" />
+    <meta
+      name="twitter:description"
+      content="Records, reports and an AI assistant for your farm. Built for farms across East Africa."
+    />
+    <meta name="twitter:image" content="https://greena.app/og-image.png" />
+
+    <title>Greena — the farm operating system</title>
+
+    <!-- Structured data: describes Greena accurately. No unavailable modules are claimed. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://greena.app/#organization",
+            "name": "Greena",
+            "url": "https://greena.app/",
+            "logo": "https://greena.app/icons/apple-touch-icon.png",
+            "description": "Greena is a farm management platform for African farms, offering record-keeping, reporting, and an AI assistant.",
+            "areaServed": "KE",
+            "email": "support@greena.app",
+            "contactPoint": {
+              "@type": "ContactPoint",
+              "email": "support@greena.app",
+              "contactType": "customer support"
+            }
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://greena.app/#software",
+            "name": "Greena",
+            "applicationCategory": "BusinessApplication",
+            "operatingSystem": "Web",
+            "url": "https://greena.app/",
+            "description": "Farm management software for poultry, livestock, rabbits, goats, sheep, pigs and black soldier fly production, with feed, inventory, finance and reporting tools and an AI assistant (ARIA).",
+            "publisher": { "@id": "https://greena.app/#organization" },
+            "offers": {
+              "@type": "Offer",
+              "priceCurrency": "KES",
+              "url": "https://greena.app/pricing"
+            }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

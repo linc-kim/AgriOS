@@ -77,7 +77,15 @@ const ROADMAP = [
   ["Cooperatives", "Group reporting across many member farms."],
 ];
 
+import { useSeo } from "@/hooks/useSeo";
+
 export default function SolutionsScreen() {
+  useSeo({
+    title: "Solutions",
+    description:
+      "Greena for poultry, livestock, ornamental birds, black soldier fly, rabbits, goats, sheep and pigs — with the finance and reporting tools around them.",
+    path: "/solutions",
+  });
   return (
     <>
       <section className="relative overflow-hidden border-b border-gray-100 dark:border-white/5">

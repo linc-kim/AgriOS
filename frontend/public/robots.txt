@@ -1,0 +1,44 @@
+# Greena — crawl rules
+# Public marketing pages are open to indexing; authenticated app areas are not.
+
+User-agent: *
+Allow: /$
+Allow: /features
+Allow: /solutions
+Allow: /aria-ai
+Allow: /pricing
+Allow: /learning
+Allow: /about
+Allow: /contact
+Allow: /help
+Allow: /privacy
+Allow: /terms
+
+# Private / authenticated application areas — keep out of the index.
+Disallow: /dashboard
+Disallow: /onboarding
+Disallow: /billing
+Disallow: /livestock
+Disallow: /feed
+Disallow: /inventory
+Disallow: /finance
+Disallow: /reports
+Disallow: /automation
+Disallow: /production
+Disallow: /ai
+Disallow: /aviculture
+Disallow: /bsf
+Disallow: /rabbit
+Disallow: /goat
+Disallow: /sheep
+Disallow: /swine
+Disallow: /admin
+Disallow: /settings
+Disallow: /login
+Disallow: /signup
+Disallow: /verify-otp
+Disallow: /set-pin
+Disallow: /pin-login
+Disallow: /phone-login
+
+Sitemap: https://greena.app/sitemap.xml

@@ -16,7 +16,8 @@ export default defineConfig({
       manifest: {
         name: "Greena — Farm Operating System",
         short_name: "Greena",
-        description: "The daily operating system for Kenyan poultry farmers",
+        description:
+          "The operating system for your farm — records, reports and an AI assistant for poultry, livestock and more.",
         theme_color: "#076524",
         background_color: "#ffffff",
         display: "standalone",
@@ -24,34 +25,26 @@ export default defineConfig({
         start_url: "/",
         scope: "/",
         lang: "en",
+        // "any" icons must fill the square; the dedicated maskable icon carries
+        // the safe-zone padding Android needs so the mark is not clipped.
         icons: [
-          { src: "/icons/icon-48.png", sizes: "48x48", type: "image/png" },
-          { src: "/icons/icon-72.png", sizes: "72x72", type: "image/png" },
-          { src: "/icons/icon-96.png", sizes: "96x96", type: "image/png" },
-          { src: "/icons/icon-144.png", sizes: "144x144", type: "image/png" },
-          { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-          {
-            src: "/icons/icon-512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "any maskable",
-          },
+          { src: "/icons/icon-48.png", sizes: "48x48", type: "image/png", purpose: "any" },
+          { src: "/icons/icon-72.png", sizes: "72x72", type: "image/png", purpose: "any" },
+          { src: "/icons/icon-96.png", sizes: "96x96", type: "image/png", purpose: "any" },
+          { src: "/icons/icon-144.png", sizes: "144x144", type: "image/png", purpose: "any" },
+          { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+          { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+          { src: "/icons/maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
       workbox: {
-        // Cache static assets
+        // Precache the static shell (JS/CSS/HTML/icons/fonts) so the app opens
+        // fast and launches from the home screen. We deliberately do NOT cache
+        // API responses: Greena is an operational system where showing stale
+        // farm, financial or auth data would be worse than a network wait.
+        // (A previous rule pointed at a non-existent `api.agrios.app` host and
+        // never matched; it is removed rather than repointed at the live API.)
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
-        // Cache API responses for offline viewing
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/api\.agrios\.app\/api\/v1\//,
-            handler: "StaleWhileRevalidate",
-            options: {
-              cacheName: "agrios-api-cache",
-              expiration: { maxAgeSeconds: 3600 },
-            },
-          },
-        ],
       },
     }),
   ],

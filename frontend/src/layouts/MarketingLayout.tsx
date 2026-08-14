@@ -169,7 +169,7 @@ export default function MarketingLayout() {
 
       <footer className="border-t border-gray-200 bg-gray-50/60 py-14 dark:border-white/10 dark:bg-white/[0.02]">
         <Container>
-          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
             <div>
               <Wordmark />
               <p className="mt-3 max-w-xs text-sm leading-relaxed text-gray-500 dark:text-gray-400">
@@ -191,8 +191,16 @@ export default function MarketingLayout() {
               title="Resources"
               links={[
                 { to: "/learning", label: "Greena Academy" },
+                { to: "/help", label: "Help Center" },
                 { to: "/about", label: "About" },
                 { to: "/contact", label: "Contact" },
+              ]}
+            />
+            <FooterCol
+              title="Legal"
+              links={[
+                { to: "/privacy", label: "Privacy Policy" },
+                { to: "/terms", label: "Terms of Service" },
               ]}
             />
             <FooterCol
@@ -200,6 +208,7 @@ export default function MarketingLayout() {
               links={[
                 { to: "/signup", label: "Create an account" },
                 { to: "/login", label: "Log in" },
+                { to: "/install", label: "Put Greena on your phone" },
               ]}
             />
           </div>

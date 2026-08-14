@@ -119,7 +119,15 @@ function Cell({ value }: { value: string }) {
   return <span className="text-sm text-gray-700 dark:text-gray-200">{value}</span>;
 }
 
+import { useSeo } from "@/hooks/useSeo";
+
 export default function PricingScreen() {
+  useSeo({
+    title: "Pricing",
+    description:
+      "Simple plans for farms of every size — start free, upgrade when you're ready. Billed securely through Paystack in Kenyan Shillings.",
+    path: "/pricing",
+  });
   const [open, setOpen] = useState<number | null>(0);
 
   return (

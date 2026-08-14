@@ -40,7 +40,15 @@ const REPLACES = [
   "Not knowing which flock actually made money",
 ];
 
+import { useSeo } from "@/hooks/useSeo";
+
 export default function HomeScreen() {
+  useSeo({
+    title: "The farm operating system",
+    description:
+      "Greena keeps your farm's records, turns them into reports and forecasts, and gives you ARIA — an AI assistant grounded in your own data. Built for farms across East Africa.",
+    path: "/",
+  });
   return (
     <>
       {/* ── Hero ─────────────────────────────────────────────────────────── */}

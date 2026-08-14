@@ -41,7 +41,15 @@ const TRACKS = [
   },
 ];
 
+import { useSeo } from "@/hooks/useSeo";
+
 export default function LearningScreen() {
+  useSeo({
+    title: "Greena Academy",
+    description:
+      "Guides and lessons to help you get the most out of Greena and run better farm records.",
+    path: "/learning",
+  });
   return (
     <>
       <section className="relative overflow-hidden border-b border-gray-100 dark:border-white/5">
