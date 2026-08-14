@@ -1,6 +1,6 @@
 """Integration tests for the trial system (Increment C2).
 
-One 21-day Professional trial per organization, granted at creation; a paid
+One 14-day Premium trial per organization, granted at creation; a paid
 payment converts it immediately (remaining days discarded); expiry downgrades to
 Free. Service-level tests plus one endpoint-wiring test. Paystack mocked.
 """
@@ -59,7 +59,7 @@ async def test_grant_initial_trial(integration_session, workspace):
     assert sub.status == "active"
     assert sub.activation_source == "trial"
     assert sub.plan_id == pro.id
-    # ~21 days out
+    # ~TRIAL_DAYS out (policy: 14 days)
     delta = sub.current_period_end - datetime.now(timezone.utc)
     assert timedelta(days=TRIAL_DAYS - 1) < delta <= timedelta(days=TRIAL_DAYS)
     assert sub.trial_ends_at == sub.current_period_end
@@ -122,7 +122,7 @@ async def test_payment_during_trial_converts_immediately(
     assert sub.trial_ends_at is None       # remaining trial days discarded
     assert sub.plan_id == starter.id       # now the paid plan
     assert sub.activation_source == "paystack"
-    # fresh 30-day paid period, not the trial's remaining ~21 days
+    # fresh 30-day paid period, not the trial's remaining ~14 days
     delta = sub.current_period_end - datetime.now(timezone.utc)
     assert delta > timedelta(days=25)
 

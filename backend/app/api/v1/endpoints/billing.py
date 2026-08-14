@@ -17,6 +17,7 @@ from app.schemas.billing import (
     InitializePaymentOut,
     PaymentStatusOut,
     PlanOut,
+    PublicPlanOut,
 )
 from app.schemas.commercial import (
     CreditBalanceOut,
@@ -61,6 +62,38 @@ async def list_plans(db: DBSession, current_user: CurrentUser) -> SuccessRespons
             display_name=p.display_name,
             price_kes=p.price_kes,
             is_self_serve=p.price_kes > 0,
+        )
+        for p in plans
+    ]
+    return SuccessResponse(data=data)
+
+
+@router.get(
+    "/plans/public",
+    response_model=SuccessResponse[list[PublicPlanOut]],
+    status_code=status.HTTP_200_OK,
+    summary="Public subscription plans + limits for the marketing pricing page (no auth)",
+)
+async def list_public_plans(db: DBSession) -> SuccessResponse[list[PublicPlanOut]]:
+    """Active plans with their limits, for the public pricing page.
+
+    Unauthenticated by design — pricing is public. Exposes only catalogue
+    fields (price + limits), never anything account-specific, so the marketing
+    site renders the same source of truth the checkout charges from.
+    """
+    plans = await billing_service.list_active_plans(db)
+    data = [
+        PublicPlanOut(
+            name=p.name,
+            display_name=p.display_name,
+            price_kes=p.price_kes,
+            is_self_serve=p.is_self_serve,
+            max_farms=p.max_farms,
+            max_houses_per_farm=p.max_houses_per_farm,
+            max_active_flocks=p.max_active_flocks,
+            max_aria_queries_per_month=p.max_aria_queries_per_month,
+            history_days=p.history_days,
+            max_team_members=p.max_team_members,
         )
         for p in plans
     ]

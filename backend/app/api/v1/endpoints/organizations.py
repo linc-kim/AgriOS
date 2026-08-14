@@ -55,7 +55,7 @@ async def create_organization(
         user_agent=request.headers.get("user-agent"),
     )
     # Commercial policy (orchestrated here; infra stays pure): assign a referral
-    # code and grant the one-time 21-day Professional trial for this new org.
+    # code and grant the one-time 14-day Premium trial for this new org.
     await referral_service.assign_referral_code(db, org.id)
     await trial_service.grant_initial_trial(db, org.id)
     # The trial grant's writes expire ``org`` in the session; reload it (async)

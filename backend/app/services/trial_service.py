@@ -1,7 +1,7 @@
 """
 Greena — Trial service (Commercial Policy layer, C2).
 
-One 21-day **Professional** trial per organization, granted at creation. This is
+One 14-day **Premium** trial per organization, granted at creation. This is
 commercial policy: it sits *on top of* the billing infrastructure and reuses its
 entitlement propagation (`billing_service.apply_org_entitlement`) — it never
 reaches into payment/verification logic. Endpoints orchestrate (infra first,
@@ -27,13 +27,16 @@ from app.models.billing import PaymentTransaction, Subscription
 from app.services.billing_service import billing_service
 from app.services.farm_service import get_plan_by_name
 
-TRIAL_DAYS = 21
-TRIAL_PLAN = "pro"  # Professional
+# ── Trial policy — the single source of truth for trial duration ──────────────
+# Every surface (API, frontend, website, ARIA, admin) derives the trial length
+# from here; nothing else should hardcode a number of days.
+TRIAL_DAYS = 14
+TRIAL_PLAN = "pro"  # the Premium entitlement (plan key "pro", display "Premium")
 
 
 class TrialService:
     async def grant_initial_trial(self, db: AsyncSession, organization_id: uuid.UUID) -> bool:
-        """Grant a one-time 21-day Professional trial. No-op if the org already
+        """Grant a one-time 14-day Premium trial. No-op if the org already
         has a subscription (one trial per organization; never a second)."""
         existing = (
             await db.execute(
@@ -71,7 +74,13 @@ class TrialService:
             )
         ).scalar_one_or_none()
         if sub is None:
-            return {"is_trial": False, "active": False, "trial_ends_at": None, "days_remaining": 0}
+            return {
+                "is_trial": False,
+                "active": False,
+                "trial_ends_at": None,
+                "days_remaining": 0,
+                "trial_days": TRIAL_DAYS,
+            }
         days = 0
         if sub.is_trial and sub.trial_ends_at is not None:
             days = max(0, (sub.trial_ends_at - datetime.now(timezone.utc)).days)
@@ -80,6 +89,8 @@ class TrialService:
             "active": sub.status == "active",
             "trial_ends_at": sub.trial_ends_at,
             "days_remaining": days,
+            # The trial-length policy, so the UI/ARIA never hardcode a number.
+            "trial_days": TRIAL_DAYS,
         }
 
     async def convert_trial_on_payment(self, db: AsyncSession, reference: str) -> None:

@@ -42,6 +42,8 @@ export interface TrialStatus {
   active: boolean;
   trial_ends_at: string | null;
   days_remaining: number;
+  /** Trial-length policy from the backend (single source of truth). */
+  trial_days?: number;
 }
 
 export interface ReferralStatus {

@@ -2,7 +2,7 @@
  * Greena — Terms of Service.
  *
  * Grounded in the platform's real commercial behavior: free tier, paid
- * subscriptions billed through Paystack in KES, a Professional trial, and a
+ * subscriptions billed through Paystack in KES, a 14-day Premium trial, and a
  * referral first-payment discount. Specific prices are intentionally not
  * restated here — they are shown on the Pricing page and derived server-side —
  * so this document cannot drift from the live catalog.

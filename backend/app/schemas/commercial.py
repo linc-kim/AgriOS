@@ -11,6 +11,8 @@ class TrialStatusOut(AGRIOSSchema):
     active: bool
     trial_ends_at: datetime | None = None
     days_remaining: int = 0
+    # Trial-length policy (single source of truth: trial_service.TRIAL_DAYS).
+    trial_days: int = 14
 
 
 class ReferralStatusOut(AGRIOSSchema):

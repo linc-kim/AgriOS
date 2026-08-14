@@ -41,6 +41,26 @@ class PlanOut(AGRIOSSchema):
     is_self_serve: bool
 
 
+class PublicPlanOut(AGRIOSSchema):
+    """A subscription plan for the PUBLIC pricing page (no auth required).
+
+    Contains only non-sensitive, already-public catalogue information — price and
+    plan limits — so the marketing site reads the same source of truth the
+    checkout charges from and cannot silently drift. ``-1`` means unlimited.
+    """
+
+    name: str
+    display_name: str
+    price_kes: int
+    is_self_serve: bool
+    max_farms: int
+    max_houses_per_farm: int
+    max_active_flocks: int
+    max_aria_queries_per_month: int
+    history_days: int
+    max_team_members: int
+
+
 class PaymentStatusOut(AGRIOSSchema):
     """Result of a webhook/verify: what happened and whether the sub is active."""
 

@@ -11,6 +11,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { billingAPI } from "@/api/billing";
 import { useShellStore } from "@/stores/shellStore";
+import { PREMIUM_PLAN_LABEL, premiumPriceLabel } from "@/lib/policy";
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -94,13 +95,16 @@ export default function ReferralDashboardScreen() {
           </div>
         )}
 
-        {/* Trial countdown */}
+        {/* Trial countdown — you're exploring Greena Premium. */}
         {trial.data?.is_trial && (
           <div className="bg-brand-600 text-white rounded-2xl p-5">
-            <p className="text-sm opacity-90">Professional trial</p>
-            <p className="text-2xl font-bold mt-1">{trial.data.days_remaining} days left</p>
+            <p className="text-sm opacity-90">You're exploring Greena {PREMIUM_PLAN_LABEL}</p>
+            <p className="text-2xl font-bold mt-1">
+              {trial.data.days_remaining} {trial.data.days_remaining === 1 ? "day" : "days"} left
+            </p>
             <p className="text-xs opacity-80 mt-1">
-              Subscribe before it ends to keep full access — otherwise you move to Free.
+              Continue with Greena {PREMIUM_PLAN_LABEL} for {premiumPriceLabel()} to keep
+              full access. Otherwise your account moves to the Free plan — your records stay.
             </p>
           </div>
         )}
