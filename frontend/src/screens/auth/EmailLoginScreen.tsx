@@ -104,14 +104,19 @@ export default function EmailLoginScreen() {
           {...register("password")}
         />
 
-        <label className="flex cursor-pointer select-none items-center gap-2.5 pt-0.5 text-sm text-gray-600">
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500/30"
-            {...register("remember_me")}
-          />
-          Keep me signed in
-        </label>
+        <div className="flex items-center justify-between pt-0.5">
+          <label className="flex cursor-pointer select-none items-center gap-2.5 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500/30"
+              {...register("remember_me")}
+            />
+            Keep me signed in
+          </label>
+          <Link to="/forgot-password" className="text-sm font-medium text-brand-600 hover:text-brand-700">
+            Forgot password?
+          </Link>
+        </div>
 
         <Button
           type="submit"

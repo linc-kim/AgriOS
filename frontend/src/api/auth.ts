@@ -73,6 +73,40 @@ export const authAPI = {
     await apiClient.post("/auth/logout-all");
   },
 
+  // ── Email verification & password reset ────────────────────────────────────
+
+  forgotPassword: async (email: string) => {
+    const response = await apiClient.post<APISuccess<{ sent: boolean; detail: string }>>(
+      "/auth/forgot-password",
+      { email },
+    );
+    return response.data.data;
+  },
+
+  resetPassword: async (payload: { token: string; new_password: string }) => {
+    const response = await apiClient.post<APISuccess<{ message?: string }>>(
+      "/auth/reset-password",
+      payload,
+    );
+    return response.data.data;
+  },
+
+  verifyEmail: async (token: string) => {
+    const response = await apiClient.post<APISuccess<{ email_verified: boolean; email: string }>>(
+      "/auth/verify-email",
+      { token },
+    );
+    return response.data.data;
+  },
+
+  resendVerification: async (email: string) => {
+    const response = await apiClient.post<APISuccess<{ sent: boolean; detail: string }>>(
+      "/auth/resend-verification",
+      { email },
+    );
+    return response.data.data;
+  },
+
   requestOTP: async (payload: OTPRequestPayload) => {
     const response = await apiClient.post<
       APISuccess<{ phone: string; message: string; expires_in_minutes: number }>

@@ -44,6 +44,9 @@ const LoginScreen = lazy(() => import("@/screens/auth/LoginScreen"));
 const OTPScreen = lazy(() => import("@/screens/auth/OTPScreen"));
 const PINSetupScreen = lazy(() => import("@/screens/auth/PINSetupScreen"));
 const PINLoginScreen = lazy(() => import("@/screens/auth/PINLoginScreen"));
+const ForgotPasswordScreen = lazy(() => import("@/screens/auth/ForgotPasswordScreen"));
+const ResetPasswordScreen = lazy(() => import("@/screens/auth/ResetPasswordScreen"));
+const VerifyEmailScreen = lazy(() => import("@/screens/auth/VerifyEmailScreen"));
 
 // Onboarding
 const OnboardingScreen = lazy(() => import("@/screens/onboarding/OnboardingScreen"));
@@ -213,6 +216,9 @@ const router = createBrowserRouter([
       { path: "/verify-otp", element: <OTPScreen /> },
       { path: "/set-pin", element: <PINSetupScreen /> },
       { path: "/pin-login", element: <PINLoginScreen /> },
+      { path: "/forgot-password", element: <ForgotPasswordScreen /> },
+      { path: "/reset-password", element: <ResetPasswordScreen /> },
+      { path: "/verify-email", element: <VerifyEmailScreen /> },
     ],
   },
 
