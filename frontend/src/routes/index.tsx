@@ -24,7 +24,6 @@ import { MODULES } from "@/shell/registry";
 const MarketingLayout = lazy(() => import("@/layouts/MarketingLayout"));
 const HomeScreen = lazy(() => import("@/screens/public/HomeScreen"));
 const FeaturesScreen = lazy(() => import("@/screens/public/FeaturesScreen"));
-const SolutionsScreen = lazy(() => import("@/screens/public/SolutionsScreen"));
 const AriaScreen = lazy(() => import("@/screens/public/AriaScreen"));
 const PricingScreen = lazy(() => import("@/screens/public/PricingScreen"));
 const LearningScreen = lazy(() => import("@/screens/public/LearningScreen"));
@@ -182,7 +181,10 @@ const router = createBrowserRouter([
     children: [
       { path: "/", element: <HomeScreen /> },
       { path: "/features", element: <FeaturesScreen /> },
-      { path: "/solutions", element: <SolutionsScreen /> },
+      // Superseded by the multi-enterprise /farming pages — redirect so the old
+      // poultry-only Solutions page (and its stale "Dairy — Planned" copy) can't
+      // resurface or get indexed.
+      { path: "/solutions", element: <Navigate to="/farming" replace /> },
       { path: "/farming", element: <EnterprisesScreen /> },
       { path: "/farming/:slug", element: <EnterpriseScreen /> },
       // /aria-ai, not /aria — /ai is the in-app assistant module.

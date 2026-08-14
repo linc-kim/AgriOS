@@ -8,16 +8,48 @@
  */
 import {
   Bird, Wheat, HeartPulse, Wallet, Package, Zap, FileText, Bell,
-  BarChart3, ArrowRight, Check,
+  BarChart3, ArrowRight, Check, Smartphone, Users, Lock, Wifi,
 } from "lucide-react";
 import { AriaIcon } from "@/components/aria";
 import type { ModuleIcon } from "@/shell/registry";
 
 import { GlowField } from "@/components/marketing/LineWaves";
 import {
-  Container, Section, Reveal, Eyebrow, Heading, Lead, CTA, Card, ScreenFrame,
+  Container, Section, Reveal, Stagger, Eyebrow, Heading, Lead, CTA, Card, ScreenFrame,
   StatTile,
 } from "@/components/marketing/primitives";
+import { TRIAL_DAYS, PREMIUM_PLAN_LABEL } from "@/lib/policy";
+
+// Teach the numbers in plain terms — what they are, why they matter, how Greena
+// helps. No jargon, no textbook.
+const PLAIN_TERMS = [
+  {
+    term: "Feed conversion (FCR)",
+    what: "How many kilos of feed it takes to add one kilo to a bird.",
+    why: "Feed is your biggest cost, so a lower number is money kept. 1.6 means 1.6kg of feed per 1kg of gain.",
+    how: "Greena works it out for each batch from the feed you log and the weights you record — no maths on your side.",
+  },
+  {
+    term: "Profit per flock",
+    what: "What a single batch actually earned after its own costs.",
+    why: "The farm can look busy and still lose money on a batch. This tells you which ones are worth repeating.",
+    how: "Every expense and sale attaches to the flock that caused it, so the profit is already worked out.",
+  },
+  {
+    term: "Mortality trend",
+    what: "Whether deaths are normal for the age — or creeping up.",
+    why: "A rising trend is often the first sign of a problem you can still fix cheaply.",
+    how: "Greena compares each day against what's expected and flags it early, before it becomes a bad week.",
+  },
+];
+
+// Objections, answered plainly.
+const QUESTIONS = [
+  { icon: Smartphone, q: "Will it work on my phone?", a: "Yes — Greena runs in the browser on any smartphone. Nothing to install." },
+  { icon: Users, q: "Can my workers use it?", a: "They can log the day in plain words. If they can use WhatsApp, they can use Greena." },
+  { icon: Wifi, q: "Do I need internet all the time?", a: "You need a connection to sync, but critical alerts also reach you by SMS." },
+  { icon: Lock, q: "Can I get my records out?", a: "Anytime — export to CSV, Excel or PDF. Your data is always yours." },
+];
 
 interface Feature {
   icon: ModuleIcon;
@@ -298,13 +330,69 @@ export default function FeaturesScreen() {
         </Section>
       ))}
 
+      {/* ── Teach the numbers in plain terms ─────────────────────────────── */}
+      <Section className="border-t border-gray-100 dark:border-white/5">
+        <Container>
+          <div className="mx-auto max-w-2xl text-center">
+            <Reveal>
+              <Eyebrow>In plain terms</Eyebrow>
+              <Heading>The numbers, explained like a neighbour would</Heading>
+              <Lead className="mt-4">
+                Greena works these out for you — but it helps to know what they
+                mean and why they're worth watching.
+              </Lead>
+            </Reveal>
+          </div>
+          <Stagger className="mx-auto mt-10 grid max-w-5xl gap-4 lg:grid-cols-3">
+            {PLAIN_TERMS.map((t) => (
+              <Card key={t.term} className="h-full">
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white">{t.term}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-gray-700 dark:text-gray-200">{t.what}</p>
+                <p className="mt-3 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+                  <span className="font-medium text-gray-900 dark:text-white">Why it matters: </span>{t.why}
+                </p>
+                <p className="mt-3 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+                  <span className="font-medium text-brand-600 dark:text-brand-400">With Greena: </span>{t.how}
+                </p>
+              </Card>
+            ))}
+          </Stagger>
+        </Container>
+      </Section>
+
+      {/* ── Objection handling ───────────────────────────────────────────── */}
+      <Section className="bg-gray-50/60 dark:bg-white/[0.02]">
+        <Container>
+          <div className="mx-auto max-w-2xl text-center">
+            <Reveal>
+              <Eyebrow>Fair questions</Eyebrow>
+              <Heading>The things farmers ask before they start</Heading>
+            </Reveal>
+          </div>
+          <Stagger className="mx-auto mt-10 grid max-w-4xl gap-4 sm:grid-cols-2">
+            {QUESTIONS.map((item) => (
+              <Card key={item.q} className="flex gap-4">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+                  <item.icon className="h-5 w-5" />
+                </span>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{item.q}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-gray-600 dark:text-gray-300">{item.a}</p>
+                </div>
+              </Card>
+            ))}
+          </Stagger>
+        </Container>
+      </Section>
+
       <Section className="border-t border-gray-100 dark:border-white/5">
         <Container>
           <Card className="mx-auto max-w-3xl text-center">
             <Heading as="h2">See it with your own numbers</Heading>
             <Lead className="mx-auto mt-4 max-w-xl">
-              Set up a farm and your first flock in about ten minutes. Greena
-              guides you through every step.
+              Set up a farm and your first flock in about ten minutes — Greena
+              guides you through every step. Free to begin, with a {TRIAL_DAYS}-day{" "}
+              {PREMIUM_PLAN_LABEL} trial when you're ready for more.
             </Lead>
             <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <CTA to="/signup">

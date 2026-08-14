@@ -4,7 +4,6 @@
 User-agent: *
 Allow: /$
 Allow: /features
-Allow: /solutions
 Allow: /farming
 Allow: /aria-ai
 Allow: /pricing

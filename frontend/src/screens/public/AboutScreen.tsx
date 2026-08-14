@@ -123,9 +123,9 @@ export default function AboutScreen() {
                 </span>
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Vision</h3>
                 <p className="mt-3 leading-relaxed text-gray-600 dark:text-gray-300">
-                  An operating system for African agriculture — starting with
-                  poultry, extending to crops, dairy and the cooperatives that
-                  connect them.
+                  An operating system for African agriculture — already running
+                  poultry, birds, rabbits, goats, sheep, pigs and BSF, and growing
+                  toward crops and the cooperatives that connect farms together.
                 </p>
               </Card>
             </Reveal>
