@@ -90,7 +90,12 @@ Not yet run against production for H1/H3 — **changes are not deployed** (see �
 **Modified:** `frontend/index.html`, `frontend/src/routes/index.tsx`, `frontend/src/layouts/MarketingLayout.tsx`, `frontend/src/screens/auth/SignUpScreen.tsx`, and `useSeo` added to `Home/Features/Solutions/Aria/Pricing/Learning/About/Contact` screens.
 
 ## 8. Commits / deployments
-**None yet** — work is staged in the working tree on `phase-2-auth`, uncommitted and undeployed. Recommend batching with the in-progress PWA/install work and deploying once, then verifying from production.
+- Commits on `phase-2-auth`: `7a2aaea` (legal/SEO/install), `be7b1ca` (PWA report doc).
+- **Deployed to Vercel production** via `vercel --prod`: deployment `dpl_5vYjP9LjzJ99nneivSuFSAWedeaa`, `readyState: READY`, aliased to **`https://agrioskenya.vercel.app`**.
+- Production verification (public / logged-out via curl, no Vercel cookies): `/`, `/install`, `/privacy`, `/terms`, `/help`, `/robots.txt`, `/sitemap.xml`, `/manifest.webmanifest` → **all 200**. Production manifest shows the broadened description + `maskable-512`; head carries JSON-LD `SoftwareApplication`, canonical, `og:site_name`, `twitter:card`; title "Greena — the farm operating system". Greena API still returns **401** on a guarded route (auth intact); raw deployment URL still **302** (preview protection intact).
+
+### Correction to LC-B1 (SSO)
+The earlier "site is not public" finding was **incomplete**: I had only tested the generated deployment URLs (`*-hash-*.vercel.app`), which are SSO-protected. The **production alias `agrioskenya.vercel.app` is and was publicly reachable (200)**. Vercel's protection here covers deployment/preview URLs only, not the assigned production alias — so the public-access goal is already met and **no protection setting was changed** (changing it was unnecessary and would have weakened preview isolation). Remaining note: the production alias is the old AGRIOS-era subdomain `agrioskenya.vercel.app`; canonical/OG/sitemap point at the intended `greena.app` (not yet purchased). Set `VITE_SITE_URL` to the real public origin, or finish the domain, before submitting to Search Console.
 
 ## 9. Next recommended phase
-Install-to-Home-Screen / app-like experience (in progress), then a single commit + Vercel deploy + production re-verification of H1/H3/PWA together, contingent on the LC-B1 (SSO) decision.
+Domain acquisition + `VITE_SITE_URL`/canonical alignment (so SEO points at the real public origin), Render paid plan to kill the ~67s cold start, then Phase C marketing-page depth or Phase D auth runtime verification.
