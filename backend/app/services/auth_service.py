@@ -35,6 +35,7 @@ from app.exceptions import (
     RateLimitedException,
     UnauthenticatedException,
 )
+from app.core.login_rate_limit import login_rate_limiter
 from app.models.auth import EmailToken, OTPRequest, Role, Session, User, UserRole
 from app.services.audit_service import log_action
 from app.services.sms_service import send_sms
@@ -490,6 +491,14 @@ class AuthService:
     ) -> tuple[User, str, str, datetime]:
         """Authenticate email + password and issue a session (enumeration-safe)."""
         email = email.strip().lower()
+
+        # Brute-force throttle: too many failures from this IP → 429 until the
+        # window drains. Checked before the DB hit so a blocked caller is cheap.
+        if login_rate_limiter.is_blocked(ip):
+            raise RateLimitedException(
+                "Too many login attempts. Please wait a few minutes and try again."
+            )
+
         result = await db.execute(
             select(User)
             .where(func.lower(User.email) == email, User.deleted_at.is_(None))
@@ -507,6 +516,7 @@ class AuthService:
                 ip_address=ip,
                 user_agent=user_agent,
             )
+            login_rate_limiter.record_failure(ip)
             raise UnauthenticatedException("Invalid email or password.")
 
         if not verify_password(password, user.password_hash):
@@ -518,6 +528,7 @@ class AuthService:
                 ip_address=ip,
                 user_agent=user_agent,
             )
+            login_rate_limiter.record_failure(ip)
             raise UnauthenticatedException("Invalid email or password.")
 
         if not user.is_active:
@@ -526,6 +537,7 @@ class AuthService:
         if settings.REQUIRE_EMAIL_VERIFICATION and not user.email_verified:
             raise EmailNotVerifiedException()
 
+        login_rate_limiter.reset(ip)  # good login clears the throttle for this IP
         user.last_login_at = datetime.now(timezone.utc)
         access, raw_refresh, expiry = await self._create_session(
             db, user, remember_me=remember_me, ip=ip, user_agent=user_agent

@@ -105,6 +105,10 @@ class Settings(BaseSettings):
 
     # OTP configuration (locked in Engineering Constitution)
     OTP_EXPIRE_MINUTES: int = 10
+    # Email/password login brute-force throttle (per client IP).
+    LOGIN_MAX_ATTEMPTS: int = 8
+    LOGIN_ATTEMPT_WINDOW_MINUTES: int = 15
+
     OTP_MAX_ATTEMPTS: int = 3
     OTP_MAX_REQUESTS_PER_PHONE: int = 3
     OTP_REQUEST_WINDOW_MINUTES: int = 10

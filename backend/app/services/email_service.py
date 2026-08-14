@@ -1,7 +1,7 @@
 """
 Greena — Email Service.
 
-Sends transactional email over SMTP (Gmail in production), or logs it to the
+Sends transactional email over SMTP (Zoho in production), or logs it to the
 console when no provider is configured.
 
 Uses stdlib smtplib on a worker thread rather than adding an async SMTP
@@ -90,13 +90,13 @@ async def send_email(to: str, subject: str, html: str, text: str) -> bool:
         logger.info("Email sent to %s: %r", to, subject)
         return True
     except smtplib.SMTPAuthenticationError:
-        # The single most likely misconfiguration: a Google account password
-        # instead of an App Password, or 2FA not enabled on the account.
+        # Most likely misconfiguration: the wrong SMTP password. Zoho (and Gmail)
+        # require an app-specific password, not the account password, and the
+        # mailbox must be active and allowed to send via SMTP.
         logger.error(
-            "SMTP authentication failed for %s — Gmail requires an App Password "
-            "(Google Account → Security → 2-Step Verification → App passwords), "
-            "not the account password.",
-            settings.SMTP_USER,
+            "SMTP authentication failed for %s on %s — check the SMTP_PASSWORD is a "
+            "valid app password for this mailbox and that SMTP sending is enabled.",
+            settings.SMTP_USER, settings.SMTP_HOST,
         )
         return False
     except Exception as exc:
@@ -203,18 +203,21 @@ async def send_welcome_email(to: str, name: str) -> bool:
     html = _layout(
         greeting,
         _p("Your Greena account is ready.")
-        + _p("Greena keeps your whole operation in one place — flocks, daily logs, "
-             "feed, health, finances and reports — and ARIA answers questions using "
-             "your own farm data.")
-        + _p("Start by adding your first farm and flock."),
-        "Open Greena", url,
+        + _p("Greena keeps your whole operation in one place — animals, daily logs, "
+             "feed, health, finances and reports — across poultry, birds, rabbits, "
+             "goats, sheep, pigs and more, with ARIA answering questions using your "
+             "own farm data.")
+        + _p("Set up your first farm to start your <strong>14-day Greena Premium "
+             "trial</strong> — every feature, free for 14 days."),
+        "Set up my farm", url,
     )
     text = (
         f"{greeting}\n\n"
         "Your Greena account is ready.\n\n"
-        "Greena keeps your whole operation in one place — flocks, daily logs, feed, "
-        "health, finances and reports — and ARIA answers questions using your own "
-        "farm data.\n\n"
-        f"Start by adding your first farm and flock:\n{url}\n"
+        "Greena keeps your whole operation in one place — animals, daily logs, feed, "
+        "health, finances and reports — across poultry, birds, rabbits, goats, sheep, "
+        "pigs and more, with ARIA answering questions using your own farm data.\n\n"
+        "Set up your first farm to start your 14-day Greena Premium trial — every "
+        f"feature, free for 14 days:\n{url}\n"
     )
     return await send_email(to, "Welcome to Greena", html, text)
