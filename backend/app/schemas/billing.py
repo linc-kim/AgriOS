@@ -41,6 +41,20 @@ class PlanOut(AGRIOSSchema):
     is_self_serve: bool
 
 
+class CommercialPolicyOut(AGRIOSSchema):
+    """The authoritative commercial policy for every public/app surface.
+
+    One endpoint so the website, signup, dashboard, billing and ARIA all read
+    the same trial length and Premium price instead of hardcoding their own.
+    """
+
+    trial_days: int
+    plan_name: str          # customer-facing name of the trial/premium plan
+    monthly_price: int      # premium monthly price
+    currency: str           # ISO currency code, e.g. "KES"
+    billing_period: str     # "month"
+
+
 class PublicPlanOut(AGRIOSSchema):
     """A subscription plan for the PUBLIC pricing page (no auth required).
 

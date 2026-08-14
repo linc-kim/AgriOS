@@ -12,6 +12,8 @@
  * value where a fetch is already happening).
  */
 
+import { apiClient } from "@/api/client";
+
 /** Trial length in days. Mirrors backend `trial_service.TRIAL_DAYS`. */
 export const TRIAL_DAYS = 14;
 
@@ -27,3 +29,46 @@ export const trialLabel = (): string => `${TRIAL_DAYS}-day ${PREMIUM_PLAN_LABEL}
 /** "KES 1,499/month" — the canonical Premium price phrase. */
 export const premiumPriceLabel = (): string =>
   `KES ${PREMIUM_PRICE_KES.toLocaleString()}/month`;
+
+// ── Live commercial policy (backend is authoritative) ─────────────────────────
+
+export interface CommercialPolicy {
+  trial_days: number;
+  plan_name: string;
+  monthly_price: number;
+  currency: string;
+  billing_period: string;
+}
+
+/** The constants above as a policy object — the offline/cold-start fallback. */
+export const FALLBACK_POLICY: CommercialPolicy = {
+  trial_days: TRIAL_DAYS,
+  plan_name: PREMIUM_PLAN_LABEL,
+  monthly_price: PREMIUM_PRICE_KES,
+  currency: "KES",
+  billing_period: "month",
+};
+
+/**
+ * Read the authoritative commercial policy from the backend. Frontends should
+ * prefer this over the constants; the constants are the fallback when the API
+ * isn't reachable yet.
+ */
+export async function fetchCommercialPolicy(): Promise<CommercialPolicy> {
+  try {
+    const res = await apiClient.get<{ data: CommercialPolicy }>("/billing/policy", {
+      timeout: 60000,
+    });
+    return res.data?.data ?? FALLBACK_POLICY;
+  } catch {
+    return FALLBACK_POLICY;
+  }
+}
+
+/** "{n}-day {Plan} trial" from a live policy. */
+export const policyTrialLabel = (p: CommercialPolicy): string =>
+  `${p.trial_days}-day ${p.plan_name} trial`;
+
+/** "KES 1,499/month" from a live policy. */
+export const policyPriceLabel = (p: CommercialPolicy): string =>
+  `${p.currency} ${p.monthly_price.toLocaleString()}/${p.billing_period}`;

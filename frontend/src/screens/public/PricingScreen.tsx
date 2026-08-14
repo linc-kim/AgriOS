@@ -19,7 +19,7 @@ import {
   fetchPublicPlans, FALLBACK_PLANS, RECOMMENDED_PLAN,
   limit, countLabel, historyLabel, priceDisplay, type PublicPlan,
 } from "@/lib/pricing";
-import { TRIAL_DAYS, PREMIUM_PLAN_LABEL } from "@/lib/policy";
+import { TRIAL_DAYS, PREMIUM_PLAN_LABEL, fetchCommercialPolicy, FALLBACK_POLICY } from "@/lib/policy";
 
 function planTagline(name: string): string {
   return (
@@ -107,14 +107,19 @@ export default function PricingScreen() {
   });
 
   const [plans, setPlans] = useState<PublicPlan[]>(FALLBACK_PLANS);
+  const [policy, setPolicy] = useState(FALLBACK_POLICY);
   const [open, setOpen] = useState<number | null>(0);
 
-  // Seed with the accurate fallback, then reconcile with the live catalogue.
+  // Seed with the accurate fallback, then reconcile with the live catalogue and
+  // the authoritative commercial policy (backend is the source of truth).
   useEffect(() => {
     let active = true;
     fetchPublicPlans()
       .then((live) => { if (active) setPlans(live); })
       .catch(() => { /* keep the fallback — numbers still correct */ });
+    fetchCommercialPolicy()
+      .then((live) => { if (active) setPolicy(live); })
+      .catch(() => { /* keep the fallback policy */ });
     return () => { active = false; };
   }, []);
 
@@ -132,8 +137,8 @@ export default function PricingScreen() {
                 Priced for a farm, not an enterprise
               </Heading>
               <Lead className="mx-auto mt-6">
-                Start on the free plan, or try everything with a {TRIAL_DAYS}-day{" "}
-                {PREMIUM_PLAN_LABEL} trial. Prices in Kenyan Shillings, billed
+                Start on the free plan, or try everything with a {policy.trial_days}-day{" "}
+                {policy.plan_name} trial. Prices in Kenyan Shillings, billed
                 securely through Paystack.
               </Lead>
             </Reveal>
@@ -184,7 +189,7 @@ export default function PricingScreen() {
             })}
           </Stagger>
           <p className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
-            New organizations get a {TRIAL_DAYS}-day {PREMIUM_PLAN_LABEL} trial.
+            New organizations get a {policy.trial_days}-day {policy.plan_name} trial.
             Limits shown are what the application actually enforces.
           </p>
         </Container>

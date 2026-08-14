@@ -13,6 +13,7 @@ from app.dependencies import CurrentUser, DBSession
 from app.exceptions import ForbiddenException
 from app.schemas.base import SuccessResponse
 from app.schemas.billing import (
+    CommercialPolicyOut,
     InitializePaymentIn,
     InitializePaymentOut,
     PaymentStatusOut,
@@ -66,6 +67,36 @@ async def list_plans(db: DBSession, current_user: CurrentUser) -> SuccessRespons
         for p in plans
     ]
     return SuccessResponse(data=data)
+
+
+@router.get(
+    "/policy",
+    response_model=SuccessResponse[CommercialPolicyOut],
+    status_code=status.HTTP_200_OK,
+    summary="Authoritative commercial policy (trial length + Premium price) — public",
+)
+async def commercial_policy(db: DBSession) -> SuccessResponse[CommercialPolicyOut]:
+    """The single source of truth for the commercial policy.
+
+    Trial length comes from ``trial_service.TRIAL_DAYS``; the plan name and price
+    come from the Premium (``pro``) row in ``subscription_plans``; the billing
+    period from ``billing_service.BILLING_PERIOD_DAYS``. Frontends read this
+    rather than hardcoding business rules.
+    """
+    from app.services.billing_service import BILLING_PERIOD_DAYS
+    from app.services.farm_service import get_plan_by_name
+    from app.services.trial_service import TRIAL_DAYS, TRIAL_PLAN
+
+    plan = await get_plan_by_name(db, TRIAL_PLAN)
+    return SuccessResponse(
+        data=CommercialPolicyOut(
+            trial_days=TRIAL_DAYS,
+            plan_name=plan.display_name,
+            monthly_price=plan.price_kes,
+            currency="KES",
+            billing_period="month" if BILLING_PERIOD_DAYS == 30 else f"{BILLING_PERIOD_DAYS}d",
+        )
+    )
 
 
 @router.get(
