@@ -731,6 +731,11 @@ class AuthService:
             new_value={"sessions_revoked": revoked},
         )
         await db.commit()
+
+        # Security notice to the account owner — surfaces an unexpected change.
+        if user.email:
+            await email_service.send_password_changed_email(user.email, user.full_name or "")
+
         return user
 
 
