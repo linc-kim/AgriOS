@@ -464,19 +464,19 @@ class AuthService:
             user_agent=user_agent,
         )
 
-        # Welcome + a verification link. We ALWAYS send the verification email so
-        # a new user can confirm their address; REQUIRE_EMAIL_VERIFICATION only
-        # controls whether an *unverified* user is blocked from logging in (it is
-        # not, by default). Both are best-effort: email_service never raises, so an
-        # unreachable mail server cannot fail an account creation that succeeded.
+        # Welcome, plus a verification link when verification is required. Sent in
+        # the BACKGROUND (email_service.fire) so a slow or blocked mail host can
+        # never delay or fail an account creation that already succeeded — this is
+        # what previously pushed signup past the client timeout.
         from app.services import email_service
 
-        raw = await self.issue_email_token(db, user, "verify_email", ip=ip)
-        await db.flush()
-        await email_service.send_verification_email(
-            user.email, user.full_name or "", raw
-        )
-        await email_service.send_welcome_email(user.email, user.full_name or "")
+        if settings.REQUIRE_EMAIL_VERIFICATION:
+            raw = await self.issue_email_token(db, user, "verify_email", ip=ip)
+            await db.flush()
+            email_service.fire(
+                email_service.send_verification_email(user.email, user.full_name or "", raw)
+            )
+        email_service.fire(email_service.send_welcome_email(user.email, user.full_name or ""))
 
         return user, access, raw_refresh, expiry
 
@@ -701,8 +701,10 @@ class AuthService:
             ip_address=ip,
         )
         await db.commit()
-        await email_service.send_password_reset_email(
-            user.email, user.full_name or "", raw
+        # Background send — the endpoint responds immediately regardless of the
+        # mail host, and stays enumeration-safe (same latency either way).
+        email_service.fire(
+            email_service.send_password_reset_email(user.email, user.full_name or "", raw)
         )
 
     async def reset_password(
@@ -734,8 +736,13 @@ class AuthService:
         await db.commit()
 
         # Security notice to the account owner — surfaces an unexpected change.
+        # Background send so the reset response is never delayed by the mail host.
+        from app.services import email_service
+
         if user.email:
-            await email_service.send_password_changed_email(user.email, user.full_name or "")
+            email_service.fire(
+                email_service.send_password_changed_email(user.email, user.full_name or "")
+            )
 
         return user
 

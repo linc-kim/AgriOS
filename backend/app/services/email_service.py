@@ -123,6 +123,26 @@ async def send_email(to: str, subject: str, html: str, text: str) -> bool:
     return await provider.send(to, subject, html, text)
 
 
+# Background sending. Auth flows must NOT await email — an SMTP send can take
+# seconds (or, where a host blocks outbound SMTP, the full timeout), and a signup
+# or reset must never be delayed or failed by it. `fire()` schedules the coroutine
+# on the running loop and returns immediately; a reference is held so the task is
+# not garbage-collected before it runs.
+_bg_tasks: set = set()
+
+
+def fire(coro) -> None:
+    """Run an email coroutine in the background. Never blocks or raises."""
+    try:
+        task = asyncio.create_task(coro)
+        _bg_tasks.add(task)
+        task.add_done_callback(_bg_tasks.discard)
+    except RuntimeError:
+        # No running event loop (e.g. a sync context / test) — close the coroutine
+        # so it doesn't warn, and skip. The caller's flow is unaffected.
+        coro.close()
+
+
 # ── Branded templates ─────────────────────────────────────────────────────────
 #
 # Inline styles only (Gmail and others strip <style> blocks). Table-based layout
