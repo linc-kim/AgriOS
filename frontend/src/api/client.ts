@@ -19,7 +19,12 @@ export const apiClient = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 30000,              // 30s default; AI endpoints get their own timeout
+  // 90s so the FIRST request after the backend idles can survive a Render
+  // free-tier cold start (measured ~60-67s). At 30s the first signup/login after
+  // idle aborted with no response and surfaced as a generic "Something went
+  // wrong" with the request shown only as "canceled". Drop back toward 30s once
+  // the API is on an always-warm (paid) plan. AI endpoints set their own timeout.
+  timeout: 90000,
 });
 
 // ── Request Interceptor — Inject Bearer Token ──────────────────────────────

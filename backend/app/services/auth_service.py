@@ -464,17 +464,18 @@ class AuthService:
             user_agent=user_agent,
         )
 
-        # Welcome, plus a verification link when verification is required.
-        # Both are best-effort: email_service never raises, so an unreachable
-        # mail server cannot fail an account creation that already succeeded.
+        # Welcome + a verification link. We ALWAYS send the verification email so
+        # a new user can confirm their address; REQUIRE_EMAIL_VERIFICATION only
+        # controls whether an *unverified* user is blocked from logging in (it is
+        # not, by default). Both are best-effort: email_service never raises, so an
+        # unreachable mail server cannot fail an account creation that succeeded.
         from app.services import email_service
 
-        if settings.REQUIRE_EMAIL_VERIFICATION:
-            raw = await self.issue_email_token(db, user, "verify_email", ip=ip)
-            await db.flush()
-            await email_service.send_verification_email(
-                user.email, user.full_name or "", raw
-            )
+        raw = await self.issue_email_token(db, user, "verify_email", ip=ip)
+        await db.flush()
+        await email_service.send_verification_email(
+            user.email, user.full_name or "", raw
+        )
         await email_service.send_welcome_email(user.email, user.full_name or "")
 
         return user, access, raw_refresh, expiry
